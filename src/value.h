@@ -22,10 +22,16 @@ struct Value {
     } as;
 };
 
-#define INT_VAL(val)    ((Value){ VALUE_INT, { .integer = (val) } })
-#define BOOL_VAL(val)   ((Value){ VALUE_BOOL, { .boolean = (val) } })
-#define CHAR_VAL(val)   ((Value){ VALUE_CHAR, { .character = (val) } })
-#define OBJ_VAL(val)    ((Value){ VALUE_OBJ, { .object = (val) } })
+struct ValueList {
+    struct Value *ptr;
+    u32 len;
+    u32 cap;
+};
+
+#define INT_VAL(val)    ((struct Value){ VALUE_INT, { .integer = (val) } })
+#define BOOL_VAL(val)   ((struct Value){ VALUE_BOOL, { .boolean = (val) } })
+#define CHAR_VAL(val)   ((struct Value){ VALUE_CHAR, { .character = (val) } })
+#define OBJ_VAL(val)    ((struct Value){ VALUE_OBJ, { .object = (val) } })
 
 #define IS_INT(val)     ((val).type == VALUE_INT)
 #define IS_BOOL(val)    ((val).type == VALUE_BOOL)

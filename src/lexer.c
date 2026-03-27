@@ -141,6 +141,13 @@ static enum TokenType identifier_type()
             return check_keyword("fun", 3) ? TOKEN_FUN
                  : check_keyword("false", 5) ? TOKEN_FALSE
                  : TOKEN_IDENT;
+        case 'a':
+            return check_keyword("and", 3) ? TOKEN_AND : TOKEN_IDENT;
+        case 'o':
+            return check_keyword("or", 2) ? TOKEN_OR : TOKEN_IDENT;
+        case 'n':
+            return check_keyword("not", 3) ? TOKEN_NOT : TOKEN_IDENT;
+
         default:
             return TOKEN_IDENT;
     }

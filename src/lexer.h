@@ -35,6 +35,10 @@ enum TokenType {
 	TOKEN_LESS_EQ,
 	TOKEN_COLON,
 
+    TOKEN_AND,
+    TOKEN_OR,
+    TOKEN_NOT,
+
 	TOKEN_UNIT,
 	TOKEN_NUM,
 	TOKEN_CHAR,
@@ -114,6 +118,12 @@ static const char *token_type_name(enum TokenType type)
             return "TOKEN_LESS_EQ";
         case TOKEN_COLON:
             return "TOKEN_COLON";
+        case TOKEN_AND:
+            return "TOKEN_AND";
+        case TOKEN_OR:
+            return "TOKEN_OR";
+        case TOKEN_NOT:
+            return "TOKEN_NOT";
         case TOKEN_UNIT:
             return "TOKEN_UNIT";
         case TOKEN_NUM:
