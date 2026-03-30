@@ -38,3 +38,17 @@ struct AstNode *alloc_ast_node(usize size)
     return (struct AstNode*)new_ptr;
 }
 
+static const char *NODE_NAME[] = {
+    [AST_LITERAL]     = "AST_LITERAL",
+    [AST_APPLICATION] = "AST_APPLICATION",
+    [AST_BIN_OP]      = "AST_BIN_OP",
+    [AST_UNARY_OP]    = "AST_UNARY_OP",
+    [AST_DECLARATION] = "AST_DECLARATION",
+    [AST_IDENTIFIER]  = "AST_IDENTIFIER",
+    [AST_BINDING]     = "AST_BINDING",
+};
+
+const char *ast_node_name(struct AstNode *node)
+{
+    return NODE_NAME[node->kind];
+}

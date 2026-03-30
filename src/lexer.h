@@ -4,57 +4,58 @@
 #include "prelude.h"
 
 enum TokenType {
-	TOKEN_EQ,
-	TOKEN_L_PAREN,
-	TOKEN_R_PAREN,
-	TOKEN_L_BRACE,
-	TOKEN_R_BRACE,
-	TOKEN_L_BRACKET,
-	TOKEN_R_BRACKET,
-	TOKEN_SEMICOLON,
+    TOKEN_EQ,
+    TOKEN_L_PAREN,
+    TOKEN_R_PAREN,
+    TOKEN_L_BRACE,
+    TOKEN_R_BRACE,
+    TOKEN_L_BRACKET,
+    TOKEN_R_BRACKET,
+    TOKEN_SEMICOLON,
 
-	TOKEN_IDENT,
+    TOKEN_IDENT,
 
-	TOKEN_ARROW,
-	TOKEN_WIDE_ARROW,
-	TOKEN_FUN,
-	TOKEN_LET,
-	TOKEN_IN,
-	TOKEN_IF,
-	TOKEN_THEN,
-	TOKEN_ELSE,
+    TOKEN_ARROW,
+    TOKEN_WIDE_ARROW,
+    TOKEN_FUN,
+    TOKEN_LET,
+    TOKEN_IN,
+    TOKEN_IF,
+    TOKEN_THEN,
+    TOKEN_ELSE,
 
-	TOKEN_ADD,
-	TOKEN_SUB,
-	TOKEN_MUL,
-	TOKEN_DIV,
-	TOKEN_EQUAL,
-	TOKEN_GREATER,
-	TOKEN_GREATER_EQ,
-	TOKEN_LESS,
-	TOKEN_LESS_EQ,
-	TOKEN_COLON,
+    TOKEN_ADD,
+    TOKEN_SUB,
+    TOKEN_MUL,
+    TOKEN_DIV,
+    TOKEN_EQUAL,
+    TOKEN_GREATER,
+    TOKEN_GREATER_EQ,
+    TOKEN_LESS,
+    TOKEN_LESS_EQ,
+    TOKEN_COLON,
+    TOKEN_DOUBLE_COLON,
 
     TOKEN_AND,
     TOKEN_OR,
     TOKEN_NOT,
 
-	TOKEN_UNIT,
-	TOKEN_NUM,
-	TOKEN_CHAR,
+    TOKEN_UNIT,
+    TOKEN_NUM,
+    TOKEN_CHAR,
 
-	TOKEN_TRUE,
-	TOKEN_FALSE,
+    TOKEN_TRUE,
+    TOKEN_FALSE,
 
-	TOKEN_EOF,
-	TOKEN_ERROR,
+    TOKEN_EOF,
+    TOKEN_ERROR,
 };
 
 struct Token {
-	const char *start;
-	u32 len;
-	u32 line;
-	enum TokenType type;
+    const char *start;
+    u32 len;
+    u32 line;
+    enum TokenType type;
 };
 
 void init_lexer(const char *src);
@@ -118,6 +119,8 @@ static const char *token_type_name(enum TokenType type)
             return "TOKEN_LESS_EQ";
         case TOKEN_COLON:
             return "TOKEN_COLON";
+        case TOKEN_DOUBLE_COLON:
+            return "TOKEN_DOUBLE_COLON";
         case TOKEN_AND:
             return "TOKEN_AND";
         case TOKEN_OR:

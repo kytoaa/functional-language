@@ -3,10 +3,10 @@
 #define EOF_CHAR ('\0')
 
 struct Lexer {
-	const char *src;
-	const char *token_start;
-	const char *current;
-	u32 line;
+    const char *src;
+    const char *token_start;
+    const char *current;
+    u32 line;
 };
 
 static struct Lexer lexer = {};
@@ -206,14 +206,14 @@ struct Token next_token()
             return make_token(match(')') ? TOKEN_UNIT : TOKEN_L_PAREN);
         case ')':
             return make_token(TOKEN_R_PAREN);
-		case '[':
-			return make_token(TOKEN_L_BRACKET);
-		case ']':
-			return make_token(TOKEN_R_BRACKET);
-		case '{':
-			return make_token(TOKEN_L_BRACE);
-		case '}':
-			return make_token(TOKEN_R_BRACE);
+        case '[':
+            return make_token(TOKEN_L_BRACKET);
+        case ']':
+            return make_token(TOKEN_R_BRACKET);
+        case '{':
+            return make_token(TOKEN_L_BRACE);
+        case '}':
+            return make_token(TOKEN_R_BRACE);
 
         case ';':
             return make_token(TOKEN_SEMICOLON);
@@ -237,7 +237,7 @@ struct Token next_token()
             return make_token(TOKEN_DIV);
 
         case ':':
-            return make_token(TOKEN_COLON);
+            return make_token(match(':') ? TOKEN_DOUBLE_COLON : TOKEN_COLON);
 
         case '\'':
             return char_token();

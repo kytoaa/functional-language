@@ -2,6 +2,8 @@
 #include <stdlib.h>
 
 #include "lexer.h"
+#include "parsing/debug.h"
+#include "parsing/parser.h"
 
 int main(int argc, const char *argv[])
 {
@@ -21,7 +23,11 @@ int main(int argc, const char *argv[])
 
 		printf("%s @ %d, %d :: %.*s\n", token_type_name(current.type), current.line, current.len, current.len, current.start);
 		if (current.type == TOKEN_EOF) {
-			exit(EXIT_SUCCESS);
+            break;
 		}
 	}
+
+    struct AstNode *node = build_ast(argv[1]);
+    print_ast(node);
+    printf("\n");
 }
