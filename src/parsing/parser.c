@@ -45,11 +45,14 @@ static struct AstNode *binary(enum Precedence precedence, struct AstNode *lhs);
 static struct AstNode *application(enum Precedence precedence, struct AstNode *lhs);
 static struct AstNode *grouping();
 static struct AstNode *bracket();
+static struct AstNode *unary();
 
 static struct AstNode *identifier();
 static struct AstNode *number();
 static struct AstNode *boolean();
 static struct AstNode *unit();
+
+static struct AstNode *lambda();
 
 static struct AstNode *if_expr();
 
@@ -78,7 +81,7 @@ static struct ParseRule rules[] = {
     [TOKEN_ARROW]        = { null, null, PREC_NONE },
     [TOKEN_WIDE_ARROW]   = { null, null, PREC_NONE },
 
-    [TOKEN_FUN]          = { null, null, PREC_NONE },
+    [TOKEN_FUN]          = { lambda, null, PREC_NONE },
 
     [TOKEN_LET]          = { null, null, PREC_NONE },
     [TOKEN_IN]           = { null, null, PREC_NONE },
@@ -88,7 +91,7 @@ static struct ParseRule rules[] = {
     [TOKEN_ELSE]         = { null, null, PREC_NONE },
 
     [TOKEN_ADD]          = { null, binary, PREC_TERM },
-    [TOKEN_SUB]          = { null, binary, PREC_TERM },
+    [TOKEN_SUB]          = { unary, binary, PREC_TERM },
     [TOKEN_MUL]          = { null, binary, PREC_FACTOR },
     [TOKEN_DIV]          = { null, binary, PREC_FACTOR },
 
@@ -103,7 +106,7 @@ static struct ParseRule rules[] = {
 
     [TOKEN_AND]          = { null, null, PREC_NONE },
     [TOKEN_OR]           = { null, null, PREC_NONE },
-    [TOKEN_NOT]          = { null, null, PREC_NONE },
+    [TOKEN_NOT]          = { unary, null, PREC_NONE },
 
     [TOKEN_UNIT]         = { unit, null, PREC_NONE },
     [TOKEN_NUM]          = { number, null, PREC_NONE },
@@ -125,7 +128,7 @@ static struct ParseRule *get_rule(enum TokenType type)
 
 static struct AstNode *grouping()
 {
-    struct AstNode *node = expr(PREC_NONE);
+    struct AstNode *node = expr(PREC_EXPR);
     consume(TOKEN_R_PAREN, "expected ')'");
     return node;
 }
@@ -143,6 +146,31 @@ static struct AstNode *bracket()
         return (struct AstNode*)empty_list;
     }
     return null;
+}
+static struct AstNode *unary()
+{
+    enum TokenType op_type = parser.prev.type;
+    enum AstUnaryOp op;
+    switch (op_type) {
+        case TOKEN_SUB:
+            op = AST_UN_OP_NEG;
+            break;
+        case TOKEN_NOT:
+            op = AST_UN_OP_NOT;
+            break;
+        default:
+            // error
+            break;
+    }
+
+    struct UnaryOpNode *node = ALLOC_NODE(struct UnaryOpNode);
+    *node = (struct UnaryOpNode){
+        .node = { AST_UNARY_OP },
+        .op = op,
+        .val = expr(PREC_UNARY),
+    };
+
+    return (struct AstNode*)node;
 }
 
 static struct AstNode *binary(enum Precedence precedence, struct AstNode *lhs)
@@ -166,9 +194,12 @@ static struct AstNode *binary(enum Precedence precedence, struct AstNode *lhs)
             break;
         case TOKEN_DOUBLE_COLON:
             op = AST_BIN_OP_CONS;
+            // subtract to make it right associative
+            // a :: b :: c = a :: (b :: c)
             precedence -= 1;
             break;
         default:
+            // error
             break;
     };
 
@@ -256,6 +287,55 @@ static struct AstNode *unit()
     *node = (struct LiteralNode){
         .node = { AST_LITERAL },
         .type = LITERAL_TYPE_UNIT,
+    };
+
+    return (struct AstNode*)node;
+}
+
+static struct AstNode *lambda()
+{
+    struct LambdaNode *node = ALLOC_NODE(struct LambdaNode);
+
+    struct FunctionBindingNode *binding = null;
+
+    while (parser.current.type != TOKEN_ARROW) {
+        advance();
+        if (parser.prev.type != TOKEN_IDENT) {
+            // error
+            return null;
+        }
+        struct FunctionBindingNode *next_binding = ALLOC_NODE(struct FunctionBindingNode);
+        *next_binding = (struct FunctionBindingNode){
+            .node = { AST_FUNCTION_BINDING },
+            .next_binding = binding,
+            .src_loc = parser.prev.start,
+            .len = parser.prev.len,
+        };
+        binding = next_binding;
+    }
+
+    if (binding != null) {
+        struct FunctionBindingNode *prev = null;
+        struct FunctionBindingNode *current = binding;
+        struct FunctionBindingNode *next_binding;
+
+        while (current != null) {
+            next_binding = current->next_binding;
+            current->next_binding = prev;
+            prev = current;
+            current = next_binding;
+        }
+        binding = prev;
+    }
+
+    consume(TOKEN_ARROW, "expected '->'");
+
+    struct AstNode *body = expr(PREC_EXPR);
+
+    *node = (struct LambdaNode){
+        .node = { AST_LAMBDA },
+        .bindings = binding,
+        .body = body,
     };
 
     return (struct AstNode*)node;

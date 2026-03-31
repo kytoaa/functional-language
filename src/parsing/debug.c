@@ -56,6 +56,20 @@ static void print_binary_op(struct BinOpNode *node)
 	print_node(node->r);
 	printf(")");
 }
+static void print_unary_op(struct UnaryOpNode *node)
+{
+    printf("(");
+    switch (node->op) {
+        case AST_UN_OP_NEG:
+            printf("-");
+            break;
+        case AST_UN_OP_NOT:
+            printf("not ");
+            break;
+    }
+    print_node(node->val);
+    printf(")");
+}
 static void print_identifier(struct IdentifierNode *node)
 {
 	printf("%.*s", node->len, node->src_loc);
@@ -71,6 +85,20 @@ static void print_if_expr(struct IfExprNode *node)
     printf(")");
 }
 
+static void print_lambda(struct LambdaNode *node)
+{
+    printf("(fun ");
+
+    struct FunctionBindingNode *binding = node->bindings;
+    while (binding != null) {
+        printf("%.*s ", binding->len, binding->src_loc);
+        binding = binding->next_binding;
+    }
+    printf("-> ");
+    print_node(node->body);
+    printf(")");
+}
+
 static void print_node(struct AstNode *node)
 {
 	switch (node->kind) {
@@ -83,6 +111,9 @@ static void print_node(struct AstNode *node)
 		case AST_BIN_OP:
 			print_binary_op((struct BinOpNode*)node);
 			break;
+        case AST_UNARY_OP:
+            print_unary_op((struct UnaryOpNode*)node);
+            break;
 
 		case AST_IDENTIFIER:
 			print_identifier((struct IdentifierNode*)node);
@@ -90,6 +121,10 @@ static void print_node(struct AstNode *node)
 
         case AST_IF_EXPR:
             print_if_expr((struct IfExprNode*)node);
+            break;
+
+        case AST_LAMBDA:
+            print_lambda((struct LambdaNode*)node);
             break;
 	}
 }

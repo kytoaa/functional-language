@@ -39,16 +39,26 @@ struct AstNode *alloc_ast_node(usize size)
 }
 
 static const char *NODE_NAME[] = {
-    [AST_LITERAL]     = "AST_LITERAL",
-    [AST_APPLICATION] = "AST_APPLICATION",
-    [AST_BIN_OP]      = "AST_BIN_OP",
-    [AST_UNARY_OP]    = "AST_UNARY_OP",
-    [AST_DECLARATION] = "AST_DECLARATION",
-    [AST_IDENTIFIER]  = "AST_IDENTIFIER",
-    [AST_BINDING]     = "AST_BINDING",
+    [AST_LITERAL]          = "AST_LITERAL",
+    [AST_APPLICATION]      = "AST_APPLICATION",
+    [AST_BIN_OP]           = "AST_BIN_OP",
+    [AST_UNARY_OP]         = "AST_UNARY_OP",
+    [AST_DECLARATION]      = "AST_DECLARATION",
+    [AST_IDENTIFIER]       = "AST_IDENTIFIER",
+    [AST_BINDING]          = "AST_BINDING",
+    [AST_IF_EXPR]          = "AST_IF_EXPR",
+    [AST_LAMBDA]           = "AST_LAMBDA",
+    [AST_FUNCTION_BINDING] = "AST_FUNCTION_BINDING",
 };
 
 const char *ast_node_name(struct AstNode *node)
 {
     return NODE_NAME[node->kind];
+}
+
+void free_ast()
+{
+    free_ast_allocators();
+    allocator.top = allocator.mem + AST_ALLOC_SIZE;
+    allocator.next = null;
 }

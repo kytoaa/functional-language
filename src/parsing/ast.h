@@ -16,6 +16,8 @@ enum NodeKind {
     AST_IDENTIFIER,
     AST_BINDING,
     AST_IF_EXPR,
+    AST_LAMBDA,
+    AST_FUNCTION_BINDING,
 };
 
 struct AstNode {
@@ -32,5 +34,7 @@ struct AstAllocator {
 struct AstNode *alloc_ast_node(usize size);
 
 const char *ast_node_name(struct AstNode *node);
+
+void free_ast();
 
 #endif

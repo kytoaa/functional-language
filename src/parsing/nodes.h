@@ -32,6 +32,7 @@ struct BinOpNode {
 
 enum AstUnaryOp {
     AST_UN_OP_NEG,
+    AST_UN_OP_NOT,
 };
 
 struct UnaryOpNode {
@@ -69,6 +70,18 @@ struct IfExprNode {
     struct AstNode *condition;
     struct AstNode *then_expr;
     struct AstNode *else_expr;
+};
+struct FunctionBindingNode {
+    struct AstNode node;
+    const char *src_loc;
+    u32 len;
+    struct FunctionBindingNode *next_binding;
+};
+
+struct LambdaNode {
+    struct AstNode node;
+    struct FunctionBindingNode *bindings;
+    struct AstNode *body;
 };
 
 #endif
