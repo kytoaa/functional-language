@@ -49,6 +49,27 @@ static void print_binary_op(struct BinOpNode *node)
 		case AST_BIN_OP_DIV:
 			printf(" / ");
 			break;
+		case AST_BIN_OP_EQUAL:
+			printf(" == ");
+			break;
+		case AST_BIN_OP_LESS:
+			printf(" < ");
+			break;
+		case AST_BIN_OP_LESS_EQ:
+			printf(" <= ");
+			break;
+		case AST_BIN_OP_GREATER:
+			printf(" > ");
+			break;
+		case AST_BIN_OP_GREATER_EQ:
+			printf(" >= ");
+			break;
+		case AST_BIN_OP_AND:
+			printf(" and ");
+			break;
+		case AST_BIN_OP_OR:
+			printf(" or ");
+			break;
 		case AST_BIN_OP_CONS:
 			printf(" :: ");
 			break;
@@ -74,6 +95,35 @@ static void print_identifier(struct IdentifierNode *node)
 {
 	printf("%.*s", node->len, node->src_loc);
 }
+
+static void print_bindings(struct FunctionBindingNode *node)
+{
+    while (node != null) {
+        printf("%.*s ", node->len, node->src_loc);
+        node = node->next_binding;
+    }
+}
+
+static void print_lambda(struct LambdaNode *node)
+{
+    printf("(fun ");
+
+    print_bindings(node->bindings);
+
+    printf("-> ");
+    print_node(node->body);
+    printf(")");
+}
+static void print_declaration(struct DeclarationNode *node)
+{
+    printf("%.*s ", node->name_len, node->name);
+    print_bindings(node->bindings);
+
+    printf("= ");
+    print_node(node->body);
+    printf(";\n");
+}
+
 static void print_if_expr(struct IfExprNode *node)
 {
     printf("(if ");
@@ -84,24 +134,25 @@ static void print_if_expr(struct IfExprNode *node)
     print_node(node->else_expr);
     printf(")");
 }
-
-static void print_lambda(struct LambdaNode *node)
+static void print_let_expr(struct LetExprNode *node)
 {
-    printf("(fun ");
-
-    struct FunctionBindingNode *binding = node->bindings;
-    while (binding != null) {
-        printf("%.*s ", binding->len, binding->src_loc);
-        binding = binding->next_binding;
+    printf("let\n");
+    struct DeclarationNode *decl = (struct DeclarationNode*)node->first_decl;
+    while (decl != null) {
+        printf("\t");
+        print_declaration(decl);
+        decl = decl->next_declaration;
     }
-    printf("-> ");
+    printf("\t in ");
     print_node(node->body);
-    printf(")");
 }
 
 static void print_node(struct AstNode *node)
 {
-	switch (node->kind) {
+    if (node == null)
+        return;
+
+    switch (node->kind) {
 		case AST_LITERAL:
 			print_literal((struct LiteralNode*)node);
 			break;
@@ -122,9 +173,21 @@ static void print_node(struct AstNode *node)
         case AST_IF_EXPR:
             print_if_expr((struct IfExprNode*)node);
             break;
+        case AST_LET_EXPR:
+            print_let_expr((struct LetExprNode*)node);
+            break;
 
         case AST_LAMBDA:
             print_lambda((struct LambdaNode*)node);
+            break;
+
+        case AST_DECLARATION:
+            print_declaration((struct DeclarationNode*)node);
+            break;
+
+        case AST_BINDING:
+        case AST_FUNCTION_BINDING:
+            printf("error, encountered %s", ast_node_name(node));
             break;
 	}
 }

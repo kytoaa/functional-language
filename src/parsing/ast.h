@@ -5,7 +5,7 @@
 
 #define AST_ALLOC_SIZE 1024
 
-#define ALLOC_NODE(T) ((T*)alloc_ast_node(sizeof(T)))
+#define ALLOC_NODE(T) ((T*)ast_alloc(sizeof(T)))
 
 enum NodeKind {
     AST_LITERAL,
@@ -16,6 +16,7 @@ enum NodeKind {
     AST_IDENTIFIER,
     AST_BINDING,
     AST_IF_EXPR,
+    AST_LET_EXPR,
     AST_LAMBDA,
     AST_FUNCTION_BINDING,
 };
@@ -31,10 +32,12 @@ struct AstAllocator {
     u8 mem[AST_ALLOC_SIZE];
 };
 
-struct AstNode *alloc_ast_node(usize size);
+void *ast_alloc(usize size);
 
 const char *ast_node_name(struct AstNode *node);
 
 void free_ast();
+
+#define AS_NODE(node) ((struct AstNode*)(node))
 
 #endif

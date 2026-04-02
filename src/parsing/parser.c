@@ -1,3 +1,4 @@
+#include "parser.h"
 #include "ast.h"
 #include "nodes.h"
 #include "../lexer.h"
@@ -5,6 +6,8 @@
 struct Parser {
     struct Token prev;
     struct Token current;
+    bool has_error;
+    struct ParseError err;
 };
 
 static struct Parser parser = {};
@@ -14,6 +17,15 @@ static void advance()
     parser.prev = parser.current;
     parser.current = next_token();
 }
+static void error(struct Token token, const char *msg)
+{
+    if (parser.has_error)
+        return;
+
+    parser.has_error = true;
+    parser.err.token = token;
+    parser.err.msg = msg;
+}
 
 static void consume(enum TokenType type, const char *error_msg)
 {
@@ -21,7 +33,25 @@ static void consume(enum TokenType type, const char *error_msg)
         advance();
         return;
     }
-    // TODO: error
+    error(parser.current.type == TOKEN_EOF ? parser.prev : parser.current, error_msg);
+}
+
+static void *reverse_linked_list(void *first, void **(*get_next)(void*))
+{
+    if (first != null) {
+        void *prev = null;
+        void *current = first;
+        void *next;
+
+        while (current != null) {
+            next = *get_next(current);
+            *get_next(current) = prev;
+            prev = current;
+            current = next;
+        }
+        return prev;
+    }
+    return null;
 }
 
 enum Precedence {
@@ -39,6 +69,7 @@ enum Precedence {
     PREC_PRIMARY,
 };
 
+static struct AstNode *declaration();
 static struct AstNode *expr(enum Precedence precedence);
 
 static struct AstNode *binary(enum Precedence precedence, struct AstNode *lhs);
@@ -55,6 +86,13 @@ static struct AstNode *unit();
 static struct AstNode *lambda();
 
 static struct AstNode *if_expr();
+static struct AstNode *let_expr();
+
+static struct AstNode *error_token()
+{
+    error(parser.prev, "encountered error token");
+    return null;
+}
 
 typedef struct AstNode* (*InfixParseFn)(enum Precedence, struct AstNode*);
 typedef struct AstNode* (*PrefixParseFn)();
@@ -83,7 +121,7 @@ static struct ParseRule rules[] = {
 
     [TOKEN_FUN]          = { lambda, null, PREC_NONE },
 
-    [TOKEN_LET]          = { null, null, PREC_NONE },
+    [TOKEN_LET]          = { let_expr, null, PREC_NONE },
     [TOKEN_IN]           = { null, null, PREC_NONE },
 
     [TOKEN_IF]           = { if_expr, null, PREC_NONE },
@@ -95,18 +133,18 @@ static struct ParseRule rules[] = {
     [TOKEN_MUL]          = { null, binary, PREC_FACTOR },
     [TOKEN_DIV]          = { null, binary, PREC_FACTOR },
 
-    [TOKEN_EQUAL]        = { null, null, PREC_COMPARISON },
-    [TOKEN_GREATER]      = { null, null, PREC_COMPARISON },
-    [TOKEN_GREATER_EQ]   = { null, null, PREC_COMPARISON },
-    [TOKEN_LESS]         = { null, null, PREC_COMPARISON },
-    [TOKEN_LESS_EQ]      = { null, null, PREC_COMPARISON },
+    [TOKEN_EQUAL]        = { null, binary, PREC_COMPARISON },
+    [TOKEN_GREATER]      = { null, binary, PREC_COMPARISON },
+    [TOKEN_GREATER_EQ]   = { null, binary, PREC_COMPARISON },
+    [TOKEN_LESS]         = { null, binary, PREC_COMPARISON },
+    [TOKEN_LESS_EQ]      = { null, binary, PREC_COMPARISON },
 
     [TOKEN_COLON]        = { null, application, PREC_APPLICATION },
     [TOKEN_DOUBLE_COLON] = { null, binary, PREC_APPLICATION },
 
-    [TOKEN_AND]          = { null, null, PREC_NONE },
-    [TOKEN_OR]           = { null, null, PREC_NONE },
-    [TOKEN_NOT]          = { unary, null, PREC_NONE },
+    [TOKEN_AND]          = { null, binary, PREC_AND },
+    [TOKEN_OR]           = { null, binary, PREC_OR },
+    [TOKEN_NOT]          = { unary, null, PREC_UNARY },
 
     [TOKEN_UNIT]         = { unit, null, PREC_NONE },
     [TOKEN_NUM]          = { number, null, PREC_NONE },
@@ -118,7 +156,7 @@ static struct ParseRule rules[] = {
     [TOKEN_EQ]           = { null, null, PREC_NONE },
 
     [TOKEN_EOF]          = { null, null, PREC_NONE },
-    [TOKEN_ERROR]        = { null, null, PREC_NONE },
+    [TOKEN_ERROR]        = { error_token, null, PREC_NONE },
 };
 
 static struct ParseRule *get_rule(enum TokenType type)
@@ -129,7 +167,7 @@ static struct ParseRule *get_rule(enum TokenType type)
 static struct AstNode *grouping()
 {
     struct AstNode *node = expr(PREC_EXPR);
-    consume(TOKEN_R_PAREN, "expected ')'");
+    consume(TOKEN_R_PAREN, "expected `)`");
     return node;
 }
 static struct AstNode *bracket()
@@ -143,7 +181,7 @@ static struct AstNode *bracket()
         };
         advance();
 
-        return (struct AstNode*)empty_list;
+        return AS_NODE(empty_list);
     }
     return null;
 }
@@ -159,8 +197,8 @@ static struct AstNode *unary()
             op = AST_UN_OP_NOT;
             break;
         default:
-            // error
-            break;
+            error(parser.prev, "unreachable");
+            return null;
     }
 
     struct UnaryOpNode *node = ALLOC_NODE(struct UnaryOpNode);
@@ -170,13 +208,12 @@ static struct AstNode *unary()
         .val = expr(PREC_UNARY),
     };
 
-    return (struct AstNode*)node;
+    return AS_NODE(node);
 }
 
 static struct AstNode *binary(enum Precedence precedence, struct AstNode *lhs)
 {
     enum TokenType op_type = parser.prev.type;
-    struct ParseRule *rule = get_rule(op_type);
 
     enum AstBinaryOp op;
     switch (op_type) {
@@ -198,9 +235,30 @@ static struct AstNode *binary(enum Precedence precedence, struct AstNode *lhs)
             // a :: b :: c = a :: (b :: c)
             precedence -= 1;
             break;
-        default:
-            // error
+        case TOKEN_EQUAL:
+            op = AST_BIN_OP_EQUAL;
             break;
+        case TOKEN_LESS:
+            op = AST_BIN_OP_LESS;
+            break;
+        case TOKEN_LESS_EQ:
+            op = AST_BIN_OP_LESS_EQ;
+            break;
+        case TOKEN_GREATER:
+            op = AST_BIN_OP_GREATER;
+            break;
+        case TOKEN_GREATER_EQ:
+            op = AST_BIN_OP_GREATER_EQ;
+            break;
+        case TOKEN_AND:
+            op = AST_BIN_OP_AND;
+            break;
+        case TOKEN_OR:
+            op = AST_BIN_OP_OR;
+            break;
+        default:
+            error(parser.prev, "unreachable: invalid binary op");
+            return null;
     };
 
     struct BinOpNode *node = ALLOC_NODE(struct BinOpNode);
@@ -212,7 +270,7 @@ static struct AstNode *binary(enum Precedence precedence, struct AstNode *lhs)
         .r = expr(precedence + 1),
     };
 
-    return (struct AstNode*)node;
+    return AS_NODE(node);
 }
 
 static struct AstNode *application(enum Precedence precedence, struct AstNode *lhs)
@@ -225,7 +283,7 @@ static struct AstNode *application(enum Precedence precedence, struct AstNode *l
         .argument = expr(PREC_APPLICATION + 1),
     };
 
-    return (struct AstNode*)node;
+    return AS_NODE(node);
 }
 
 static struct AstNode *identifier()
@@ -238,7 +296,7 @@ static struct AstNode *identifier()
         .len = parser.prev.len,
     };
 
-    return (struct AstNode*)ident;
+    return AS_NODE(ident);
 }
 
 static struct AstNode *number()
@@ -254,7 +312,8 @@ static struct AstNode *number()
         } else if (c == '_') {
             continue;
         } else {
-            // TODO: error
+            error(parser.prev, "unreachable: invalid number");
+            return null;
         }
     }
 
@@ -264,7 +323,7 @@ static struct AstNode *number()
         .as.number = n,
     };
 
-    return (struct AstNode*)num;
+    return AS_NODE(num);
 }
 
 static struct AstNode *boolean()
@@ -277,7 +336,7 @@ static struct AstNode *boolean()
         .as.boolean = *parser.prev.start == 't',
     };
 
-    return (struct AstNode*)node;
+    return AS_NODE(node);
 }
 
 static struct AstNode *unit()
@@ -289,19 +348,22 @@ static struct AstNode *unit()
         .type = LITERAL_TYPE_UNIT,
     };
 
-    return (struct AstNode*)node;
+    return AS_NODE(node);
 }
 
-static struct AstNode *lambda()
+static void **binding_get_next(void *binding)
 {
-    struct LambdaNode *node = ALLOC_NODE(struct LambdaNode);
+    return (void*)&((struct FunctionBindingNode*)binding)->next_binding;
+}
 
+static struct FunctionBindingNode *bindings(enum TokenType end)
+{
     struct FunctionBindingNode *binding = null;
 
-    while (parser.current.type != TOKEN_ARROW) {
+    while (parser.current.type != end) {
         advance();
         if (parser.prev.type != TOKEN_IDENT) {
-            // error
+            error(parser.prev, "bindings must be identifiers");
             return null;
         }
         struct FunctionBindingNode *next_binding = ALLOC_NODE(struct FunctionBindingNode);
@@ -314,21 +376,17 @@ static struct AstNode *lambda()
         binding = next_binding;
     }
 
-    if (binding != null) {
-        struct FunctionBindingNode *prev = null;
-        struct FunctionBindingNode *current = binding;
-        struct FunctionBindingNode *next_binding;
+    binding = reverse_linked_list(binding, binding_get_next);
+    return binding;
+}
 
-        while (current != null) {
-            next_binding = current->next_binding;
-            current->next_binding = prev;
-            prev = current;
-            current = next_binding;
-        }
-        binding = prev;
-    }
+static struct AstNode *lambda()
+{
+    struct LambdaNode *node = ALLOC_NODE(struct LambdaNode);
 
-    consume(TOKEN_ARROW, "expected '->'");
+    struct FunctionBindingNode *binding = bindings(TOKEN_ARROW);
+
+    consume(TOKEN_ARROW, "expected `->`");
 
     struct AstNode *body = expr(PREC_EXPR);
 
@@ -338,7 +396,7 @@ static struct AstNode *lambda()
         .body = body,
     };
 
-    return (struct AstNode*)node;
+    return AS_NODE(node);
 }
 
 static struct AstNode *if_expr()
@@ -346,9 +404,9 @@ static struct AstNode *if_expr()
     struct IfExprNode *node = ALLOC_NODE(struct IfExprNode);
 
     struct AstNode *condition = expr(PREC_EXPR);
-    consume(TOKEN_THEN, "expected 'then'");
+    consume(TOKEN_THEN, "expected `then`");
     struct AstNode *then_expr = expr(PREC_EXPR);
-    consume(TOKEN_ELSE, "expected 'else'");
+    consume(TOKEN_ELSE, "expected `else`");
     struct AstNode *else_expr = expr(PREC_EXPR);
 
     *node = (struct IfExprNode){
@@ -358,7 +416,42 @@ static struct AstNode *if_expr()
         .else_expr = else_expr,
     };
 
-    return (struct AstNode*)node;
+    return AS_NODE(node);
+}
+
+static void **declaration_get_next(void *decl)
+{
+    return (void*)&((struct DeclarationNode*)decl)->next_declaration;
+}
+
+static struct AstNode *let_expr()
+{
+    struct LetExprNode *node = ALLOC_NODE(struct LetExprNode);
+
+    struct DeclarationNode *current_decl = null;
+
+    while (parser.current.type != TOKEN_IN) {
+        struct DeclarationNode *decl = (struct DeclarationNode*)declaration();
+        if (decl != null) {
+            decl->next_declaration = current_decl;
+        }
+        if (parser.has_error)
+            return null;
+        current_decl = decl;
+    }
+
+    current_decl = reverse_linked_list(current_decl, declaration_get_next);
+    consume(TOKEN_IN, "unreachable: expected `in`");
+
+    struct AstNode *body = expr(PREC_EXPR);
+
+    *node = (struct LetExprNode){
+        .node = { AST_LET_EXPR },
+        .first_decl = AS_NODE(current_decl),
+        .body = body,
+    };
+
+    return AS_NODE(node);
 }
 
 static struct AstNode *expr(enum Precedence precedence)
@@ -366,6 +459,7 @@ static struct AstNode *expr(enum Precedence precedence)
     advance();
     PrefixParseFn prefix = get_rule(parser.prev.type)->prefix;
     if (prefix == null) {
+        error(parser.prev, "unexpected token in prefix expression");
         return null;
     }
 
@@ -375,18 +469,59 @@ static struct AstNode *expr(enum Precedence precedence)
         advance();
         struct ParseRule *infix = get_rule(parser.prev.type);
 
+        if (infix == null || infix->infix == null) {
+            error(parser.prev, "unexpected token in infix expression");
+            return null;
+        }
+
         lhs = infix->infix(infix->precedence, lhs);
     }
 
     return lhs;
 }
 
-struct AstNode *build_ast(const char *src)
+static struct AstNode *declaration()
+{
+    if (parser.current.type != TOKEN_IDENT) {
+        error(parser.prev, "expected function declaration");
+        return null;
+    }
+    advance();
+
+    const char *name = parser.prev.start;
+    u32 name_len = parser.prev.len;
+
+    struct DeclarationNode *declaration = ALLOC_NODE(struct DeclarationNode);
+
+    struct FunctionBindingNode *binding = bindings(TOKEN_EQ);
+
+    consume(TOKEN_EQ, "expected `=`");
+
+    *declaration = (struct DeclarationNode){
+        .node = { AST_DECLARATION },
+        .name = name,
+        .name_len = name_len,
+        .bindings = binding,
+        .body = expr(PREC_EXPR),
+    };
+
+    consume(TOKEN_SEMICOLON, "expected `;` after declaration");
+
+    return AS_NODE(declaration);
+}
+
+bool build_ast(const char *src, struct AstNode **out, struct ParseError *err)
 {
     init_lexer(src);
 
     advance();
 
-    return expr(PREC_EXPR);
+    *out = declaration();
+
+    if (parser.has_error) {
+        *err = parser.err;
+        return false;
+    }
+    return true;
 }
 

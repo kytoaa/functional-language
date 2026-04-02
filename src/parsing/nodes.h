@@ -14,11 +14,42 @@ struct ApplicationNode {
     struct AstNode *argument;
 };
 
+struct FunctionBindingNode {
+    struct AstNode node;
+    const char *src_loc;
+    u32 len;
+    struct FunctionBindingNode *next_binding;
+};
+
+struct DeclarationNode {
+    struct AstNode node;
+    const char *name;
+    u32 name_len;
+    struct FunctionBindingNode *bindings;
+    struct AstNode *body;
+    struct DeclarationNode *next_declaration;
+};
+
+struct LambdaNode {
+    struct AstNode node;
+    struct FunctionBindingNode *bindings;
+    struct AstNode *body;
+};
+
 enum AstBinaryOp {
     AST_BIN_OP_ADD,
     AST_BIN_OP_SUB,
     AST_BIN_OP_MUL,
     AST_BIN_OP_DIV,
+
+    AST_BIN_OP_EQUAL,
+    AST_BIN_OP_LESS,
+    AST_BIN_OP_LESS_EQ,
+    AST_BIN_OP_GREATER,
+    AST_BIN_OP_GREATER_EQ,
+
+    AST_BIN_OP_AND,
+    AST_BIN_OP_OR,
 
     AST_BIN_OP_CONS,
 };
@@ -71,16 +102,10 @@ struct IfExprNode {
     struct AstNode *then_expr;
     struct AstNode *else_expr;
 };
-struct FunctionBindingNode {
-    struct AstNode node;
-    const char *src_loc;
-    u32 len;
-    struct FunctionBindingNode *next_binding;
-};
 
-struct LambdaNode {
+struct LetExprNode {
     struct AstNode node;
-    struct FunctionBindingNode *bindings;
+    struct AstNode *first_decl;
     struct AstNode *body;
 };
 

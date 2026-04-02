@@ -26,9 +26,10 @@ static void free_ast_allocators()
         current = next;
     }
 }
-struct AstNode *alloc_ast_node(usize size)
+void *ast_alloc(usize size)
 {
-    u8 *new_ptr = current_allocator->top - size;
+    // align to ptr
+    u8 *new_ptr = (u8*)((u64)(current_allocator->top - size) & -8);
     if (new_ptr < current_allocator->mem) {
         new_ast_allocator();
         new_ptr = current_allocator->top - size;
@@ -47,6 +48,7 @@ static const char *NODE_NAME[] = {
     [AST_IDENTIFIER]       = "AST_IDENTIFIER",
     [AST_BINDING]          = "AST_BINDING",
     [AST_IF_EXPR]          = "AST_IF_EXPR",
+    [AST_LET_EXPR]         = "AST_LET_EXPR",
     [AST_LAMBDA]           = "AST_LAMBDA",
     [AST_FUNCTION_BINDING] = "AST_FUNCTION_BINDING",
 };

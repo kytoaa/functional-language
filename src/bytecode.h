@@ -14,7 +14,6 @@ enum Bytecode {
     OP_SUBTRACT,
     OP_MULTIPLY,
     OP_DIVIDE,
-
 };
 
 struct Chunk {

@@ -1,9 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "compiler/compiler.h"
 #include "lexer.h"
 #include "parsing/debug.h"
 #include "parsing/parser.h"
+#include "parsing/traversal.h"
+
+static void print_node_name(struct AstNode *node, void *arg)
+{
+    printf("%s ", ast_node_name(node));
+}
 
 int main(int argc, const char *argv[])
 {
@@ -27,7 +34,11 @@ int main(int argc, const char *argv[])
 		}
 	}
 
-    struct AstNode *node = build_ast(argv[1]);
-    print_ast(node);
-    printf("\n");
+    compile_file(&(struct CompilerConfig){
+        .output = stdout,
+        .error = stderr,
+        .src = argv[1],
+        .file_name = "repl",
+        .file_name_len = 4,
+    });
 }

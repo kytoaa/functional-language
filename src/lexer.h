@@ -141,6 +141,8 @@ static const char *token_type_name(enum TokenType type)
             return "TOKEN_EOF";
         case TOKEN_ERROR:
             return "TOKEN_ERROR";
+        default:
+            return "ERROR";
     }
 }
 

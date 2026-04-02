@@ -1,0 +1,77 @@
+#include "traversal.h"
+#include "nodes.h"
+
+void traverse_node(
+    struct AstNode *n,
+    void *arg,
+    void (*pre_callback)(struct AstNode*, void*),
+    void (*post_callback)(struct AstNode*, void*)
+) {
+    if (n == null)
+        return;
+
+    if (pre_callback != null)
+        pre_callback(n, arg);
+
+    switch (n->kind) {
+        case AST_APPLICATION:{
+            struct ApplicationNode *node = (struct ApplicationNode*)n;
+            traverse_node(node->function, arg, pre_callback, post_callback);
+            traverse_node(node->argument, arg, pre_callback, post_callback);
+            break;
+        }
+        case AST_BIN_OP:{
+            struct BinOpNode *node = (struct BinOpNode*)n;
+            traverse_node(node->l, arg, pre_callback, post_callback);
+            traverse_node(node->r, arg, pre_callback, post_callback);
+            break;
+        }
+        case AST_UNARY_OP:{
+            struct UnaryOpNode *node = (struct UnaryOpNode*)n;
+            traverse_node(node->val, arg, pre_callback, post_callback);
+            break;
+        }
+        case AST_DECLARATION:{
+            struct DeclarationNode *node = (struct DeclarationNode*)n;
+            struct FunctionBindingNode *binding = node->bindings;
+            while (binding != null) {
+                traverse_node(AS_NODE(binding), arg, pre_callback, post_callback);
+                binding = binding->next_binding;
+            }
+            traverse_node(node->body, arg, pre_callback, post_callback);
+            break;
+        }
+        case AST_IF_EXPR:{
+            struct IfExprNode *node = (struct IfExprNode*)n;
+            traverse_node(node->condition, arg, pre_callback, post_callback);
+            traverse_node(node->then_expr, arg, pre_callback, post_callback);
+            traverse_node(node->else_expr, arg, pre_callback, post_callback);
+            break;
+        }
+        case AST_LET_EXPR:{
+            struct LetExprNode *node = (struct LetExprNode*)n;
+            struct DeclarationNode *decl = (struct DeclarationNode*)node->first_decl;
+            while (decl != null) {
+                traverse_node(AS_NODE(decl), arg, pre_callback, post_callback);
+                decl = decl->next_declaration;
+            }
+            traverse_node(node->body, arg, pre_callback, post_callback);
+            break;
+        }
+        case AST_LAMBDA:{
+            struct LambdaNode *node = (struct LambdaNode*)n;
+            struct FunctionBindingNode *binding = node->bindings;
+            while (binding != null) {
+                traverse_node(AS_NODE(binding), arg, pre_callback, post_callback);
+                binding = binding->next_binding;
+            }
+            traverse_node(node->body, arg, pre_callback, post_callback);
+            break;
+        }
+        default:
+            break;
+    }
+
+    if (post_callback != null)
+        post_callback(n, arg);
+}
