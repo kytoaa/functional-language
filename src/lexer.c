@@ -135,6 +135,8 @@ static enum TokenType identifier_type()
                  : TOKEN_IDENT;
         case 'e':
             return check_keyword("else", 4) ? TOKEN_ELSE : TOKEN_IDENT;
+        case 'c':
+            return check_keyword("case", 4) ? TOKEN_CASE : TOKEN_IDENT;
         case 'l':
             return check_keyword("let", 3) ? TOKEN_LET : TOKEN_IDENT;
         case 'f':
@@ -144,7 +146,9 @@ static enum TokenType identifier_type()
         case 'a':
             return check_keyword("and", 3) ? TOKEN_AND : TOKEN_IDENT;
         case 'o':
-            return check_keyword("or", 2) ? TOKEN_OR : TOKEN_IDENT;
+            return check_keyword("or", 2) ? TOKEN_OR
+                 : check_keyword("of", 2) ? TOKEN_OF
+                 : TOKEN_IDENT;
         case 'n':
             return check_keyword("not", 3) ? TOKEN_NOT : TOKEN_IDENT;
 
@@ -217,6 +221,9 @@ struct Token next_token()
 
         case ';':
             return make_token(TOKEN_SEMICOLON);
+
+        case '|':
+            return make_token(TOKEN_PIPE);
 
         case '=':
             return make_token(match('=') ? TOKEN_EQUAL

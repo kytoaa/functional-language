@@ -21,11 +21,14 @@ static void print_err(FILE *output, const struct ParseError *err, struct FileDat
         fprintf(output, "%s\n", err->msg);
         fprintf(
             output,
-            " --> %.*s:%d\n  |\n",
+            " --> %.*s:%d\n",
             file.file_name_len,
             file.file_name,
             err->token.line
         );
+        if (err->token.start == null || file.src == null)
+            return;
+        fprintf(output, "  |\n");
         fprintf(
             output,
             err->token.line > 9 ? "%d| " : "%d | ",
@@ -34,7 +37,7 @@ static void print_err(FILE *output, const struct ParseError *err, struct FileDat
 
         u32 line_start_pos = err->token.start - file.src;
         u32 line_end_pos = line_start_pos;
-        while (line_start_pos > 0 && file.src[line_start_pos] != '\n') {
+        while (line_start_pos > 1 && file.src[line_start_pos - 1] != '\n') {
             line_start_pos -= 1;
         }
         while (file.src[line_end_pos] != '\n' && file.src[line_end_pos] != '\0') {

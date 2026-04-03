@@ -12,6 +12,7 @@ enum TokenType {
     TOKEN_L_BRACKET,
     TOKEN_R_BRACKET,
     TOKEN_SEMICOLON,
+    TOKEN_PIPE,
 
     TOKEN_IDENT,
 
@@ -23,6 +24,8 @@ enum TokenType {
     TOKEN_IF,
     TOKEN_THEN,
     TOKEN_ELSE,
+    TOKEN_CASE,
+    TOKEN_OF,
 
     TOKEN_ADD,
     TOKEN_SUB,
@@ -81,6 +84,8 @@ static const char *token_type_name(enum TokenType type)
             return "TOKEN_R_BRACKET";
         case TOKEN_SEMICOLON:
             return "TOKEN_SEMICOLON";
+        case TOKEN_PIPE:
+            return "TOKEN_PIPE";
         case TOKEN_IDENT:
             return "TOKEN_IDENT";
         case TOKEN_ARROW:
@@ -99,6 +104,10 @@ static const char *token_type_name(enum TokenType type)
             return "TOKEN_THEN";
         case TOKEN_ELSE:
             return "TOKEN_ELSE";
+        case TOKEN_CASE:
+            return "TOKEN_CASE";
+        case TOKEN_OF:
+            return "TOKEN_OF";
         case TOKEN_ADD:
             return "TOKEN_ADD";
         case TOKEN_SUB:

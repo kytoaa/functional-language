@@ -146,6 +146,26 @@ static void print_let_expr(struct LetExprNode *node)
     printf("\t in ");
     print_node(node->body);
 }
+static void print_case_expr(struct CaseExprNode *node)
+{
+    printf("(case ");
+    print_node(node->value);
+    printf(" of");
+
+    struct CasePatternNode *pat = (struct CasePatternNode*)node->first_pattern;
+    while (pat != null) {
+        printf("\n\t| ");
+        print_node(pat->pattern);
+        if (pat->condition != null) {
+            printf(" if ");
+            print_node(pat->condition);
+        }
+        printf(" -> ");
+        print_node(pat->body);
+        pat = pat->next_pattern;
+    }
+    printf(")");
+}
 
 static void print_node(struct AstNode *node)
 {
@@ -176,6 +196,9 @@ static void print_node(struct AstNode *node)
         case AST_LET_EXPR:
             print_let_expr((struct LetExprNode*)node);
             break;
+        case AST_CASE_EXPR:
+            print_case_expr((struct CaseExprNode*)node);
+            break;
 
         case AST_LAMBDA:
             print_lambda((struct LambdaNode*)node);
@@ -186,6 +209,7 @@ static void print_node(struct AstNode *node)
             break;
 
         case AST_BINDING:
+        case AST_CASE_PATTERN:
         case AST_FUNCTION_BINDING:
             printf("error, encountered %s", ast_node_name(node));
             break;
@@ -194,6 +218,13 @@ static void print_node(struct AstNode *node)
 
 void print_ast(struct AstNode *root)
 {
-    print_node(root);
+    while (root != null) {
+        print_node(root);
+
+        if (root->kind == AST_DECLARATION) {
+            root = AS_NODE(((struct DeclarationNode*)root)->next_declaration);
+        }
+        printf("\n");
+    }
 }
 

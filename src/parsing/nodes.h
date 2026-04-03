@@ -109,4 +109,18 @@ struct LetExprNode {
     struct AstNode *body;
 };
 
+struct CasePatternNode {
+    struct AstNode node;
+    struct AstNode *pattern;
+    struct AstNode *condition;
+    struct AstNode *body;
+    struct CasePatternNode *next_pattern;
+};
+
+struct CaseExprNode {
+    struct AstNode node;
+    struct AstNode *value;
+    struct AstNode *first_pattern;
+};
+
 #endif

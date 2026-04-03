@@ -17,6 +17,8 @@ enum NodeKind {
     AST_BINDING,
     AST_IF_EXPR,
     AST_LET_EXPR,
+    AST_CASE_EXPR,
+    AST_CASE_PATTERN,
     AST_LAMBDA,
     AST_FUNCTION_BINDING,
 };

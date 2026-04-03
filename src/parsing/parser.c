@@ -87,6 +87,7 @@ static struct AstNode *lambda();
 
 static struct AstNode *if_expr();
 static struct AstNode *let_expr();
+static struct AstNode *case_expr();
 
 static struct AstNode *error_token()
 {
@@ -127,6 +128,9 @@ static struct ParseRule rules[] = {
     [TOKEN_IF]           = { if_expr, null, PREC_NONE },
     [TOKEN_THEN]         = { null, null, PREC_NONE },
     [TOKEN_ELSE]         = { null, null, PREC_NONE },
+    
+    [TOKEN_CASE]         = { case_expr, null, PREC_NONE },
+    [TOKEN_OF]           = { null, null, PREC_NONE },
 
     [TOKEN_ADD]          = { null, binary, PREC_TERM },
     [TOKEN_SUB]          = { unary, binary, PREC_TERM },
@@ -153,6 +157,7 @@ static struct ParseRule rules[] = {
     [TOKEN_FALSE]        = { boolean, null, PREC_NONE },
 
     [TOKEN_SEMICOLON]    = { null, null, PREC_NONE },
+    [TOKEN_PIPE]         = { null, null, PREC_NONE },
     [TOKEN_EQ]           = { null, null, PREC_NONE },
 
     [TOKEN_EOF]          = { null, null, PREC_NONE },
@@ -454,6 +459,93 @@ static struct AstNode *let_expr()
     return AS_NODE(node);
 }
 
+static void check_valid_pattern(struct AstNode *pat)
+{
+    bool searching = true;
+    while (searching) {
+        if (pat == null)
+            return;
+        switch (pat->kind) {
+            case AST_BIN_OP:{
+                struct BinOpNode *bin_op = (struct BinOpNode*)pat;
+                if (bin_op->op != AST_BIN_OP_CONS) {
+                    error(parser.prev, "cons (`::`) is the only valid binary op pattern");
+                    searching = false;
+                    break;
+                }
+                pat = bin_op->r;
+                if (pat == null) {
+                    searching = false;
+                }
+                break;
+            }
+            case AST_LITERAL:
+            case AST_IDENTIFIER:
+                searching = false;
+                break;
+            default:
+                error(parser.prev, "invalid pattern");
+                searching = false;
+                break;
+        }
+    }
+}
+
+static void **case_pattern_get_next(void *pat)
+{
+    return (void*)&((struct CasePatternNode*)pat)->next_pattern;
+}
+
+static struct AstNode *case_expr()
+{
+    struct CaseExprNode *node = ALLOC_NODE(struct CaseExprNode);
+
+    struct AstNode *condition = expr(PREC_EXPR);
+    consume(TOKEN_OF, "expected `of` after expression in `case`");
+
+    struct CasePatternNode *pattern = null;
+
+    for (;;) {
+        if (parser.current.type != TOKEN_PIPE)
+            break;
+        advance();
+
+        struct AstNode *pat_expr = expr(PREC_EXPR);
+
+        check_valid_pattern(pat_expr);
+
+        struct AstNode *pat_cond = null;
+
+        if (parser.current.type == TOKEN_IF) {
+            advance();
+            pat_cond = expr(PREC_EXPR);
+        }
+        consume(TOKEN_ARROW, "expected `->` after pattern");
+
+        struct AstNode *pat_body = expr(PREC_EXPR);
+
+        struct CasePatternNode *current_pattern = ALLOC_NODE(struct CasePatternNode);
+
+        *current_pattern = (struct CasePatternNode){
+            .node = { AST_CASE_PATTERN },
+            .pattern = pat_expr,
+            .condition = pat_cond,
+            .body = pat_body,
+            .next_pattern = pattern,
+        };
+        pattern = current_pattern;
+    }
+    pattern = reverse_linked_list(pattern, case_pattern_get_next);
+
+    *node = (struct CaseExprNode){
+        .node = { AST_CASE_EXPR },
+        .value = condition,
+        .first_pattern = AS_NODE(pattern),
+    };
+
+    return AS_NODE(node);
+}
+
 static struct AstNode *expr(enum Precedence precedence)
 {
     advance();
@@ -516,12 +608,22 @@ bool build_ast(const char *src, struct AstNode **out, struct ParseError *err)
 
     advance();
 
-    *out = declaration();
+    struct DeclarationNode *node = null;
+    while (parser.current.type != TOKEN_EOF) {
+        struct DeclarationNode *current = (struct DeclarationNode*)declaration();
 
-    if (parser.has_error) {
-        *err = parser.err;
-        return false;
+        if (parser.has_error) {
+            *err = parser.err;
+            return false;
+        }
+
+        current->next_declaration = node;
+        node = current;
     }
+    node = reverse_linked_list(node, declaration_get_next);
+
+    *out = AS_NODE(node);
+
     return true;
 }
 
