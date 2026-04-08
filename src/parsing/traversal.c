@@ -1,4 +1,5 @@
 #include "traversal.h"
+#include "ast.h"
 #include "nodes.h"
 
 void traverse_node(
@@ -66,6 +67,20 @@ void traverse_node(
                 binding = binding->next_binding;
             }
             traverse_node(node->body, arg, pre_callback, post_callback);
+            break;
+        }
+        case AST_CASE_EXPR:{
+            struct CaseExprNode *node = (struct CaseExprNode*)n;
+            struct CasePatternNode *pattern = (struct CasePatternNode*)node->first_pattern;
+            while (pattern != null) {
+                traverse_node(AS_NODE(pattern), arg, pre_callback, post_callback);
+                pattern = pattern->next_pattern;
+            }
+            break;
+        }
+        case AST_CASE_PATTERN:{
+            struct CasePatternNode *pattern = (struct CasePatternNode*)n;
+            traverse_node(pattern->body, arg, pre_callback, post_callback);
             break;
         }
         default:

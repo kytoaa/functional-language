@@ -1,6 +1,7 @@
 #include "prelude.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 
 void *alloc_mem(usize len)
 {
@@ -24,3 +25,7 @@ void free_mem(void* ptr)
     free(ptr);
 }
 
+void panic(const char* msg)
+{
+    printf("%s\n", msg);
+}

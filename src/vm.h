@@ -3,21 +3,27 @@
 
 #include "value.h"
 #include "object.h"
+#include "bytecode.h"
+#include <stdio.h>
 
 #define STACK_SIZE 256
-#define FRAMES_MAX 64
 
-struct CallFrame {
-    struct Function *function;
-    u8 *ip;
-    struct Value *slots;
+struct Code {
+    u8 *instructions;
+};
+
+struct VmConfig {
+    FILE *out;
+    FILE *error;
 };
 
 struct VM {
-    struct CallFrame frames[FRAMES_MAX];
-    u32 frame_count;
-    u32 stack_height;
-    struct Value stack[STACK_SIZE];
+    struct VmConfig config;
+    struct Code *code;
+    /// `instruction ptr - points to next byte`
+    /// `stack ptr - index of next free stack slot`
+    u64 registers[REG_COUNT];
+    u64 stack[STACK_SIZE];
 };
 
 enum InterpretResult {

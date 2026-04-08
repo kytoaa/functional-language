@@ -23,5 +23,6 @@ typedef double f64;
 void *alloc_mem(usize len);
 void *realloc_mem(void* ptr, usize len);
 void free_mem(void* ptr);
+void panic(const char* msg);
 
 #endif
