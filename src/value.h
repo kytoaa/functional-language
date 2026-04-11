@@ -32,6 +32,25 @@ struct ValueList {
     u32 cap;
 };
 
+static inline bool value_equal(struct Value l, struct Value r)
+{
+    if (l.type != r.type)
+        return false;
+    switch (l.type) {
+        case VALUE_UNIT:
+            return true;
+        case VALUE_INT:
+            return l.as.integer == r.as.integer;
+        case VALUE_BOOL:
+            return l.as.boolean == r.as.boolean;
+        case VALUE_CHAR:
+            return l.as.character == r.as.character;
+        case VALUE_OBJ:
+            panic("cannot compare objects");
+    }
+    return false;
+}
+
 #define INT_VAL(val)    ((struct Value){ VALUE_INT, { .integer = (val) } })
 #define BOOL_VAL(val)   ((struct Value){ VALUE_BOOL, { .boolean = (val) } })
 #define CHAR_VAL(val)   ((struct Value){ VALUE_CHAR, { .character = (val) } })

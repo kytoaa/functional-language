@@ -68,7 +68,6 @@ static void eval_application(struct Application *application)
 {
     struct Box **payload = obj_dyn_fields(TO_OBJ(application));
 
-    // closure is evaluated and arguments are on stack in expected order
     eval_value(application->closure);
 
     Val closure = pop_val();
@@ -80,7 +79,7 @@ static void eval_application(struct Application *application)
     for (u32 i = 0; i < new_appl->arg_count; i++) {
         new_payload[i] = payload[i];
     }
-    push_stack((u64)new_appl);
+    push_val(new_appl);
 }
 
 #undef set_whnf

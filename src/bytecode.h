@@ -4,6 +4,7 @@
 #include "value.h"
 
 enum Bytecode {
+    OP_NOOP,
     /// copy the value at the top of the stack to the given register
     OP_TRANSFER_STACK_REG,
     /// pushes the value in the given register to the stack
@@ -35,18 +36,25 @@ enum Bytecode {
     /// `op u8`
     OP_JUMP_GLOBALS,
 
-    /// boxes item at top of stack
-    OP_BOX,
-    /// stack: `[..args, arg_count, f]`
-    OP_PARTIAL_APPLY,
-    OP_CREATE_CLOSURE,
-
     /// calls the function at the top of the stack
     OP_CALL,
     /// for handling application and calls with greater arguments than arity
     OP_HANDLE_CONTINUATION,
     /// evaluate the item at the top of the stack by calling its eval function
     OP_EVAL,
+
+    /// reads the nth element in a thunk or closure
+    /// `op u8`
+    OP_DYN_OBJ_READ,
+
+    OP_UPDATE_THUNK,
+
+    /// `op u8` arg count
+    /// stack: `[..args, f]`
+    OP_PARTIAL_APPLY,
+    /// `op u16` closure info index
+    /// stack: `[..payload]`
+    OP_CREATE_CLOSURE,
 
     OP_PUSH_CONST,
     OP_TRUE,

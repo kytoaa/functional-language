@@ -126,3 +126,39 @@ void handle_continuation()
         jump_to_closure(closure);
     }
 }
+
+void partial_apply()
+{
+    u8 arg_count = read_instruction();
+    u8 extra_args = 0;
+    
+    Val function = pop_val();
+    switch (function->type) {
+        case OBJ_APPLICATION:
+            extra_args = ((struct Application*)function)->arg_count;
+        case OBJ_THUNK:
+        case OBJ_CLOSURE:
+            break;
+        default:
+            return runtime_error("expected a function");
+    }
+
+    struct Application *application = obj_create_application(arg_count + extra_args);
+    struct Box **payload = obj_dyn_fields(TO_OBJ(application));
+
+    if (extra_args > 0) {
+        struct Box **prev_args = obj_dyn_fields(function);
+
+        for (u32 i = 0; i < extra_args; i++) {
+            payload[i] = prev_args[i];
+        }
+    }
+    for (u32 i = 0; i < arg_count; i++) {
+        payload[i + extra_args] = (struct Box*)pop_val();
+    }
+
+    application->closure = function;
+    application->arg_count = arg_count;
+
+    push_val(application);
+}

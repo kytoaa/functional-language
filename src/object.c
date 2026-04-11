@@ -19,6 +19,7 @@ struct Application *obj_create_application(u8 arg_count)
 
     appl->obj.type = OBJ_APPLICATION;
     appl->arg_count = arg_count;
+    appl->arity = 0;
 
     return appl;
 }
@@ -31,6 +32,17 @@ struct Box *obj_create_box()
     box->obj.flags.is_whnf = true;
 
     return box;
+}
+struct Closure *obj_create_closure(struct ClosureInfo *info)
+{
+    const u32 size = sizeof(struct Closure) + (info->capture_count * sizeof(struct Object*));
+    struct Closure *closure = (struct Closure*)alloc_obj(size);
+
+    closure->obj.type = OBJ_CLOSURE;
+    closure->obj.flags.is_whnf = true;
+    closure->info = info;
+
+    return closure;
 }
 
 struct Box **obj_dyn_fields(struct Obj *obj)

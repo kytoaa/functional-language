@@ -19,6 +19,7 @@ u64 pop_stack();
 void push_stack(u64 val);
 
 #define pop_val() (Val)(pop_stack())
+#define push_val(val) do { push_stack((u64)(val)); } while (0)
 #define jump(addr) do { instruction_ptr = addr; } while (0)
 
 #endif

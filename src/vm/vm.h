@@ -10,6 +10,7 @@
 
 struct Code {
     u8 *instructions;
+    struct ClosureInfo *functions;
 };
 
 struct VmConfig {

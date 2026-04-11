@@ -34,13 +34,14 @@ struct Box {
 
 struct Cons {
     struct Obj obj;
-    struct Value l;
-    struct Value r;
+    Val l;
+    Val r;
 };
 
 struct ClosureInfo {
     u32 arity;
     u32 address;
+    u32 capture_count;
 };
 
 /// dynamically sized
@@ -83,6 +84,7 @@ static inline bool is_obj_type(struct Value val, enum ObjType type)
 
 struct Application *obj_create_application(u8 arg_count);
 struct Box *obj_create_box();
+struct Closure *obj_create_closure(struct ClosureInfo *info);
 
 struct Box **obj_dyn_fields(struct Obj *obj);
 
