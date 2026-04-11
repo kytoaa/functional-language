@@ -28,6 +28,7 @@ struct Box *obj_create_box()
     struct Box *box = (struct Box*)alloc_obj(size);
 
     box->obj.type = OBJ_BOX;
+    box->obj.flags.is_whnf = true;
 
     return box;
 }

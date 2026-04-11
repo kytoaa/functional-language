@@ -3,6 +3,7 @@
 #include "../parsing/nodes.h"
 #include "../parsing/ident_table.h"
 #include "../bytecode.h"
+#include "builtins.h"
 
 #define IDENT_STACK_SIZE 256
 
@@ -73,21 +74,24 @@ static void compile_bin_op(struct Context *ctx, struct BinOpNode *node)
 {
     emit_2_bytes(ctx, OP_PUSH_REG_STACK, INSTRUCTION_PTR);
     compile_expr(ctx, node->l);
+    emit_2_bytes(ctx, OP_PUSH_REG_STACK, INSTRUCTION_PTR);
     compile_expr(ctx, node->r);
+    emit_2_bytes(ctx, OP_PUSH_REG_STACK, INSTRUCTION_PTR);
+    emit_byte(ctx, OP_JUMP_GLOBALS);
     
     u8 op;
     switch (node->op) {
         case AST_BIN_OP_ADD:
-            op = OP_ADD;
+            op = GLOBAL_FUNC_ADD;
             break;
         case AST_BIN_OP_SUB:
-            op = OP_SUBTRACT;
+            op = GLOBAL_FUNC_SUB;
             break;
         case AST_BIN_OP_MUL:
-            op = OP_MULTIPLY;
+            op = GLOBAL_FUNC_MUL;
             break;
         case AST_BIN_OP_DIV:
-            op = OP_DIVIDE;
+            op = GLOBAL_FUNC_DIV;
             break;
         default:
             panic("unreachable, invalid expression");

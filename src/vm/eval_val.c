@@ -1,5 +1,7 @@
 #include "utils.h"
 
+#define set_whnf(value) do { (value)->flags.is_whnf = true; } while (0)
+
 static void eval_box(struct Box *box);
 static void eval_thunk(struct Thunk *thunk);
 static void eval_application(struct Application *application);
@@ -14,8 +16,10 @@ static void eval_value(Val val)
         case OBJ_APPLICATION:
             return eval_application((struct Application*)val);
         case OBJ_CONS:
+            set_whnf(val);
             return push_stack((u64)val);
         case OBJ_CLOSURE:
+            set_whnf(val);
             return push_stack((u64)val);
 
         case OBJ_TYPE_COUNT:
@@ -41,6 +45,7 @@ static void eval_box(struct Box *box)
         case VALUE_OBJ:
             return eval_value(box->val.as.object);
         default:
+            set_whnf(&box->obj);
             return push_stack((u64)box);
     }
 }
@@ -72,3 +77,5 @@ static void eval_application(struct Application *application)
     // closure is evaluated and arguments are on stack in expected order
     eval_value(application->closure);
 }
+
+#undef set_whnf

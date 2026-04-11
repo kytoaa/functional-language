@@ -92,10 +92,10 @@ static enum InterpretResult run_instruction()
         }
 
         #define NUM_BIN_OP(op) do {\
-            Val r = pop_val();\
-            typecheck(r, VALUE_INT, "expected a number for " #op " r arg");\
             Val l = pop_val();\
             typecheck(l, VALUE_INT, "expected a number for " #op " l arg");\
+            Val r = pop_val();\
+            typecheck(r, VALUE_INT, "expected a number for " #op " r arg");\
             struct Box *l_box = (struct Box*)l;\
             struct Box *r_box = (struct Box*)r;\
                                                \
