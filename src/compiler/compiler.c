@@ -4,6 +4,7 @@
 #include "../parsing/debug.h"
 #include "../parsing/ident_table.h"
 #include "../parsing/traversal.h"
+#include "reduction.h"
 
 struct FileData {
     const char *src;
@@ -109,6 +110,10 @@ void compile_file(const struct CompilerConfig *config)
     }
     printf("\n");
 
+    print_ast(ast);
+
+    printf("\nreducing\n");
+    reduce_ast(ast);
     print_ast(ast);
 
     free_ident_table(&identifiers);

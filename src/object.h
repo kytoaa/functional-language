@@ -9,13 +9,21 @@ enum ObjType {
     OBJ_CLOSURE,
     OBJ_THUNK,
     OBJ_APPLICATION,
+
+    OBJ_TYPE_COUNT,
 };
 
 #define OBJ_TYPE(val)   (AS_OBJ(val)->type)
 #define TO_OBJ(val)     (&val->obj)
+#define IS_WHNF(val)    (val->flags.is_whnf)
+
+typedef struct {
+    bool is_whnf: 1;
+} ObjFlags;
 
 struct Obj {
     enum ObjType type;
+    ObjFlags flags;
     struct Obj *next;
 };
 
@@ -43,15 +51,23 @@ struct Closure {
 };
 
 /// dynamically sized
+///
+/// ## calling convention
+///
+/// if a thunk is a lazy computation, the first dynamic parameter
+/// will be a `u64` containing the address to jump to
+///
+/// the thunk will expect the address of its free variables in `r1`
 struct Thunk {
     struct Obj obj;
+    /// updated once thunk has been evaluated
+    struct Box *evaluated;
     /// struct Box *fvs[]
 };
 
 /// dynamically sized
 struct Application {
     struct Obj obj;
-    // always points to a `struct Closure`, never a `struct Application`
     struct Obj *closure;
     u32 arity;
     u32 arg_count;
@@ -64,6 +80,8 @@ static inline bool is_obj_type(struct Value val, enum ObjType type)
 }
 
 struct Application *obj_create_application(u8 arg_count);
+struct Box *obj_create_box();
+
 struct Box **obj_dyn_fields(struct Obj *obj);
 
 #endif

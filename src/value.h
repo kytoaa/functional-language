@@ -4,6 +4,7 @@
 #include "prelude.h"
 
 enum ValueType {
+    VALUE_UNIT,
     VALUE_INT,
     VALUE_BOOL,
     VALUE_CHAR,
@@ -12,10 +13,13 @@ enum ValueType {
 
 struct Obj;
 
+typedef struct Obj *Val;
+
+/// values are typically boxed
 struct Value {
     enum ValueType type;
     union {
-        u32 integer;
+        i32 integer;
         bool boolean;
         u32 character;
         struct Obj *object;

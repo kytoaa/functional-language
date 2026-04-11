@@ -22,6 +22,15 @@ struct Application *obj_create_application(u8 arg_count)
 
     return appl;
 }
+struct Box *obj_create_box()
+{
+    const u32 size = sizeof(struct Box);
+    struct Box *box = (struct Box*)alloc_obj(size);
+
+    box->obj.type = OBJ_BOX;
+
+    return box;
+}
 
 struct Box **obj_dyn_fields(struct Obj *obj)
 {

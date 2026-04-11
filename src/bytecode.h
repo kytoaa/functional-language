@@ -12,18 +12,28 @@ enum Bytecode {
     /// `op reg val`
     OP_SET_REG,
 
+    /// swaps the two items at the top of the stack
+    OP_SWAP,
+
     /// pushes a u64 to the top of the stack
     OP_PUSH_U64,
     /// pops a u64 from the top of the stack
     OP_POP_U64,
 
+    /// unconditional jump, pops the address from the stack
+    OP_JUMP,
     /// set the instruction pointer to the value at the given offset down from the stack top
     OP_JUMP_STACK,
+    /// jump to the address in the register
     OP_JUMP_REG,
 
     /// adds or subtracts the given value from the instruction pointer
     /// `op i16`
     OP_JUMP_REL,
+
+    /// jumps to a global function
+    /// `op u8`
+    OP_JUMP_GLOBALS,
 
     /// boxes item at top of stack
     OP_BOX,
@@ -32,6 +42,8 @@ enum Bytecode {
     OP_CREATE_CLOSURE,
 
     OP_CALL,
+    /// evaluate the item at the top of the stack by calling its eval function
+    OP_EVAL,
 
     OP_PUSH_CONST,
     OP_TRUE,
@@ -39,9 +51,18 @@ enum Bytecode {
     OP_EQUAL,
     OP_GREATER,
     OP_LESS,
+    OP_AND,
+    OP_OR,
+    OP_NOT,
+    /// add the items at the top of the stack, commutative
     OP_ADD,
+    /// subtracts the items at the top of the stack
+    /// expects `l` at top and `r` below for `l * r`
     OP_SUBTRACT,
+    /// multiplies the items at the top of the stack, commutative
     OP_MULTIPLY,
+    /// divides the items at the top of the stack
+    /// expects `l` at top and `r` below for `l / r`
     OP_DIVIDE,
     OP_HEAD,
     OP_TAIL,

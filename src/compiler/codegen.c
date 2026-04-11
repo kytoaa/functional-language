@@ -26,7 +26,17 @@ static void emit_byte(struct Context *ctx, u8 byte)
 {
     chunk_write_byte(ctx->compiling_chunk, byte);
 }
+static void emit_2_bytes(struct Context *ctx, u8 byte, u8 arg)
+{
+    chunk_write_byte(ctx->compiling_chunk, byte);
+    chunk_write_byte(ctx->compiling_chunk, arg);
+}
+static u8 *get_last_byte(struct Context *ctx)
+{
+    return ctx->compiling_chunk->bytecode.ptr + (ctx->compiling_chunk->bytecode.len - 1);
+}
 
+/// returns the ident's offset from the top of the stack
 static u8 get_ident_offset(struct Context *ctx, const char *ident) 
 {
     for (u8 i = 0; i < ctx->ident_stack_len; i++) {
@@ -34,11 +44,12 @@ static u8 get_ident_offset(struct Context *ctx, const char *ident)
             return i;
         }
     }
+    return UINT8_MAX;
 }
 
 static void compile_expr(struct Context *ctx, struct AstNode *node);
 
-static void compile_global_declaration(struct Context *ctx, struct DeclarationNode *node)
+static void compile_declaration(struct Context *ctx, struct DeclarationNode *node)
 {
     struct FunctionBindingNode *binding = node->bindings;
     while (binding != null) {
@@ -47,8 +58,56 @@ static void compile_global_declaration(struct Context *ctx, struct DeclarationNo
     }
 }
 
+static void compile_bin_op(struct Context *ctx, struct BinOpNode *node);
+
 static void compile_expr(struct Context *ctx, struct AstNode *node)
 {
-    
+    switch (node->kind) {
+        case AST_BIN_OP:
+            compile_bin_op(ctx, (struct BinOpNode*)node);
+            break;
+    }
 }
 
+static void compile_bin_op(struct Context *ctx, struct BinOpNode *node)
+{
+    emit_2_bytes(ctx, OP_PUSH_REG_STACK, INSTRUCTION_PTR);
+    compile_expr(ctx, node->l);
+    compile_expr(ctx, node->r);
+    
+    u8 op;
+    switch (node->op) {
+        case AST_BIN_OP_ADD:
+            op = OP_ADD;
+            break;
+        case AST_BIN_OP_SUB:
+            op = OP_SUBTRACT;
+            break;
+        case AST_BIN_OP_MUL:
+            op = OP_MULTIPLY;
+            break;
+        case AST_BIN_OP_DIV:
+            op = OP_DIVIDE;
+            break;
+        default:
+            panic("unreachable, invalid expression");
+            break;
+    }
+    emit_byte(ctx, op);
+}
+
+static void compile_pattern_match(struct Context *ctx, struct AstNode *node)
+{
+    if (node->kind == AST_IDENTIFIER) {
+
+    } else if (node->kind == AST_LITERAL) {
+        emit_byte(ctx, OP_EVAL);
+        // emit constant
+        emit_byte(ctx, OP_EQUAL);
+    }
+}
+
+static void compile_case_branch(struct Context *ctx, struct CasePatternNode *node)
+{
+
+}

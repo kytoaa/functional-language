@@ -1,9 +1,9 @@
 #ifndef func_lang_vm_h
 #define func_lang_vm_h
 
-#include "value.h"
-#include "object.h"
-#include "bytecode.h"
+#include "../value.h"
+#include "../object.h"
+#include "../bytecode.h"
 #include <stdio.h>
 
 #define STACK_SIZE 256
