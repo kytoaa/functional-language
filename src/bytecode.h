@@ -41,7 +41,10 @@ enum Bytecode {
     OP_PARTIAL_APPLY,
     OP_CREATE_CLOSURE,
 
+    /// calls the function at the top of the stack
     OP_CALL,
+    /// for handling application and calls with greater arguments than arity
+    OP_HANDLE_CONTINUATION,
     /// evaluate the item at the top of the stack by calling its eval function
     OP_EVAL,
 

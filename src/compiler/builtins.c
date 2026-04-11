@@ -14,7 +14,7 @@ struct GlobalFunctionData {
 
 const struct GlobalFunctionData FUNCTIONS[];
 
-/// expected stack rayout
+/// expected stack layout
 /// `[..cont r l]`
 const u8 ADD_BYTECODE[] = {
     OP_EVAL, // [..cont r l']
@@ -25,7 +25,7 @@ const u8 ADD_BYTECODE[] = {
     OP_JUMP,
 };
 
-/// expected stack rayout
+/// expected stack layout
 /// `[..cont r l]`
 const u8 SUB_BYTECODE[] = {
     OP_EVAL,     // [..cont r l']
@@ -36,7 +36,7 @@ const u8 SUB_BYTECODE[] = {
     OP_JUMP,
 };
 
-/// expected stack rayout
+/// expected stack layout
 /// `[..cont r l]`
 const u8 MUL_BYTECODE[] = {
     OP_EVAL,     // [..cont r l']
@@ -47,7 +47,7 @@ const u8 MUL_BYTECODE[] = {
     OP_JUMP,
 };
 
-/// expected stack rayout
+/// expected stack layout
 /// `[..cont r l]`
 const u8 DIV_BYTECODE[] = {
     OP_EVAL,   // [..cont r l']
@@ -58,7 +58,7 @@ const u8 DIV_BYTECODE[] = {
     OP_JUMP,
 };
 
-/// expected stack rayout
+/// expected stack layout
 /// `[..cont r l]`
 const u8 EQUAL_BYTECODE[] = {
     OP_EVAL,  // [..cont r l']
@@ -69,7 +69,7 @@ const u8 EQUAL_BYTECODE[] = {
     OP_JUMP,
 };
 
-/// expected stack rayout
+/// expected stack layout
 /// `[..cont r l]`
 const u8 LESS_BYTECODE[] = {
     OP_EVAL, // [..cont r l']
@@ -80,7 +80,7 @@ const u8 LESS_BYTECODE[] = {
     OP_JUMP,
 };
 
-/// expected stack rayout
+/// expected stack layout
 /// `[..cont r l]`
 const u8 GREATER_BYTECODE[] = {
     OP_EVAL,    // [..cont r l']
@@ -91,7 +91,7 @@ const u8 GREATER_BYTECODE[] = {
     OP_JUMP,
 };
 
-/// expected stack rayout
+/// expected stack layout
 /// `[..cont r l]`
 const u8 GREATER_EQ_BYTECODE[] = {
     OP_PUSH_REG_STACK, (u8)INSTRUCTION_PTR,
@@ -100,7 +100,7 @@ const u8 GREATER_EQ_BYTECODE[] = {
     OP_SWAP,
     OP_JUMP,
 };
-/// expected stack rayout
+/// expected stack layout
 /// `[..cont r l]`
 const u8 LESS_EQ_BYTECODE[] = {
     OP_PUSH_REG_STACK, (u8)INSTRUCTION_PTR,
@@ -110,21 +110,20 @@ const u8 LESS_EQ_BYTECODE[] = {
     OP_JUMP,
 };
 
-/// expected stack rayout
-/// `[..cont pair]`
-const u8 HEAD_BYTECODE[] = {};
+const u8 APPL_CONT_BYTECODE[] = { OP_EVAL, OP_HANDLE_CONTINUATION };
 
 #define arr_len(arr) (sizeof(arr) / sizeof(arr[0]))
 
 const struct GlobalFunctionData FUNCTIONS[] = {
-    [GLOBAL_FUNC_ADD]        = { ADD_BYTECODE,        arr_len(ADD_BYTECODE) },
-    [GLOBAL_FUNC_SUB]        = { SUB_BYTECODE,        arr_len(SUB_BYTECODE) },
-    [GLOBAL_FUNC_MUL]        = { MUL_BYTECODE,        arr_len(MUL_BYTECODE) },
-    [GLOBAL_FUNC_DIV]        = { DIV_BYTECODE,        arr_len(DIV_BYTECODE) },
-    [GLOBAL_FUNC_EQUAL]      = { EQUAL_BYTECODE,      arr_len(EQUAL_BYTECODE) },
-    [GLOBAL_FUNC_GREATER]    = { GREATER_BYTECODE,    arr_len(GREATER_BYTECODE) },
-    [GLOBAL_FUNC_LESS]       = { LESS_BYTECODE,       arr_len(LESS_BYTECODE) },
-    [GLOBAL_FUNC_GREATER_EQ] = { GREATER_EQ_BYTECODE, arr_len(GREATER_EQ_BYTECODE) },
-    [GLOBAL_FUNC_LESS_EQ]    = { LESS_EQ_BYTECODE,    arr_len(LESS_EQ_BYTECODE) },
+    [GLOBAL_FUNC_ADD]          = { ADD_BYTECODE,          arr_len(ADD_BYTECODE) },
+    [GLOBAL_FUNC_SUB]          = { SUB_BYTECODE,          arr_len(SUB_BYTECODE) },
+    [GLOBAL_FUNC_MUL]          = { MUL_BYTECODE,          arr_len(MUL_BYTECODE) },
+    [GLOBAL_FUNC_DIV]          = { DIV_BYTECODE,          arr_len(DIV_BYTECODE) },
+    [GLOBAL_FUNC_EQUAL]        = { EQUAL_BYTECODE,        arr_len(EQUAL_BYTECODE) },
+    [GLOBAL_FUNC_GREATER]      = { GREATER_BYTECODE,      arr_len(GREATER_BYTECODE) },
+    [GLOBAL_FUNC_LESS]         = { LESS_BYTECODE,         arr_len(LESS_BYTECODE) },
+    [GLOBAL_FUNC_GREATER_EQ]   = { GREATER_EQ_BYTECODE,   arr_len(GREATER_EQ_BYTECODE) },
+    [GLOBAL_FUNC_LESS_EQ]      = { LESS_EQ_BYTECODE,      arr_len(LESS_EQ_BYTECODE) },
+    [GLOBAL_FUNC_APPL_CONT]    = { APPL_CONT_BYTECODE,    arr_len(APPL_CONT_BYTECODE) },
 };
 

@@ -63,6 +63,7 @@ static void compile_bin_op(struct Context *ctx, struct BinOpNode *node);
 
 static void compile_expr(struct Context *ctx, struct AstNode *node)
 {
+    // when function is evaluated it must be in whnf, therefore its argument count should be accessible
     switch (node->kind) {
         case AST_BIN_OP:
             compile_bin_op(ctx, (struct BinOpNode*)node);

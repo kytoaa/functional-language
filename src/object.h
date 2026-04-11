@@ -66,6 +66,8 @@ struct Thunk {
 };
 
 /// dynamically sized
+///
+/// arguments are stored in order of call, first argument is first applied value
 struct Application {
     struct Obj obj;
     struct Obj *closure;

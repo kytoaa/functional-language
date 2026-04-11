@@ -68,14 +68,19 @@ static void eval_application(struct Application *application)
 {
     struct Box **payload = obj_dyn_fields(TO_OBJ(application));
 
-    for (u32 i = 0; i < application->arg_count; i++) {
-        // push in reverse order so most recently applied arg is bottom
-        // ensures correct behaviour with nested applications
-        push_stack((u64)payload[application->arg_count - (i + 1)]);
-    }
-
     // closure is evaluated and arguments are on stack in expected order
     eval_value(application->closure);
+
+    Val closure = pop_val();
+
+    struct Application *new_appl = obj_create_application(application->arg_count);
+    new_appl->closure = closure;
+    struct Box **new_payload = obj_dyn_fields(TO_OBJ(new_appl));
+
+    for (u32 i = 0; i < new_appl->arg_count; i++) {
+        new_payload[i] = payload[i];
+    }
+    push_stack((u64)new_appl);
 }
 
 #undef set_whnf

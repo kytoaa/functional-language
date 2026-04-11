@@ -11,6 +11,7 @@ enum GlobalFunction {
     GLOBAL_FUNC_LESS,
     GLOBAL_FUNC_GREATER_EQ,
     GLOBAL_FUNC_LESS_EQ,
+    GLOBAL_FUNC_APPL_CONT,
 };
 
 #endif

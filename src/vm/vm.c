@@ -9,6 +9,10 @@ struct VM vm;
 // defined in [./eval_val.c]
 void eval_val();
 
+// defined in [./function_call.c]
+void function_call();
+void handle_continuation();
+
 static void typecheck(Val val, enum ValueType type, const char *error)
 {
     if (val->type != OBJ_BOX)
@@ -89,6 +93,14 @@ static enum InterpretResult run_instruction()
         case OP_EVAL:{
             eval_val();
             break;
+        }
+
+        case OP_CALL:{
+            function_call();
+            break;
+        }
+        case OP_HANDLE_CONTINUATION:{
+            handle_continuation();
         }
 
         #define NUM_BIN_OP(op) do {\
