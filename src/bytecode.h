@@ -2,6 +2,7 @@
 #define func_lang_bytecode_h
 
 #include "value.h"
+#include "object.h"
 
 enum Bytecode {
     OP_NOOP,
@@ -21,6 +22,15 @@ enum Bytecode {
     /// pops a u64 from the top of the stack
     OP_POP_U64,
 
+    /// reads the identifier at an offset down the identifier stack, copying its
+    /// value to the top of the stack, 0 being the most recent
+    /// `op u16`
+    OP_READ_BINDING,
+    /// pops the value from the top of the stack, adding it to the identifier stack
+    OP_CREATE_BINDING,
+    /// pops the item at the top of the ident stack
+    OP_REMOVE_BINDING,
+
     /// unconditional jump, pops the address from the stack
     OP_JUMP,
     /// set the instruction pointer to the value at the given offset down from the stack top
@@ -31,6 +41,9 @@ enum Bytecode {
     /// adds or subtracts the given value from the instruction pointer
     /// `op i16`
     OP_JUMP_REL,
+    /// adds or subtracts the given value from the instruction pointer if stack pop is true
+    /// `op i16`
+    OP_JUMP_REL_CONDITIONAL,
 
     /// jumps to a global function
     /// `op u8`
@@ -56,6 +69,7 @@ enum Bytecode {
     /// stack: `[..payload]`
     OP_CREATE_CLOSURE,
 
+    /// `op u16` constant;
     OP_PUSH_CONST,
     OP_TRUE,
     OP_FALSE,
@@ -84,8 +98,20 @@ enum Bytecode {
 enum Register {
     INSTRUCTION_PTR,
     STACK_PTR,
+    BINDING_PTR,
     REG_1,
     REG_COUNT,
+};
+
+struct ConstantList {
+    u64 *ptr;
+    u32 len;
+    u32 cap;
+};
+struct ClosureInfoList {
+    struct ClosureInfo *ptr;
+    u32 len;
+    u32 cap;
 };
 
 struct Chunk {
@@ -94,8 +120,8 @@ struct Chunk {
         u32 len;
         u32 cap;
     } bytecode;
-
-    struct ValueList constants;
+    struct ConstantList constants;
+    struct ClosureInfoList closures;
 };
 
 void chunk_write_byte(struct Chunk *chunk, u8 byte);

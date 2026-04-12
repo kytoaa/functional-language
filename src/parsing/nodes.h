@@ -76,6 +76,7 @@ struct IdentifierNode {
     struct AstNode node;
     const char *src_loc;
     u32 len;
+    struct AstNode *declaration;
 };
 
 enum LiteralType {

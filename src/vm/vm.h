@@ -7,6 +7,7 @@
 #include <stdio.h>
 
 #define STACK_SIZE 256
+#define IDENT_COUNT 256
 
 struct Code {
     u8 *instructions;
@@ -24,6 +25,7 @@ struct VM {
     /// `instruction ptr - points to next byte`
     /// `stack ptr - index of next free stack slot`
     u64 registers[REG_COUNT];
+    u64 bindings[IDENT_COUNT];
     u64 stack[STACK_SIZE];
 };
 

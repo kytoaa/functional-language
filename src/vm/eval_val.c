@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "function_call.h"
 
 #define set_whnf(value) do { (value)->flags.is_whnf = true; } while (0)
 
@@ -80,6 +81,10 @@ static void eval_application(struct Application *application)
         new_payload[i] = payload[i];
     }
     push_val(new_appl);
+
+    if (new_appl->arg_count >= ((struct Closure*)new_appl->closure)->info->arity) {
+        function_call();
+    }
 }
 
 #undef set_whnf

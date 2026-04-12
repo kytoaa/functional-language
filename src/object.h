@@ -19,6 +19,7 @@ enum ObjType {
 
 typedef struct {
     bool is_whnf: 1;
+    bool is_static: 1;
 } ObjFlags;
 
 struct Obj {

@@ -25,6 +25,7 @@ enum NodeKind {
 
 struct AstNode {
     enum NodeKind kind;
+    u8 depth;
 };
 
 struct AstAllocator {

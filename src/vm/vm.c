@@ -1,5 +1,6 @@
 #include "vm.h"
 #include "utils.h"
+#include "function_call.h"
 #include "../prelude.h"
 
 #define DEBUG_CHECKS
@@ -8,11 +9,6 @@ struct VM vm;
 
 // defined in [./eval_val.c]
 void eval_val();
-
-// defined in [./function_call.c]
-void function_call();
-void handle_continuation();
-void partial_apply();
 
 static void typecheck(Val val, enum ValueType type, const char *error)
 {
@@ -82,6 +78,29 @@ next_instruction:
             pop_stack();
             break;
         }
+
+        case OP_READ_BINDING:{
+            u16 offset = read_u16() + 1;
+        #ifdef DEBUG_CHECKS
+            if (offset > vm.registers[BINDING_PTR])
+                panic("reading binding at invalid offset");
+        #endif
+            push_stack(vm.bindings[vm.registers[BINDING_PTR] - offset]);
+            break;
+        }
+        case OP_CREATE_BINDING:{
+            u64 value = pop_stack();
+            vm.bindings[vm.registers[BINDING_PTR]++] = value;
+            break;
+        }
+        case OP_REMOVE_BINDING:{
+        #ifdef DEBUG_CHECKS
+            if (vm.registers[BINDING_PTR] == 0)
+                panic("no bindings to pop");
+        #endif
+            vm.registers[BINDING_PTR] -= 1;
+        }
+
         case OP_JUMP:{
             u64 addr = pop_stack();
             instruction_ptr = addr;
@@ -106,6 +125,19 @@ next_instruction:
         case OP_JUMP_REL:{
             i16 jump = (i16)read_u16();
             instruction_ptr += jump;
+            break;
+        }
+        case OP_JUMP_REL_CONDITIONAL:{
+            i16 jump = (i16)read_u16();
+            Val val = pop_val();
+            if (val->type != OBJ_BOX || ((struct Box*)val)->val.type != VALUE_BOOL) {
+                runtime_error("not a boolean");
+                return INTERPRET_RUNTIME_ERROR;
+            }
+            struct Box *condition = (struct Box*)val;
+            if (condition->val.as.boolean) {
+                instruction_ptr += jump;
+            }
             break;
         }
 

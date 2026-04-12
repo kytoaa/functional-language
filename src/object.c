@@ -9,6 +9,9 @@ static struct Obj *alloc_obj(u32 size)
     new_obj->next = most_recent_alloc;
     most_recent_alloc = new_obj;
 
+    new_obj->flags.is_whnf = false;
+    new_obj->flags.is_static = false;
+
     return new_obj;
 }
 
