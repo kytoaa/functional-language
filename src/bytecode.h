@@ -11,7 +11,7 @@ enum Bytecode {
     /// pushes the value in the given register to the stack
     OP_PUSH_REG_STACK,
     /// sets the given register to the value
-    /// `op reg val`
+    /// `op reg u64`
     OP_SET_REG,
 
     /// swaps the two items at the top of the stack
@@ -140,5 +140,7 @@ struct Chunk {
 
 void chunk_write_byte(struct Chunk *chunk, u8 byte);
 void chunk_add_constant(struct Chunk *chunk, struct Value value);
+
+const char *bytecode_op_name(enum Bytecode byte);
 
 #endif

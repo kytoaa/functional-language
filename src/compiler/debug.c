@@ -1,0 +1,114 @@
+#include "debug.h"
+
+static void print_register(FILE *out, u8 reg)
+{
+    switch (reg) {
+        case INSTRUCTION_PTR:
+            fprintf(out, " ip");
+            break;
+        case STACK_PTR:
+            fprintf(out, " sp");
+            break;
+        case BINDING_PTR:
+            fprintf(out, " bp");
+            break;
+        case REG_1:
+            fprintf(out, " r1");
+            break;
+        default:
+            return panic("not a register");
+    }
+}
+
+static u64 read_u64(u8 *bytes)
+{
+    return (union { u64 u64; u8 bytes[8]; }){
+        .bytes = {
+            bytes[0],
+            bytes[1],
+            bytes[2],
+            bytes[3],
+            bytes[4],
+            bytes[5],
+            bytes[6],
+            bytes[7],
+        },
+    }.u64;
+}
+static u16 read_u16(u8 *bytes)
+{
+    return (union { u16 u16; u8 bytes[2]; }){
+        .bytes = {
+            bytes[0],
+            bytes[1],
+        },
+    }.u16;
+}
+
+static u32 print_instruction(FILE *out, u8 *bytes)
+{
+    const char *op_name = bytecode_op_name(bytes[0]);
+    if (op_name == null)
+        panic("invalid instruction");
+    fprintf(out, "%s", op_name);
+
+    u32 consumed = 1;
+
+    switch (bytes[0]) {
+        case OP_TRANSFER_STACK_REG:
+        case OP_PUSH_REG_STACK:
+        case OP_JUMP_REG:
+            print_register(out, bytes[1]);
+            consumed++;
+            break;
+        case OP_SET_REG:
+            print_register(out, bytes[1]);
+            consumed += 1;
+        case OP_PUSH_U64:
+            consumed += 8;
+            u64 u64 = read_u64(&bytes[2]);
+            fprintf(out, " %lu", u64);
+            break;
+
+        case OP_READ_BINDING:
+        case OP_CREATE_CLOSURE:
+        case OP_CREATE_THUNK:
+        case OP_PUSH_CONST:{
+            u16 u16 = read_u16(&bytes[1]);
+            consumed += 2;
+            fprintf(out, " %d", u16);
+            break;
+        }
+        case OP_JUMP_REL:
+        case OP_JUMP_REL_CONDITIONAL:{
+            i16 jump = (i16)read_u16(&bytes[1]);
+            consumed += 2;
+            fprintf(out, " %d", jump);
+            break;
+        }
+        case OP_JUMP_GLOBALS:
+        case OP_DYN_OBJ_READ:
+        case OP_PARTIAL_APPLY:
+            fprintf(out, " %d", bytes[1]);
+            consumed += 1;
+            break;
+        case OP_CAPTURE_READ:{
+            u16 u16 = read_u16(&bytes[1]);
+            fprintf(out, " %d %d", u16, bytes[3]);
+            consumed += 3;
+            break;
+        }
+    }
+
+    fprintf(out, "\n");
+    return consumed;
+}
+
+void print_instructions(FILE *output, const struct Chunk *chunk)
+{
+    u32 i = 0;
+    while (i < chunk->bytecode.len) {
+        fprintf(output, "%-2d | ", i);
+        i += print_instruction(output, &chunk->bytecode.ptr[i]);
+    }
+}

@@ -309,6 +309,32 @@ void compile_thunk(struct Context *ctx, struct AstNode *node, const char *bind_t
     end_context(&context);
 }
 
+struct ApplData {
+    struct AstNode *function;
+    u8 args;
+};
+
+static struct ApplData flatten_application(struct Context *ctx, struct ApplicationNode *application)
+{
+    if (application->function->kind != AST_APPLICATION) {
+        compile_expr(ctx, application->argument);
+        return (struct ApplData){ application->function, 1 };
+    }
+    struct ApplData appl_data = flatten_application(ctx, (struct ApplicationNode*)application->function);
+    compile_expr(ctx, application->argument);
+    appl_data.args += 1;
+    if (appl_data.args == UINT8_MAX)
+        panic("too many arguments");
+    return appl_data;
+}
+
+void compile_application(struct Context *ctx, struct ApplicationNode *application)
+{
+    struct ApplData appl_data = flatten_application(ctx, application);
+    compile_expr(ctx, appl_data.function);
+
+    emit_2_bytes(ctx, OP_PARTIAL_APPLY, appl_data.args);
+}
 
 void compile_expr(struct Context *ctx, struct AstNode *node)
 {

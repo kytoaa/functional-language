@@ -4,6 +4,8 @@
 #include "../parsing/debug.h"
 #include "../parsing/ident_table.h"
 #include "../parsing/traversal.h"
+#include "codegen/codegen.h"
+#include "debug.h"
 #include "reduction.h"
 
 struct FileData {
@@ -115,6 +117,22 @@ void compile_file(const struct CompilerConfig *config)
     printf("\nreducing\n");
     reduce_ast(ast);
     print_ast(ast);
+
+    struct Chunk chunk = {};
+
+    struct Context context = {
+        .compiling_chunk = &chunk,
+        .identifier_table = &identifiers,
+    };
+    printf("compiling\n");
+    compile_declaration(&context, (struct DeclarationNode*)ast);
+    printf("done\n");
+
+    for (u32 i = 0; i < chunk.closures.len; i++) {
+        struct ClosureInfo closure = chunk.closures.ptr[i];
+        printf("{ addr: %d, arity: %d, captures: %d }\n", closure.address, closure.arity, closure.capture_count);
+    }
+    print_instructions(config->output, &chunk);
 
     free_ident_table(&identifiers);
 
