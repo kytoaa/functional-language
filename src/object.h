@@ -56,12 +56,10 @@ struct Closure {
 ///
 /// ## calling convention
 ///
-/// if a thunk is a lazy computation, the first dynamic parameter
-/// will be a `u64` containing the address to jump to
-///
 /// the thunk will expect the address of its free variables in `r1`
 struct Thunk {
     struct Obj obj;
+    struct ClosureInfo *info;
     /// updated once thunk has been evaluated
     struct Box *evaluated;
     /// struct Box *fvs[]
@@ -86,6 +84,7 @@ static inline bool is_obj_type(struct Value val, enum ObjType type)
 struct Application *obj_create_application(u8 arg_count);
 struct Box *obj_create_box();
 struct Closure *obj_create_closure(struct ClosureInfo *info);
+struct Thunk *obj_create_thunk(struct ClosureInfo *info);
 
 struct Box **obj_dyn_fields(struct Obj *obj);
 

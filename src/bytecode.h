@@ -60,14 +60,28 @@ enum Bytecode {
     /// `op u8`
     OP_DYN_OBJ_READ,
 
+    /// treats the binding as a payload and copies the capture to the stack
+    /// `op u16 u8`
+    OP_CAPTURE_READ,
+
     OP_UPDATE_THUNK,
 
     /// `op u8` arg count
     /// stack: `[..args, f]`
     OP_PARTIAL_APPLY,
+    /// creates a closure object with capacity given by the closure info
     /// `op u16` closure info index
-    /// stack: `[..payload]`
     OP_CREATE_CLOSURE,
+    /// writes the payload into the closure
+    /// stack: `[..payload, closure]`
+    OP_WRITE_CLOSURE,
+
+    /// creates a thunk object with capacity given by the closure info
+    /// `op u16` closure info index
+    OP_CREATE_THUNK,
+    /// writes the payload into the thunk
+    /// stack: `[..payload, thunk]`
+    OP_WRITE_THUNK,
 
     /// `op u16` constant;
     OP_PUSH_CONST,

@@ -19,6 +19,7 @@ struct FunctionBindingNode {
     const char *src_loc;
     u32 len;
     struct FunctionBindingNode *next_binding;
+    struct AstNode *function;
 };
 
 struct DeclarationNode {

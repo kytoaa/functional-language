@@ -28,4 +28,5 @@ void free_mem(void* ptr)
 void panic(const char* msg)
 {
     printf("%s\n", msg);
+    exit(EXIT_FAILURE);
 }

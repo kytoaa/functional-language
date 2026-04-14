@@ -172,13 +172,48 @@ next_instruction:
             u16 closure_index = read_u16();
             struct ClosureInfo *closure_info = &vm.code->functions[closure_index];
             struct Closure *closure = obj_create_closure(closure_info);
+            push_val(closure);
+            break;
+        }
+        case OP_WRITE_CLOSURE:{
+            Val closure_val = pop_val();
+            if (closure_val->type != OBJ_CLOSURE) {
+                panic("unreachable: not a closure");
+                return INTERPRET_RUNTIME_ERROR;
+            }
+            struct Closure *closure = (struct Closure*)closure_val;
+            struct ClosureInfo *closure_info = closure->info;
             struct Box **captures = obj_dyn_fields(TO_OBJ(closure));
 
             for (u32 i = 0; i < closure_info->capture_count; i++) {
                 // reverse order, first free variable is lowest in stack
                 captures[closure_info->capture_count - (i + 1)] = (struct Box*)pop_val();
             }
-            push_val(closure);
+            push_val(TO_OBJ(closure));
+            break;
+        }
+        case OP_CREATE_THUNK:{
+            u16 closure_index = read_u16();
+            struct ClosureInfo *closure_info = &vm.code->functions[closure_index];
+            struct Thunk *thunk = obj_create_thunk(closure_info);
+            push_val(thunk);
+            break;
+        }
+        case OP_WRITE_THUNK:{
+            Val thunk_val = pop_val();
+            if (thunk_val->type != OBJ_THUNK) {
+                panic("unreachable: not a thunk");
+                return INTERPRET_RUNTIME_ERROR;
+            }
+            struct Thunk *thunk = (struct Thunk*)thunk_val;
+            struct ClosureInfo *closure_info = thunk->info;
+            struct Box **captures = obj_dyn_fields(TO_OBJ(thunk));
+
+            for (u32 i = 0; i < closure_info->capture_count; i++) {
+                // reverse order, first free variable is lowest in stack
+                captures[closure_info->capture_count - (i + 1)] = (struct Box*)pop_val();
+            }
+            push_val(TO_OBJ(thunk));
             break;
         }
         case OP_PARTIAL_APPLY:{

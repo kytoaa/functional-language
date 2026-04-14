@@ -13,18 +13,7 @@ struct BoundNames {
     u8 depth;
     struct Binding bindings[256];
 };
-static void declare_binding(struct BoundNames *names, struct Binding binding)
-{
-    if (names->len == 256)
-        panic("too many identifiers");
-    names->bindings[names->len++] = binding;
-}
-static void drop_bindings(struct BoundNames *names, u32 number)
-{
-    if (number > names->len)
-        panic("not enough identifiers");
-    names->len -= number;
-}
+
 static struct AstNode *find_binding(struct BoundNames *names, const char *ident)
 {
     for (u32 i = 0; i < names->len; i++) {
@@ -34,6 +23,21 @@ static struct AstNode *find_binding(struct BoundNames *names, const char *ident)
             return current->origin;
     }
     return null;
+}
+static void declare_binding(struct BoundNames *names, struct Binding binding)
+{
+    if (names->len == 256)
+        panic("too many identifiers");
+    struct AstNode *existing = find_binding(names, binding.ident);
+    if (existing != null && existing->depth == binding.origin->depth)
+        panic("multiple identifiers of same name at same level");
+    names->bindings[names->len++] = binding;
+}
+static void drop_bindings(struct BoundNames *names, u32 number)
+{
+    if (number > names->len)
+        panic("not enough identifiers");
+    names->len -= number;
 }
 
 static void reduce_node(struct AstNode *node, void *arg);
@@ -56,6 +60,11 @@ static void reduce_declaration(struct DeclarationNode *decl)
         .bindings = decl->bindings,
         .body = decl->body,
     };
+    struct FunctionBindingNode *binding = lambda->bindings;
+    while (binding != null) {
+        binding->function = AS_NODE(lambda);
+        binding = binding->next_binding;
+    }
     decl->body = AS_NODE(lambda);
     decl->bindings = null;
 }
@@ -83,6 +92,17 @@ static void enter_resolve_names(struct AstNode *node, void *arg)
         struct DeclarationNode *declaration = (struct DeclarationNode*)node;
         names->depth += 1;
     }
+    if (node->kind == AST_LET_EXPR) {
+        struct LetExprNode *let_expr = (struct LetExprNode*)node;
+        struct DeclarationNode *declaration = (struct DeclarationNode*)let_expr->first_decl;
+        while (declaration != null) {
+            declare_binding(names, (struct Binding){
+                .ident = declaration->name,
+                .origin = AS_NODE(declaration),
+            });
+            declaration = declaration->next_declaration;
+        }
+    }
     if (node->kind == AST_LAMBDA) {
         struct LambdaNode *lambda = (struct LambdaNode*)node;
         names->depth += 1;
@@ -91,7 +111,7 @@ static void enter_resolve_names(struct AstNode *node, void *arg)
         while (binding != null) {
             declare_binding(names, (struct Binding){
                 .ident = binding->src_loc,
-                .origin = AS_NODE(lambda),
+                .origin = AS_NODE(binding),
             });
             binding = binding->next_binding;
         }
@@ -111,6 +131,14 @@ static void leave_resolve_names(struct AstNode *node, void *arg)
 
     if (node->kind == AST_DECLARATION) {
         names->depth -= 1;
+    }
+    if (node->kind == AST_LET_EXPR) {
+        struct LetExprNode *let_expr = (struct LetExprNode*)node;
+        struct DeclarationNode *declaration = (struct DeclarationNode*)let_expr->first_decl;
+        while (declaration != null) {
+            drop_bindings(names, 1);
+            declaration = declaration->next_declaration;
+        }
     }
     if (node->kind == AST_LAMBDA) {
         struct LambdaNode *lambda = (struct LambdaNode*)node;

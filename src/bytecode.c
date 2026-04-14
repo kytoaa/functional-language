@@ -12,15 +12,3 @@ void chunk_write_byte(struct Chunk *chunk, u8 byte)
     chunk->bytecode.ptr[chunk->bytecode.len++] = byte;
 }
 
-void chunk_add_constant(struct Chunk *chunk, struct Value value)
-{
-    if (chunk->constants.len == chunk->constants.cap) {
-        u32 new_cap = chunk->constants.cap == 0 ? 4 : chunk->constants.cap * 2;
-
-        struct Value *new_ptr = realloc_mem(chunk->constants.ptr, new_cap * sizeof(struct Value));
-        chunk->constants.ptr = new_ptr;
-        chunk->constants.cap = new_cap;
-    }
-    chunk->constants.ptr[chunk->constants.len++] = value;
-}
-

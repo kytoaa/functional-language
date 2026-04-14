@@ -57,8 +57,8 @@ static void eval_thunk(struct Thunk *thunk)
         return eval_box(thunk->evaluated);
     }
     struct Box **payload = obj_dyn_fields(TO_OBJ(thunk));
-    u64 addr = (u64)payload[0];
-    vm.registers[REG_1] = (u64)&payload[1];
+    u64 addr = thunk->info->address;
+    vm.registers[REG_1] = (u64)payload;
     // push continuation, pushes eval op to loop until whnf
     push_stack(instruction_ptr - 1);
     jump(addr);

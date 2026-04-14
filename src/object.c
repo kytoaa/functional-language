@@ -47,6 +47,17 @@ struct Closure *obj_create_closure(struct ClosureInfo *info)
 
     return closure;
 }
+struct Thunk *obj_create_thunk(struct ClosureInfo *info)
+{
+    const u32 size = sizeof(struct Thunk) + (info->capture_count * sizeof(struct Object*));
+    struct Thunk *thunk = (struct Thunk*)alloc_obj(size);
+
+    thunk->obj.type = OBJ_THUNK;
+    thunk->obj.flags.is_whnf = false;
+    thunk->info = info;
+
+    return thunk;
+}
 
 struct Box **obj_dyn_fields(struct Obj *obj)
 {

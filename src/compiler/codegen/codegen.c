@@ -3,6 +3,19 @@
 #include "../../bytecode.h"
 #include "../../object.h"
 
+void init_context(struct Context *ctx, struct Context *parent)
+{
+    ctx->parent = parent;
+    ctx->identifier_table = parent->identifier_table;
+    ctx->compiling_chunk = parent->compiling_chunk;
+    ctx->ident_stack_len = 0;
+    ctx->capture_stack_len = 0;
+}
+void end_context(struct Context *ctx)
+{
+    (void)ctx;
+}
+
 void declare_ident(struct Context *ctx, const char *ident)
 {
     if (ctx->ident_stack_len == IDENT_STACK_SIZE) {
@@ -10,21 +23,60 @@ void declare_ident(struct Context *ctx, const char *ident)
     }
     ctx->ident_stack[ctx->ident_stack_len] = (struct Identifier){
         .ident = ident,
-        .function = ctx->compiling_chunk->closures.len - 1,
-        .depth = ctx->current_depth,
     };
     ctx->ident_stack_len += 1;
 }
 
-struct IdentSearchResult get_ident_offset(struct Context *ctx, const char *ident) 
+bool get_ident_info(struct Context *ctx, const char *ident, struct IdentSearchResult *out)
 {
     for (u16 i = 0; i < ctx->ident_stack_len; i++) {
         struct Identifier *searching_ident = &ctx->ident_stack[ctx->ident_stack_len - (i + 1)];
         if (searching_ident->ident == ident) {
-            return (struct IdentSearchResult){ .offset = i, .function = searching_ident->function };
+            *out = (struct IdentSearchResult){
+                .offset = i,
+            };
+            return true;
         }
     }
-    return (struct IdentSearchResult){ UINT16_MAX, 0 };
+    return false;
+}
+
+static u8 add_capture(struct Context *ctx, u8 parent_index, bool is_local)
+{
+    for (u8 i = 0; i < ctx->capture_stack_len; i++) {
+        if (ctx->capture_stack[i].parent_index == parent_index
+            && ctx->capture_stack[i].is_local == is_local)
+        {
+            return i;
+        }
+    }
+    if (ctx->capture_stack_len == IDENT_STACK_SIZE) {
+        panic("too many captures");
+    }
+    u8 index = ctx->capture_stack_len++;
+    ctx->capture_stack[index] = (struct Capture){
+        .parent_index = parent_index,
+        .is_local = is_local
+    };
+    return index;
+}
+
+bool resolve_capture(struct Context *ctx, const char *ident, u8 *out)
+{
+    if (ctx->parent == null) {
+        return false;
+    }
+    struct IdentSearchResult local = {};
+    if (get_ident_info(ctx->parent, ident, &local)) {
+        *out = add_capture(ctx, local.offset, true);
+        return true;
+    }
+    u8 parent_index = 0;
+    if (resolve_capture(ctx->parent, ident, &parent_index)) {
+        *out = add_capture(ctx, parent_index, false);
+        return true;
+    }
+    return false;
 }
 
 void emit_byte(struct Context *ctx, u8 byte)

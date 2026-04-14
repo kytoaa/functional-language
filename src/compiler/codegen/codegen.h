@@ -8,31 +8,44 @@
 #include "../../bytecode.h"
 #include "../../object.h"
 
-#define IDENT_STACK_SIZE 256
+#define IDENT_STACK_SIZE 128
 
 struct Identifier {
     const char *ident;
-    u32 function;
-    u32 depth;
+};
+struct Capture {
+    union {
+        u8 value;
+        struct {
+            u8 parent_index : 7;
+            bool is_local : 1;
+        };
+    };
 };
 
 struct Context {
+    struct Context *parent;
     struct IdentifierTable *identifier_table;
     struct Chunk *compiling_chunk;
     struct Identifier ident_stack[IDENT_STACK_SIZE];
+    struct Capture capture_stack[IDENT_STACK_SIZE];
     u32 ident_stack_len;
-    u32 current_depth;
+    u32 capture_stack_len;
 };
 
+void init_context(struct Context *ctx, struct Context *parent);
+void end_context(struct Context *ctx);
+
 struct IdentSearchResult {
+    /// ident offset from the top of the binding stack, 0 being top
     u16 offset;
-    u16 function;
 };
 
 void declare_ident(struct Context *ctx, const char *ident);
 
-/// returns the ident's offset from the top of the stack
-struct IdentSearchResult get_ident_offset(struct Context *ctx, const char *ident);
+bool get_ident_info(struct Context *ctx, const char *ident, struct IdentSearchResult *out);
+
+bool resolve_capture(struct Context *ctx, const char *ident, u8 *out);
 
 void emit_byte(struct Context *ctx, u8 byte);
 void emit_2_bytes(struct Context *ctx, u8 byte, u8 arg);
