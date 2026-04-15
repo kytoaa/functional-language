@@ -21,6 +21,7 @@ struct Application *obj_create_application(u8 arg_count)
     struct Application *appl = (struct Application*)alloc_obj(size);
 
     appl->obj.type = OBJ_APPLICATION;
+    appl->obj.flags.is_whnf = false;
     appl->arg_count = arg_count;
     appl->arity = 0;
 

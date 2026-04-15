@@ -340,6 +340,7 @@ void compile_application(struct Context *ctx, struct ApplicationNode *applicatio
     }
     compile_expr(ctx, current_appl->function);
 
+    emit_byte(ctx, OP_EVAL);
     emit_2_bytes(ctx, OP_PARTIAL_APPLY, args);
 }
 

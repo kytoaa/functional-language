@@ -1,5 +1,6 @@
 #include "utils.h"
 #include "function_call.h"
+#include <stdio.h>
 
 #define set_whnf(value) do { (value)->flags.is_whnf = true; } while (0)
 
@@ -72,30 +73,18 @@ static void eval_application(struct Application *application)
 {
     struct Box **payload = obj_dyn_fields(TO_OBJ(application));
 
-    eval_value(application->closure);
-
-    Val closure = pop_val();
-    if (closure->type != OBJ_CLOSURE)
+    Val closure = application->closure;
+    if (closure->type != OBJ_CLOSURE) {
+        printf("\n%d\n", closure->type);
         panic("not a closure");
-
-    application->closure = closure;
-
-    /*struct Application *new_appl = obj_create_application(application->arg_count);
-    new_appl->closure = closure;
-    struct Box **new_payload = obj_dyn_fields(TO_OBJ(new_appl));
-
-    for (u32 i = 0; i < new_appl->arg_count; i++) {
-        new_payload[i] = payload[i];
     }
-    push_val(new_appl);*/
-
-    /*if (new_appl->arg_count >= ((struct Closure*)new_appl->closure)->info->arity) {
-        function_call();
-    }*/
-    push_val(application);
 
     if (application->arg_count >= ((struct Closure*)application->closure)->info->arity) {
+        push_stack(instruction_ptr - 1);
+        push_val(application);
         function_call();
+    } else {
+        push_val(application);
     }
 }
 

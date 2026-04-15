@@ -13,8 +13,6 @@ static void exact_arg_call(struct Application *application, struct Closure *clos
 {
     struct Box **payload = obj_dyn_fields(TO_OBJ(application));
 
-    push_stack(instruction_ptr);
-
     for (u32 i = 0; i < application->arg_count; i++) {
         push_stack((u64)payload[application->arg_count - (i + 1)]);
     }
@@ -39,8 +37,6 @@ static void application_call(Val application_val)
     } else {
         // `application->arg_count > closure->info->arity`
         struct Box **payload = obj_dyn_fields(TO_OBJ(application));
-
-        push_stack(instruction_ptr);
 
         for (u32 i = 0; i < application->arg_count; i++) {
             if (application->arg_count - i == closure->info->arity) {
@@ -142,11 +138,16 @@ void partial_apply()
     u8 extra_args = 0;
     
     Val function = pop_val();
+    struct Closure *closure = null;
     switch (function->type) {
-        case OBJ_APPLICATION:
-            extra_args = ((struct Application*)function)->arg_count;
-        case OBJ_THUNK:
+        case OBJ_APPLICATION:{
+            struct Application *application = (struct Application*)function;
+            extra_args = application->arg_count;
+            closure = (struct Closure*)application->closure;
+            break;
+        }
         case OBJ_CLOSURE:
+            closure = (struct Closure*)function;
             break;
         default:
             printf("\n%d\n", function->type);
@@ -167,8 +168,8 @@ void partial_apply()
         payload[i + extra_args] = (struct Box*)pop_val();
     }
 
-    application->closure = function;
-    application->arg_count = arg_count;
+    application->closure = TO_OBJ(closure);
+    application->arg_count = arg_count + extra_args;
 
     push_val(application);
 }
