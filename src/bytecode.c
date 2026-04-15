@@ -12,6 +12,14 @@ void chunk_write_byte(struct Chunk *chunk, u8 byte)
     chunk->bytecode.ptr[chunk->bytecode.len++] = byte;
 }
 
+void free_chunk(struct Chunk *chunk)
+{
+    free_mem(chunk->bytecode.ptr);
+    free_mem(chunk->constants.ptr);
+    free_mem(chunk->closures.ptr);
+    *chunk = (struct Chunk){};
+}
+
 static const char *OP_NAMES[] = {
     [OP_NOOP] = "OP_NOOP",
     [OP_TRANSFER_STACK_REG] = "OP_TRANSFER_STACK_REG",
@@ -20,6 +28,7 @@ static const char *OP_NAMES[] = {
     [OP_SWAP] = "OP_SWAP",
     [OP_PUSH_U64] = "OP_PUSH_U64",
     [OP_POP_U64] = "OP_POP_U64",
+    [OP_U64_ADD] = "OP_U64_ADD",
     [OP_READ_BINDING] = "OP_READ_BINDING",
     [OP_CREATE_BINDING] = "OP_CREATE_BINDING",
     [OP_REMOVE_BINDING] = "OP_REMOVE_BINDING",
@@ -55,6 +64,7 @@ static const char *OP_NAMES[] = {
     [OP_DIVIDE] = "OP_DIVIDE",
     [OP_HEAD] = "OP_HEAD",
     [OP_TAIL] = "OP_TAIL",
+    [OP_CALL_EXTERN] = "OP_CALL_EXTERN",
     [OP_END] = "OP_END",
 };
 

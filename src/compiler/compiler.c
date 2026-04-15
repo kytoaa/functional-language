@@ -1,10 +1,11 @@
 #include "compiler.h"
+#include "../vm/vm.h"
 #include "../parsing/parser.h"
 #include "../parsing/nodes.h"
 #include "../parsing/debug.h"
 #include "../parsing/ident_table.h"
 #include "../parsing/traversal.h"
-#include "codegen/codegen.h"
+#include "codegen/top_level.h"
 #include "debug.h"
 #include "reduction.h"
 
@@ -125,7 +126,7 @@ void compile_file(const struct CompilerConfig *config)
         .identifier_table = &identifiers,
     };
     printf("compiling\n");
-    compile_declaration(&context, (struct DeclarationNode*)ast);
+    compile_top_level(&context, (struct DeclarationNode*)ast);
     printf("done\n");
 
     for (u32 i = 0; i < chunk.closures.len; i++) {
@@ -133,6 +134,8 @@ void compile_file(const struct CompilerConfig *config)
         printf("{ addr: %d, arity: %d, captures: %d }\n", closure.address, closure.arity, closure.capture_count);
     }
     print_instructions(config->output, &chunk);
+
+    run_vm(&chunk, (struct VmConfig){ .out = config->output, .error = config->error });
 
     free_ident_table(&identifiers);
 

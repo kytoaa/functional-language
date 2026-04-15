@@ -1,5 +1,6 @@
 #include "utils.h"
 #include "../compiler/builtins.h"
+#include <stdio.h>
 
 static void jump_to_closure(struct Closure *closure)
 {
@@ -44,8 +45,8 @@ static void application_call(Val application_val)
         for (u32 i = 0; i < application->arg_count; i++) {
             if (application->arg_count - i == closure->info->arity) {
                 // push remaining args to the stack
-                push_stack(i + 1);
-                push_stack(GLOBAL_FUNC_APPL_CONT);
+                push_stack(i);
+                push_stack(vm.code.global_function_start + global_function_offset(GLOBAL_FUNC_APPL_CONT));
             }
             push_stack((u64)payload[application->arg_count - (i + 1)]);
         }
@@ -61,7 +62,10 @@ void function_call()
     switch (function_val->type) {
         case OBJ_APPLICATION:
             return application_call(function_val);
+        case OBJ_THUNK:
+            return;
         default:
+            printf("\n%d\n", function_val->type);
             return runtime_error("expected a function");
     }
 
@@ -94,10 +98,12 @@ void handle_continuation()
             break;
         }
         default:
+            printf("\n%d\n", evaluated_function->type);
             return runtime_error("expected a function");
     }
 
     if (remaining_args < closure->info->arity) {
+        printf("\nargs < arity :: %llu < %u\n", remaining_args, closure->info->arity);
         struct Application *constructed_appl = obj_create_application(remaining_args);
         constructed_appl->closure = TO_OBJ(closure);
         struct Box **new_payload = obj_dyn_fields(TO_OBJ(constructed_appl));
@@ -106,9 +112,11 @@ void handle_continuation()
             new_payload[i] = (struct Box*)pop_val();
         }
     } else if (remaining_args == closure->info->arity) {
+        printf("\nargs == arity :: %llu == %u\n", remaining_args, closure->info->arity);
         // args are on stack in correct order
         jump_to_closure(closure);
     } else {
+        printf("\nargs > arity :: %llu > %u\n", remaining_args, closure->info->arity);
         // `remaining_args > closure->info->arity`
         u32 extra_args = remaining_args - closure->info->arity;
 
@@ -116,9 +124,10 @@ void handle_continuation()
         for (u32 i = 1; i <= closure->info->arity; i++) {
             vm.stack[stack_ptr - i + 2] = vm.stack[stack_ptr - i];
         }
+
         // push the next continuation
-        vm.stack[stack_ptr - (closure->info->arity + 2)] = extra_args;
-        vm.stack[stack_ptr - (closure->info->arity + 1)] = GLOBAL_FUNC_APPL_CONT;
+        vm.stack[stack_ptr - closure->info->arity] = extra_args;
+        vm.stack[stack_ptr - closure->info->arity + 1] = vm.code.global_function_start + global_function_offset(GLOBAL_FUNC_APPL_CONT);
 
         // move back to top
         stack_ptr += 2;
@@ -140,6 +149,7 @@ void partial_apply()
         case OBJ_CLOSURE:
             break;
         default:
+            printf("\n%d\n", function->type);
             return runtime_error("expected a function");
     }
 

@@ -45,7 +45,7 @@ static u16 read_u16(u8 *bytes)
     }.u16;
 }
 
-static u32 print_instruction(FILE *out, u8 *bytes)
+u32 print_instruction(FILE *out, u8 *bytes)
 {
     const char *op_name = bytecode_op_name(bytes[0]);
     if (op_name == null)
@@ -65,9 +65,9 @@ static u32 print_instruction(FILE *out, u8 *bytes)
             print_register(out, bytes[1]);
             consumed += 1;
         case OP_PUSH_U64:
+            u64 value = read_u64(&bytes[consumed]);
             consumed += 8;
-            u64 u64 = read_u64(&bytes[2]);
-            fprintf(out, " %lu", u64);
+            fprintf(out, " %llu", value);
             break;
 
         case OP_READ_BINDING:
@@ -96,6 +96,18 @@ static u32 print_instruction(FILE *out, u8 *bytes)
             u16 u16 = read_u16(&bytes[1]);
             fprintf(out, " %d %d", u16, bytes[3]);
             consumed += 3;
+            break;
+        }
+        case OP_CALL_EXTERN:{
+            void *function_addr = (void*)read_u64(&bytes[1]);
+            consumed += 8;
+            fprintf(out, " %p", function_addr);
+            break;
+        }
+        case OP_U64_ADD:{
+            i64 val = (i64)read_u64(&bytes[1]);
+            consumed += 8;
+            fprintf(out, " %lld", val);
             break;
         }
     }

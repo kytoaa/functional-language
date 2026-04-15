@@ -86,6 +86,8 @@ struct Box *obj_create_box();
 struct Closure *obj_create_closure(struct ClosureInfo *info);
 struct Thunk *obj_create_thunk(struct ClosureInfo *info);
 
+void obj_init_box(struct Box *box);
+
 struct Box **obj_dyn_fields(struct Obj *obj);
 
 #endif

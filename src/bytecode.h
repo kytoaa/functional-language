@@ -21,6 +21,9 @@ enum Bytecode {
     OP_PUSH_U64,
     /// pops a u64 from the top of the stack
     OP_POP_U64,
+    /// adds a value to the u64 at the top of the stack
+    /// `op i64`
+    OP_U64_ADD,
 
     /// reads the identifier at an offset down the identifier stack, copying its
     /// value to the top of the stack, 0 being the most recent
@@ -106,6 +109,10 @@ enum Bytecode {
     OP_HEAD,
     OP_TAIL,
 
+    /// calls an external c function with signature `void (*f)()`
+    /// `op u64`
+    OP_CALL_EXTERN,
+
     OP_END,
 };
 
@@ -140,6 +147,8 @@ struct Chunk {
 
 void chunk_write_byte(struct Chunk *chunk, u8 byte);
 void chunk_add_constant(struct Chunk *chunk, struct Value value);
+
+void free_chunk(struct Chunk *chunk);
 
 const char *bytecode_op_name(enum Bytecode byte);
 

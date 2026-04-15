@@ -18,10 +18,12 @@ static void eval_value(Val val)
             return eval_application((struct Application*)val);
         case OBJ_CONS:
             set_whnf(val);
-            return push_stack((u64)val);
+            push_val(val);
+            return;
         case OBJ_CLOSURE:
             set_whnf(val);
-            return push_stack((u64)val);
+            push_val(val);
+            return;
 
         case OBJ_TYPE_COUNT:
             panic("unreachable");
@@ -34,7 +36,7 @@ void eval_val()
     Val val = pop_val();
 
     if (IS_WHNF(val)) {
-        push_stack((u64)val);
+        push_val(val);
         return;
     }
     eval_value(val);
@@ -47,7 +49,8 @@ static void eval_box(struct Box *box)
             return eval_value(box->val.as.object);
         default:
             set_whnf(&box->obj);
-            return push_stack((u64)box);
+            push_val(box);
+            return;
     }
 }
 
@@ -72,17 +75,26 @@ static void eval_application(struct Application *application)
     eval_value(application->closure);
 
     Val closure = pop_val();
+    if (closure->type != OBJ_CLOSURE)
+        panic("not a closure");
 
-    struct Application *new_appl = obj_create_application(application->arg_count);
+    application->closure = closure;
+
+    /*struct Application *new_appl = obj_create_application(application->arg_count);
     new_appl->closure = closure;
     struct Box **new_payload = obj_dyn_fields(TO_OBJ(new_appl));
 
     for (u32 i = 0; i < new_appl->arg_count; i++) {
         new_payload[i] = payload[i];
     }
-    push_val(new_appl);
+    push_val(new_appl);*/
 
-    if (new_appl->arg_count >= ((struct Closure*)new_appl->closure)->info->arity) {
+    /*if (new_appl->arg_count >= ((struct Closure*)new_appl->closure)->info->arity) {
+        function_call();
+    }*/
+    push_val(application);
+
+    if (application->arg_count >= ((struct Closure*)application->closure)->info->arity) {
         function_call();
     }
 }

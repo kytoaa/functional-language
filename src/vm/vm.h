@@ -10,8 +10,10 @@
 #define IDENT_COUNT 256
 
 struct Code {
-    u8 *instructions;
+    u64 *constants;
     struct ClosureInfo *functions;
+    u8 *instructions;
+    u64 global_function_start;
 };
 
 struct VmConfig {
@@ -21,7 +23,7 @@ struct VmConfig {
 
 struct VM {
     struct VmConfig config;
-    struct Code *code;
+    struct Code code;
     /// `instruction ptr - points to next byte`
     /// `stack ptr - index of next free stack slot`
     u64 registers[REG_COUNT];
@@ -35,5 +37,8 @@ enum InterpretResult {
 };
 
 extern struct VM vm;
+
+void run_vm(struct Chunk *chunk, struct VmConfig config);
+void end_vm();
 
 #endif

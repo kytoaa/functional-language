@@ -100,11 +100,28 @@ void emit_u16(struct Context *ctx, u16 value)
 void emit_u32(struct Context *ctx, u32 value)
 {
     union {
-        u16 bytes[2];
+        u8 bytes[4];
         u32 val;
     } val = { .val = value };
-    emit_u16(ctx, val.bytes[0]);
-    emit_u16(ctx, val.bytes[1]);
+    emit_byte(ctx, val.bytes[0]);
+    emit_byte(ctx, val.bytes[1]);
+    emit_byte(ctx, val.bytes[2]);
+    emit_byte(ctx, val.bytes[3]);
+}
+void emit_u64(struct Context *ctx, u64 value)
+{
+    union {
+        u8 bytes[8];
+        u64 val;
+    } val = { .val = value };
+    emit_byte(ctx, val.bytes[0]);
+    emit_byte(ctx, val.bytes[1]);
+    emit_byte(ctx, val.bytes[2]);
+    emit_byte(ctx, val.bytes[3]);
+    emit_byte(ctx, val.bytes[4]);
+    emit_byte(ctx, val.bytes[5]);
+    emit_byte(ctx, val.bytes[6]);
+    emit_byte(ctx, val.bytes[7]);
 }
 u32 get_last_bytecode_index(struct Context *ctx)
 {
@@ -120,6 +137,7 @@ u8 *get_bytecode_byte(struct Context *ctx, u32 index)
 
 u32 create_constant(struct Context *ctx, enum ObjType type, u32 size)
 {
+    size = (size + sizeof(u64) - 1) / sizeof(u64);
     struct ConstantList *constants = &ctx->compiling_chunk->constants;
     if (constants->len + size >= constants->cap) {
         u32 new_cap = (constants->cap == 0) ? 4 : constants->cap * 2;
@@ -129,6 +147,12 @@ u32 create_constant(struct Context *ctx, enum ObjType type, u32 size)
     }
     u32 index = constants->len;
     constants->len += size;
+
+    struct Obj *obj = (struct Obj*)&constants->ptr[index];
+    obj->type = type;
+    if (type == OBJ_BOX) {
+        obj_init_box((struct Box*)obj);
+    }
     return index;
 }
 u64 *get_constant(struct Context *ctx, u32 index)

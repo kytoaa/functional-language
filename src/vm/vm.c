@@ -2,10 +2,14 @@
 #include "utils.h"
 #include "function_call.h"
 #include "../prelude.h"
+#include "../compiler/builtins.h"
+#include "../compiler/debug.h"
+#include <stdio.h>
+#include <string.h>
 
 #define DEBUG_CHECKS
 
-struct VM vm;
+struct VM vm = {};
 
 // defined in [./eval_val.c]
 void eval_val();
@@ -37,8 +41,12 @@ static enum InterpretResult run_interpreter()
 {
 next_instruction:
 
-    switch (read_instruction()) {
+    print_stack(vm.config.out);
+    print_instruction(vm.config.out, &vm.code.instructions[instruction_ptr]);
+    u8 current_instruction = read_instruction();
+    switch (current_instruction) {
         case OP_NOOP:
+            runtime_error("noop");
             break;
         case OP_TRANSFER_STACK_REG:{
             u8 reg = read_reg();
@@ -78,6 +86,12 @@ next_instruction:
             pop_stack();
             break;
         }
+        case OP_U64_ADD:{
+            i64 val = (i64)read_u64();
+            u64 new = (i64)pop_stack() + val;
+            push_stack(new);
+            break;
+        }
 
         case OP_READ_BINDING:{
             u16 offset = read_u16() + 1;
@@ -99,10 +113,12 @@ next_instruction:
                 panic("no bindings to pop");
         #endif
             vm.registers[BINDING_PTR] -= 1;
+            break;
         }
 
         case OP_JUMP:{
             u64 addr = pop_stack();
+            printf("jumping to %llu\n", addr);
             instruction_ptr = addr;
             break;
         }
@@ -140,6 +156,12 @@ next_instruction:
             }
             break;
         }
+        case OP_JUMP_GLOBALS:{
+            u8 global_function = read_instruction();
+            u32 offset = global_function_offset(global_function);
+            jump(vm.code.global_function_start + offset);
+            break;
+        }
 
         case OP_CALL:{
             function_call();
@@ -167,10 +189,21 @@ next_instruction:
             push_val(value);
             break;
         }
+        case OP_CAPTURE_READ:{
+            u16 offset = read_u16() + 1;
+            u8 capture = read_instruction();
+        #ifdef DEBUG_CHECKS
+            if (offset > vm.registers[BINDING_PTR])
+                panic("reading binding at invalid offset");
+        #endif
+            u64 *binding = (u64*)vm.bindings[vm.registers[BINDING_PTR] - offset];
+            push_stack(binding[capture]);
+            break;
+        }
 
         case OP_CREATE_CLOSURE:{
             u16 closure_index = read_u16();
-            struct ClosureInfo *closure_info = &vm.code->functions[closure_index];
+            struct ClosureInfo *closure_info = &vm.code.functions[closure_index];
             struct Closure *closure = obj_create_closure(closure_info);
             push_val(closure);
             break;
@@ -194,7 +227,7 @@ next_instruction:
         }
         case OP_CREATE_THUNK:{
             u16 closure_index = read_u16();
-            struct ClosureInfo *closure_info = &vm.code->functions[closure_index];
+            struct ClosureInfo *closure_info = &vm.code.functions[closure_index];
             struct Thunk *thunk = obj_create_thunk(closure_info);
             push_val(thunk);
             break;
@@ -218,6 +251,12 @@ next_instruction:
         }
         case OP_PARTIAL_APPLY:{
             partial_apply();
+            break;
+        }
+
+        case OP_PUSH_CONST:{
+            u16 const_index = read_u16();
+            push_stack((u64)&vm.code.constants[const_index]);
             break;
         }
 
@@ -343,6 +382,12 @@ next_instruction:
             break;
         }
 
+        case OP_CALL_EXTERN:{
+            void (*function)() = (void (*)())read_u64();
+            function();
+            break;
+        }
+
         case OP_END:
             return INTERPRET_OK;
 
@@ -356,3 +401,39 @@ next_instruction:
     return INTERPRET_OK;
 }
 
+void run_vm(struct Chunk *chunk, struct VmConfig config)
+{
+    if (vm.code.constants != null)
+        end_vm();
+
+    u32 constants_size = chunk->constants.len * sizeof(u64);
+    u32 closures_size = chunk->closures.len * sizeof(struct ClosureInfo);
+    u32 instructions_size = chunk->bytecode.len * sizeof(u8);
+    u32 globals_size = global_functions_size();
+
+    u8 *memory = alloc_mem(instructions_size + constants_size + closures_size + globals_size);
+
+    u8 *constants = memory;
+    u8 *closures = constants + constants_size;
+    u8 *instructions = closures + closures_size;
+    memcpy(constants, chunk->constants.ptr, constants_size);
+    memcpy(closures, chunk->closures.ptr, closures_size);
+    memcpy(instructions, chunk->bytecode.ptr, instructions_size);
+    write_global_functions(instructions + instructions_size);
+
+    vm = (struct VM){
+        .code = {
+            .constants = (u64*)constants,
+            .functions = (struct ClosureInfo*)closures,
+            .instructions = instructions,
+            .global_function_start = chunk->bytecode.len,
+        },
+        .config = config,
+    };
+
+    run_interpreter();
+}
+void end_vm()
+{
+    free_mem(vm.code.constants);
+}

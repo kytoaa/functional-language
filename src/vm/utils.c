@@ -2,17 +2,33 @@
 
 #include <stdio.h>
 
+#define DEBUG_CHECKS
+
+void print_stack(FILE *out)
+{
+    fprintf(out, "%llu, %llu [ ", instruction_ptr, vm.registers[REG_1]);
+    if (stack_ptr > 0) {
+        for (u32 i = 0; i < stack_ptr - 1; i++) {
+            fprintf(out, "%llu, ", vm.stack[i]);
+        }
+        fprintf(out, "%llu ]\n", vm.stack[stack_ptr - 1]);
+    } else {
+        fprintf(out, "]\n");
+    }
+}
+
 void runtime_error(const char *msg)
 {
     fprintf(vm.config.error, "error: %s\n", msg);
 #ifdef DEBUG_CHECKS
-    fprintf(vm.config.error, "\tip: [%lu], sp: [%lu], r1: [%lu]\n", instruction_ptr(), stack_ptr(), vm.registers[REG_1]);
+    fprintf(vm.config.error, "\tip: [%llu], sp: [%llu], r1: [%llu]\n", instruction_ptr, stack_ptr, vm.registers[REG_1]);
+    print_stack(vm.config.error);
 #endif
 }
 
 u8 read_instruction()
 {
-    return vm.code->instructions[vm.registers[INSTRUCTION_PTR]++];
+    return vm.code.instructions[vm.registers[INSTRUCTION_PTR]++];
 }
 u8 read_reg()
 {
@@ -55,7 +71,7 @@ u16 read_u16()
 u64 read_stack(u64 offset)
 {
 #ifdef DEBUG_CHECKS
-    if (offset >= stack_ptr())
+    if (offset >= stack_ptr)
         panic("offset larger than stack");
 #endif
     // stack ptr points to next free spot, offset 0 should point
@@ -69,5 +85,8 @@ u64 pop_stack()
 }
 void push_stack(u64 val)
 {
-    vm.stack[instruction_ptr++] = val;
+    vm.stack[stack_ptr++] = val;
+    if (val == 2) {
+        runtime_error("pushed 2");
+    }
 }

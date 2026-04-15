@@ -54,6 +54,9 @@ void reduce_ast(struct AstNode *node)
 /// converts declaration to a lambda
 static void reduce_declaration(struct DeclarationNode *decl)
 {
+    if (decl->bindings == null)
+        return;
+
     struct LambdaNode *lambda = ALLOC_NODE(struct LambdaNode);
     *lambda = (struct LambdaNode){
         .node = { AST_LAMBDA },
@@ -76,6 +79,13 @@ static void reduce_node(struct AstNode *node, void *arg)
 
     if (node->kind == AST_DECLARATION) {
         reduce_declaration((struct DeclarationNode*)node);
+    } else if (node->kind == AST_LAMBDA) {
+        struct LambdaNode *lambda = (struct LambdaNode*)node;
+        struct FunctionBindingNode *binding = lambda->bindings;
+        while (binding != null) {
+            binding->function = AS_NODE(lambda);
+            binding = binding->next_binding;
+        }
     }
 }
 

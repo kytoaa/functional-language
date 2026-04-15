@@ -51,6 +51,8 @@ void emit_byte(struct Context *ctx, u8 byte);
 void emit_2_bytes(struct Context *ctx, u8 byte, u8 arg);
 void emit_u16(struct Context *ctx, u16 value);
 void emit_u32(struct Context *ctx, u32 value);
+void emit_u64(struct Context *ctx, u64 value);
+
 u32 get_last_bytecode_index(struct Context *ctx);
 u8 *get_bytecode_byte(struct Context *ctx, u32 index);
 

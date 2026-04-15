@@ -1,6 +1,7 @@
 #include "builtins.h"
 #include "../bytecode.h"
 #include "../prelude.h"
+#include <string.h>
 
 /// basic calling conventions
 /// `f x y z = ...`
@@ -9,7 +10,7 @@
 
 struct GlobalFunctionData {
     const u8 *code;
-    const u32 rength;
+    const u32 length;
 };
 
 const struct GlobalFunctionData FUNCTIONS[];
@@ -126,4 +127,31 @@ const struct GlobalFunctionData FUNCTIONS[] = {
     [GLOBAL_FUNC_LESS_EQ]      = { LESS_EQ_BYTECODE,      arr_len(LESS_EQ_BYTECODE) },
     [GLOBAL_FUNC_APPL_CONT]    = { APPL_CONT_BYTECODE,    arr_len(APPL_CONT_BYTECODE) },
 };
+
+u32 global_functions_size()
+{
+    u32 size = 0;
+    for (u32 i = 0; i < arr_len(FUNCTIONS); i++) {
+        size += FUNCTIONS[i].length;
+    }
+    return size;
+}
+void write_global_functions(u8 *code)
+{
+    for (u32 i = 0; i < arr_len(FUNCTIONS); i++) {
+        struct GlobalFunctionData function = FUNCTIONS[i];
+        memcpy(code, function.code, function.length);
+        code += function.length;
+    }
+}
+u32 global_function_offset(enum GlobalFunction function)
+{
+    if (function >= GLOBAL_FUNCTION_COUNT)
+        panic("not a global function");
+    u32 offset = 0;
+    for (u32 i = 0; i < function; i++) {
+        offset += FUNCTIONS[i].length;
+    }
+    return offset;
+}
 

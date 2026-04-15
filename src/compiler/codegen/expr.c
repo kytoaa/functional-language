@@ -12,8 +12,11 @@ void compile_declaration(struct Context *ctx, struct DeclarationNode *node)
     declare_ident(ctx, node->name);
     if (node->body->kind == AST_LAMBDA) {
         compile_lambda(ctx, (struct LambdaNode*)node->body, node->name);
+        // lambda has been bound, pop it
+        emit_byte(ctx, OP_POP_U64);
     } else {
         compile_thunk(ctx, node->body, node->name);
+        emit_byte(ctx, OP_POP_U64);
     }
 }
 
@@ -35,8 +38,8 @@ void compile_identifier(struct Context *ctx, struct IdentifierNode *node)
 
 void compile_literal(struct Context *ctx, struct LiteralNode *node)
 {
-    u32 constant = create_constant(ctx, OBJ_BOX, sizeof(struct Value));
-    struct Value *value = (struct Value*)get_constant(ctx, constant);
+    u32 constant = create_constant(ctx, OBJ_BOX, sizeof(struct Box));
+    struct Value *value = &((struct Box*)get_constant(ctx, constant))->val;
 
     if (node->type == LITERAL_TYPE_EMPTY_LIST) {
         return;
@@ -69,11 +72,13 @@ void compile_literal(struct Context *ctx, struct LiteralNode *node)
 
 void compile_bin_op(struct Context *ctx, struct BinOpNode *node)
 {
-    emit_2_bytes(ctx, OP_PUSH_REG_STACK, INSTRUCTION_PTR);
-    compile_expr(ctx, node->l);
-    emit_2_bytes(ctx, OP_PUSH_REG_STACK, INSTRUCTION_PTR);
+    emit_byte(ctx, OP_PUSH_U64);
+    u32 jump_location = get_last_bytecode_index(ctx) + 1;
+    emit_u64(ctx, 0);
+
     compile_expr(ctx, node->r);
-    emit_2_bytes(ctx, OP_PUSH_REG_STACK, INSTRUCTION_PTR);
+    compile_expr(ctx, node->l);
+
     emit_byte(ctx, OP_JUMP_GLOBALS);
     
     u8 op = GLOBAL_FUNC_ADD;
@@ -95,6 +100,11 @@ void compile_bin_op(struct Context *ctx, struct BinOpNode *node)
             break;
     }
     emit_byte(ctx, op);
+    u64 end_location = get_last_bytecode_index(ctx) + 1;
+    u8 *jump_addr_bytes = get_bytecode_byte(ctx, jump_location);
+    for (u8 i = 0; i < 8; i++) {
+        jump_addr_bytes[i] = ((u8*)&end_location)[i];
+    }
 }
 
 void compile_pattern_match(struct Context *ctx, struct AstNode *node)
@@ -129,7 +139,7 @@ void compile_if_expr(struct Context *ctx, struct IfExprNode *node)
     emit_byte(ctx, 0);
 
     u32 true_jump_location = get_last_bytecode_index(ctx) + 1;
-    usize diff = true_jump_location - true_jump_instruction;
+    usize diff = true_jump_location - (true_jump_instruction + sizeof(i16));
 
     union FromBytes diff_bytes = { .u16 = diff };
 
@@ -139,7 +149,7 @@ void compile_if_expr(struct Context *ctx, struct IfExprNode *node)
 
     compile_expr(ctx, node->then_expr);
     u32 end_jump_location = get_last_bytecode_index(ctx) + 1;
-    diff_bytes.u16 = end_jump_location - end_jump_instruction;
+    diff_bytes.u16 = end_jump_location - (end_jump_instruction + sizeof(i16));
 
     u8 *end_jump_instruction_bytes = get_bytecode_byte(ctx, end_jump_instruction);
     end_jump_instruction_bytes[0] = diff_bytes.bytes[0];
@@ -156,6 +166,7 @@ void compile_let_expr(struct Context *ctx, struct LetExprNode *node)
     compile_thunk(ctx, node->body, null);
 }
 
+/// leaves the constructed lambda at the top of the stack
 void compile_lambda(struct Context *ctx, struct LambdaNode *node, const char *bind_to)
 {
     struct Context context = {};
@@ -193,9 +204,11 @@ void compile_lambda(struct Context *ctx, struct LambdaNode *node, const char *bi
     for (u32 i = 0; i < bindings + 1; i++) {
         emit_byte(&context, OP_REMOVE_BINDING);
     }
+    // swap result and continuation
+    emit_byte(&context, OP_SWAP);
     emit_byte(&context, OP_JUMP);
     u32 jump_target = get_last_bytecode_index(&context) + 1;
-    union FromBytes diff_bytes = { .u16 = (u16)(jump_target - jump_location) };
+    union FromBytes diff_bytes = { .u16 = (u16)(jump_target - (jump_location + sizeof(i16))) };
     u8 *jump_location_bytes = get_bytecode_byte(&context, jump_location);
     jump_location_bytes[0] = diff_bytes.bytes[0];
     jump_location_bytes[1] = diff_bytes.bytes[1];
@@ -259,9 +272,11 @@ void compile_thunk(struct Context *ctx, struct AstNode *node, const char *bind_t
 
     compile_expr(&context, node);
 
+    // swap result and continuation
+    emit_byte(&context, OP_SWAP);
     emit_byte(&context, OP_JUMP);
     u32 jump_target = get_last_bytecode_index(&context) + 1;
-    union FromBytes diff_bytes = { .u16 = (u16)(jump_target - jump_location) };
+    union FromBytes diff_bytes = { .u16 = (u16)(jump_target - (jump_location + sizeof(i16))) };
     u8 *jump_location_bytes = get_bytecode_byte(&context, jump_location);
     jump_location_bytes[0] = diff_bytes.bytes[0];
     jump_location_bytes[1] = diff_bytes.bytes[1];
@@ -338,7 +353,6 @@ void compile_application(struct Context *ctx, struct ApplicationNode *applicatio
 
 void compile_expr(struct Context *ctx, struct AstNode *node)
 {
-    // when function is evaluated it must be in whnf, therefore its argument count should be accessible
     switch (node->kind) {
         case AST_LITERAL:
             compile_literal(ctx, (struct LiteralNode*)node);
@@ -354,6 +368,9 @@ void compile_expr(struct Context *ctx, struct AstNode *node)
             break;
         case AST_LET_EXPR:
             compile_let_expr(ctx, (struct LetExprNode*)node);
+            break;
+        case AST_APPLICATION:
+            compile_application(ctx, (struct ApplicationNode*)node);
             break;
     }
 }

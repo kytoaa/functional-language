@@ -26,16 +26,22 @@ struct Application *obj_create_application(u8 arg_count)
 
     return appl;
 }
+
 struct Box *obj_create_box()
 {
     const u32 size = sizeof(struct Box);
     struct Box *box = (struct Box*)alloc_obj(size);
 
-    box->obj.type = OBJ_BOX;
-    box->obj.flags.is_whnf = true;
+    obj_init_box(box);
 
     return box;
 }
+void obj_init_box(struct Box *box)
+{
+    box->obj.type = OBJ_BOX;
+    box->obj.flags.is_whnf = true;
+}
+
 struct Closure *obj_create_closure(struct ClosureInfo *info)
 {
     const u32 size = sizeof(struct Closure) + (info->capture_count * sizeof(struct Object*));
@@ -55,6 +61,7 @@ struct Thunk *obj_create_thunk(struct ClosureInfo *info)
     thunk->obj.type = OBJ_THUNK;
     thunk->obj.flags.is_whnf = false;
     thunk->info = info;
+    thunk->evaluated = null;
 
     return thunk;
 }
