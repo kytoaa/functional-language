@@ -140,7 +140,7 @@ u32 create_constant(struct Context *ctx, enum ObjType type, u32 size)
     size = (size + sizeof(u64) - 1) / sizeof(u64);
     struct ConstantList *constants = &ctx->compiling_chunk->constants;
     if (constants->len + size >= constants->cap) {
-        u32 new_cap = (constants->cap == 0) ? 4 : constants->cap * 2;
+        u32 new_cap = (constants->cap == 0) ? size : constants->cap * 2;
         u64 *new_ptr = realloc_mem(constants->ptr, new_cap * sizeof(u64));
         constants->ptr = new_ptr;
         constants->cap = new_cap;

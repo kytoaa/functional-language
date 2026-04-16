@@ -4,6 +4,7 @@
 #include "../prelude.h"
 
 enum GlobalFunction {
+    GLOBAL_FUNC_CONS,
     GLOBAL_FUNC_ADD,
     GLOBAL_FUNC_SUB,
     GLOBAL_FUNC_MUL,
@@ -14,6 +15,7 @@ enum GlobalFunction {
     GLOBAL_FUNC_GREATER_EQ,
     GLOBAL_FUNC_LESS_EQ,
     GLOBAL_FUNC_APPL_CONT,
+    GLOBAL_FUNC_UPDATE_THUNK,
     GLOBAL_FUNCTION_COUNT,
 };
 

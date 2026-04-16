@@ -58,13 +58,17 @@ static void eval_box(struct Box *box)
 static void eval_thunk(struct Thunk *thunk)
 {
     if (thunk->evaluated != null) {
-        return eval_box(thunk->evaluated);
+        return eval_value(thunk->evaluated);
     }
     struct Box **payload = obj_dyn_fields(TO_OBJ(thunk));
     u64 addr = thunk->info->address;
     vm.registers[REG_1] = (u64)payload;
+
     // push continuation, pushes eval op to loop until whnf
     push_stack(instruction_ptr - 1);
+    push_val(thunk);
+    // continue to update thunk
+    push_stack(address_of_global(GLOBAL_FUNC_UPDATE_THUNK));
     jump(addr);
     // resume execution
 }

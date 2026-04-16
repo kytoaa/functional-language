@@ -120,6 +120,7 @@ void compile_file(const struct CompilerConfig *config)
     print_ast(ast);
 
     struct Chunk chunk = {};
+    init_chunk(&chunk);
 
     struct Context context = {
         .compiling_chunk = &chunk,

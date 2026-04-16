@@ -1,4 +1,29 @@
 #include "bytecode.h"
+#include "object.h"
+
+void init_chunk(struct Chunk *chunk)
+{
+    const u32 unit_size = sizeof(struct Box);
+    u64 *constants_ptr = alloc_mem(unit_size);
+    struct Box *box = (struct Box*)constants_ptr;
+    box->obj = (struct Obj){
+        .flags = { .is_whnf = true, .is_static = true },
+        .next = null,
+        .type = OBJ_BOX,
+    };
+    obj_init_box(box);
+    box->val = UNIT_VAL();
+
+    const u32 size = (unit_size + sizeof(u64) - 1) / sizeof(u64);
+
+    *chunk = (struct Chunk){
+        .constants = {
+            .ptr = constants_ptr,
+            .cap = size,
+            .len = size,
+        },
+    };
+}
 
 void chunk_write_byte(struct Chunk *chunk, u8 byte)
 {
@@ -49,6 +74,7 @@ static const char *OP_NAMES[] = {
     [OP_WRITE_CLOSURE] = "OP_WRITE_CLOSURE",
     [OP_CREATE_THUNK] = "OP_CREATE_THUNK",
     [OP_WRITE_THUNK] = "OP_WRITE_THUNK",
+    [OP_CREATE_CONS] = "OP_CREATE_CONS",
     [OP_PUSH_CONST] = "OP_PUSH_CONST",
     [OP_TRUE] = "OP_TRUE",
     [OP_FALSE] = "OP_FALSE",

@@ -38,32 +38,32 @@ void compile_identifier(struct Context *ctx, struct IdentifierNode *node)
 
 void compile_literal(struct Context *ctx, struct LiteralNode *node)
 {
-    u32 constant = create_constant(ctx, OBJ_BOX, sizeof(struct Box));
-    struct Value *value = &((struct Box*)get_constant(ctx, constant))->val;
+    u32 constant = 0;
+    // unit is at index 0 as all units are identical
+    if (node->type != LITERAL_TYPE_UNIT) {
+        u32 constant = create_constant(ctx, OBJ_BOX, sizeof(struct Box));
+        struct Value *value = &((struct Box*)get_constant(ctx, constant))->val;
 
-    if (node->type == LITERAL_TYPE_EMPTY_LIST) {
-        return;
-    }
-
-    switch (node->type) {
-        case LITERAL_TYPE_BOOLEAN:{
-            value->type = VALUE_BOOL;
-            value->as.boolean = node->as.boolean;
-            break;
-        }
-        case LITERAL_TYPE_NUMBER:{
-            value->type = VALUE_INT;
-            value->as.integer = node->as.number;
-            break;
-        }
-        case LITERAL_TYPE_CHARACTER:{
-            value->type = VALUE_CHAR;
-            value->as.character = node->as.character;
-            break;
-        }
-        case LITERAL_TYPE_UNIT:{
-            value->type = VALUE_UNIT;
-            break;
+        switch (node->type) {
+            case LITERAL_TYPE_BOOLEAN:{
+                value->type = VALUE_BOOL;
+                value->as.boolean = node->as.boolean;
+                break;
+            }
+            case LITERAL_TYPE_NUMBER:{
+                value->type = VALUE_INT;
+                value->as.integer = node->as.number;
+                break;
+            }
+            case LITERAL_TYPE_CHARACTER:{
+                value->type = VALUE_CHAR;
+                value->as.character = node->as.character;
+                break;
+            }
+            case LITERAL_TYPE_UNIT:{
+                value->type = VALUE_UNIT;
+                break;
+            }
         }
     }
     emit_byte(ctx, OP_PUSH_CONST);
@@ -94,6 +94,9 @@ void compile_bin_op(struct Context *ctx, struct BinOpNode *node)
             break;
         case AST_BIN_OP_DIV:
             op = GLOBAL_FUNC_DIV;
+            break;
+        case AST_BIN_OP_CONS:
+            op = GLOBAL_FUNC_CONS;
             break;
         default:
             panic("unreachable, invalid expression");

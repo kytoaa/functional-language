@@ -17,6 +17,14 @@ const struct GlobalFunctionData FUNCTIONS[];
 
 /// expected stack layout
 /// `[..cont r l]`
+const u8 CONS_BYTECODE[] = {
+    OP_CREATE_CONS,
+    OP_SWAP,
+    OP_JUMP,
+};
+
+/// expected stack layout
+/// `[..cont r l]`
 const u8 ADD_BYTECODE[] = {
     OP_EVAL, // [..cont r l']
     OP_SWAP, // [..cont l' r]
@@ -113,9 +121,19 @@ const u8 LESS_EQ_BYTECODE[] = {
 
 const u8 APPL_CONT_BYTECODE[] = { OP_EVAL, OP_HANDLE_CONTINUATION };
 
+/// expected stack layout
+/// `[..cont thunk evaluated]`
+const u8 UPDATE_THUNK_BYTECODE[] = {
+    OP_EVAL,
+    OP_UPDATE_THUNK,
+    OP_SWAP,
+    OP_JUMP,
+};
+
 #define arr_len(arr) (sizeof(arr) / sizeof(arr[0]))
 
 const struct GlobalFunctionData FUNCTIONS[] = {
+    [GLOBAL_FUNC_CONS]         = { CONS_BYTECODE,         arr_len(CONS_BYTECODE) },
     [GLOBAL_FUNC_ADD]          = { ADD_BYTECODE,          arr_len(ADD_BYTECODE) },
     [GLOBAL_FUNC_SUB]          = { SUB_BYTECODE,          arr_len(SUB_BYTECODE) },
     [GLOBAL_FUNC_MUL]          = { MUL_BYTECODE,          arr_len(MUL_BYTECODE) },
@@ -126,15 +144,27 @@ const struct GlobalFunctionData FUNCTIONS[] = {
     [GLOBAL_FUNC_GREATER_EQ]   = { GREATER_EQ_BYTECODE,   arr_len(GREATER_EQ_BYTECODE) },
     [GLOBAL_FUNC_LESS_EQ]      = { LESS_EQ_BYTECODE,      arr_len(LESS_EQ_BYTECODE) },
     [GLOBAL_FUNC_APPL_CONT]    = { APPL_CONT_BYTECODE,    arr_len(APPL_CONT_BYTECODE) },
+    [GLOBAL_FUNC_UPDATE_THUNK] = { UPDATE_THUNK_BYTECODE, arr_len(UPDATE_THUNK_BYTECODE) },
 };
+
+static u32 OFFSETS[GLOBAL_FUNCTION_COUNT + 1] = {};
+
+static void generate_offsets()
+{
+    u32 offset = 0;
+    for (u32 i = 0; i < GLOBAL_FUNCTION_COUNT; i++) {
+        OFFSETS[i] = offset;
+        offset += FUNCTIONS[i].length;
+    }
+    OFFSETS[GLOBAL_FUNCTION_COUNT] = offset;
+}
 
 u32 global_functions_size()
 {
-    u32 size = 0;
-    for (u32 i = 0; i < arr_len(FUNCTIONS); i++) {
-        size += FUNCTIONS[i].length;
-    }
-    return size;
+    if (OFFSETS[GLOBAL_FUNCTION_COUNT] == 0)
+        generate_offsets();
+
+    return OFFSETS[GLOBAL_FUNCTION_COUNT];
 }
 void write_global_functions(u8 *code)
 {
@@ -146,12 +176,12 @@ void write_global_functions(u8 *code)
 }
 u32 global_function_offset(enum GlobalFunction function)
 {
+    if (OFFSETS[GLOBAL_FUNCTION_COUNT] == 0)
+        generate_offsets();
+
     if (function >= GLOBAL_FUNCTION_COUNT)
         panic("not a global function");
-    u32 offset = 0;
-    for (u32 i = 0; i < function; i++) {
-        offset += FUNCTIONS[i].length;
-    }
-    return offset;
+
+    return OFFSETS[function];
 }
 

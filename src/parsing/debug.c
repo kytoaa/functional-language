@@ -16,9 +16,6 @@ static void print_literal(struct LiteralNode *node)
         case LITERAL_TYPE_NUMBER:
             printf("%d", node->as.number);
             break;
-        case LITERAL_TYPE_EMPTY_LIST:
-            printf("[]");
-            break;
         case LITERAL_TYPE_UNIT:
             printf("()");
             break;

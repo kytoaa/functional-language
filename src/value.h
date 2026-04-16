@@ -54,6 +54,7 @@ static inline bool value_equal(struct Value l, struct Value r)
 #define INT_VAL(val)    ((struct Value){ VALUE_INT, { .integer = (val) } })
 #define BOOL_VAL(val)   ((struct Value){ VALUE_BOOL, { .boolean = (val) } })
 #define CHAR_VAL(val)   ((struct Value){ VALUE_CHAR, { .character = (val) } })
+#define UNIT_VAL()      ((struct Value){ VALUE_UNIT, { .object = null } })
 #define OBJ_VAL(val)    ((struct Value){ VALUE_OBJ, { .object = (val) } })
 
 #define IS_INT(val)     ((val).type == VALUE_INT)

@@ -42,7 +42,7 @@ static void application_call(Val application_val)
             if (application->arg_count - i == closure->info->arity) {
                 // push remaining args to the stack
                 push_stack(i);
-                push_stack(vm.code.global_function_start + global_function_offset(GLOBAL_FUNC_APPL_CONT));
+                push_stack(address_of_global(GLOBAL_FUNC_APPL_CONT));
             }
             push_stack((u64)payload[application->arg_count - (i + 1)]);
         }
@@ -123,7 +123,7 @@ void handle_continuation()
 
         // push the next continuation
         vm.stack[stack_ptr - closure->info->arity] = extra_args;
-        vm.stack[stack_ptr - closure->info->arity + 1] = vm.code.global_function_start + global_function_offset(GLOBAL_FUNC_APPL_CONT);
+        vm.stack[stack_ptr - closure->info->arity + 1] = address_of_global(GLOBAL_FUNC_APPL_CONT);
 
         // move back to top
         stack_ptr += 2;

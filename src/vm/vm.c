@@ -19,7 +19,7 @@ static void typecheck(Val val, enum ValueType type, const char *error)
     for (;;) {
     switch (val->type) {
         case OBJ_THUNK:{
-            val = TO_OBJ(((struct Thunk*)val)->evaluated);
+            val = ((struct Thunk*)val)->evaluated;
             if (val == null)
                 panic("unreachable: unevaluated thunk");
             continue;
@@ -200,6 +200,18 @@ next_instruction:
             push_stack(binding[capture]);
             break;
         }
+        case OP_UPDATE_THUNK:{
+            Val evaluated = pop_val();
+            if (!evaluated->flags.is_whnf)
+                panic("evaluated isnt in whnf");
+            Val thunk_val = pop_val();
+            if (thunk_val->type != OBJ_THUNK)
+                panic("not a thunk");
+            struct Thunk *thunk = (struct Thunk*)thunk_val;
+            thunk->evaluated = evaluated;
+            push_val(evaluated);
+            break;
+        }
 
         case OP_CREATE_CLOSURE:{
             u16 closure_index = read_u16();
@@ -254,9 +266,19 @@ next_instruction:
             break;
         }
 
+        case OP_CREATE_CONS:{
+            Val l = pop_val();
+            Val r = pop_val();
+            struct Cons *cons = obj_create_cons();
+            cons->l = l;
+            cons->r = r;
+            push_val(cons);
+            break;
+        }
+
         case OP_PUSH_CONST:{
             u16 const_index = read_u16();
-            push_stack((u64)&vm.code.constants[const_index]);
+            push_val(&vm.code.constants[const_index]);
             break;
         }
 

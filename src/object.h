@@ -61,7 +61,7 @@ struct Thunk {
     struct Obj obj;
     struct ClosureInfo *info;
     /// updated once thunk has been evaluated
-    struct Box *evaluated;
+    Val evaluated;
     /// struct Box *fvs[]
 };
 
@@ -81,12 +81,14 @@ static inline bool is_obj_type(struct Value val, enum ObjType type)
     return IS_OBJ(val) && OBJ_TYPE(val) == type;
 }
 
-struct Application *obj_create_application(u8 arg_count);
 struct Box *obj_create_box();
+struct Cons *obj_create_cons();
+struct Application *obj_create_application(u8 arg_count);
 struct Closure *obj_create_closure(struct ClosureInfo *info);
 struct Thunk *obj_create_thunk(struct ClosureInfo *info);
 
 void obj_init_box(struct Box *box);
+void obj_init_cons(struct Cons *cons);
 
 struct Box **obj_dyn_fields(struct Obj *obj);
 

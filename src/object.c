@@ -15,19 +15,6 @@ static struct Obj *alloc_obj(u32 size)
     return new_obj;
 }
 
-struct Application *obj_create_application(u8 arg_count)
-{
-    const u32 size = sizeof(struct Application) + sizeof(void*) * arg_count;
-    struct Application *appl = (struct Application*)alloc_obj(size);
-
-    appl->obj.type = OBJ_APPLICATION;
-    appl->obj.flags.is_whnf = false;
-    appl->arg_count = arg_count;
-    appl->arity = 0;
-
-    return appl;
-}
-
 struct Box *obj_create_box()
 {
     const u32 size = sizeof(struct Box);
@@ -41,6 +28,36 @@ void obj_init_box(struct Box *box)
 {
     box->obj.type = OBJ_BOX;
     box->obj.flags.is_whnf = true;
+}
+
+struct Cons *obj_create_cons()
+{
+    const u32 size = sizeof(struct Cons);
+    struct Cons *cons = (struct Cons*)alloc_obj(size);
+
+    obj_init_cons(cons);
+
+    return cons;
+}
+void obj_init_cons(struct Cons *cons)
+{
+    cons->obj.type = OBJ_CONS;
+    cons->obj.flags.is_whnf = true;
+    cons->l = null;
+    cons->r = null;
+}
+
+struct Application *obj_create_application(u8 arg_count)
+{
+    const u32 size = sizeof(struct Application) + sizeof(void*) * arg_count;
+    struct Application *appl = (struct Application*)alloc_obj(size);
+
+    appl->obj.type = OBJ_APPLICATION;
+    appl->obj.flags.is_whnf = false;
+    appl->arg_count = arg_count;
+    appl->arity = 0;
+
+    return appl;
 }
 
 struct Closure *obj_create_closure(struct ClosureInfo *info)

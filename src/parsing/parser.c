@@ -75,7 +75,6 @@ static struct AstNode *expr(enum Precedence precedence);
 static struct AstNode *binary(enum Precedence precedence, struct AstNode *lhs);
 static struct AstNode *application(enum Precedence precedence, struct AstNode *lhs);
 static struct AstNode *grouping();
-static struct AstNode *bracket();
 static struct AstNode *unary();
 
 static struct AstNode *identifier();
@@ -112,7 +111,7 @@ static struct ParseRule rules[] = {
     [TOKEN_L_BRACE]      = { null, null, PREC_NONE },
     [TOKEN_R_BRACE]      = { null, null, PREC_NONE },
 
-    [TOKEN_L_BRACKET]    = { bracket, null, PREC_NONE },
+    [TOKEN_L_BRACKET]    = { null, null, PREC_NONE },
     [TOKEN_R_BRACKET]    = { null, null, PREC_NONE },
 
     [TOKEN_IDENT]        = { identifier, null, PREC_NONE },
@@ -175,21 +174,7 @@ static struct AstNode *grouping()
     consume(TOKEN_R_PAREN, "expected `)`");
     return node;
 }
-static struct AstNode *bracket()
-{
-    if (parser.current.type == TOKEN_R_BRACKET) {
-        struct LiteralNode *empty_list = ALLOC_NODE(struct LiteralNode);
 
-        *empty_list = (struct LiteralNode){
-            .node = { AST_LITERAL },
-            .type = LITERAL_TYPE_EMPTY_LIST,
-        };
-        advance();
-
-        return AS_NODE(empty_list);
-    }
-    return null;
-}
 static struct AstNode *unary()
 {
     enum TokenType op_type = parser.prev.type;

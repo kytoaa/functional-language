@@ -90,3 +90,8 @@ void push_stack(u64 val)
         runtime_error("pushed 2");
     }
 }
+
+u64 address_of_global(enum GlobalFunction global)
+{
+    return vm.code.global_function_start + global_function_offset(global);
+}

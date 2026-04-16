@@ -67,6 +67,8 @@ enum Bytecode {
     /// `op u16 u8`
     OP_CAPTURE_READ,
 
+    /// writes a value into a thunk, leaves the evaluated value on the stack
+    /// stack: `[thunk, evaluated]` -> `[evaluated]`
     OP_UPDATE_THUNK,
 
     /// `op u8` arg count
@@ -85,6 +87,10 @@ enum Bytecode {
     /// writes the payload into the thunk
     /// stack: `[..payload, thunk]`
     OP_WRITE_THUNK,
+
+    /// creates a cons at the top of the stack
+    /// stack: `[r, l]`
+    OP_CREATE_CONS,
 
     /// `op u16` constant;
     OP_PUSH_CONST,
@@ -106,6 +112,7 @@ enum Bytecode {
     /// divides the items at the top of the stack
     /// expects `l` at top and `r` below for `l / r`
     OP_DIVIDE,
+
     OP_HEAD,
     OP_TAIL,
 
@@ -145,6 +152,7 @@ struct Chunk {
     struct ClosureInfoList closures;
 };
 
+void init_chunk(struct Chunk *chunk);
 void chunk_write_byte(struct Chunk *chunk, u8 byte);
 void chunk_add_constant(struct Chunk *chunk, struct Value value);
 
