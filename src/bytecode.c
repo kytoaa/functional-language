@@ -3,18 +3,37 @@
 
 void init_chunk(struct Chunk *chunk)
 {
-    const u32 unit_size = sizeof(struct Box);
-    u64 *constants_ptr = alloc_mem(unit_size);
-    struct Box *box = (struct Box*)constants_ptr;
-    box->obj = (struct Obj){
+    const u32 initial_size = sizeof(struct Box) * 3;
+    u64 *constants_ptr = alloc_mem(initial_size);
+
+    struct Box *unit_box = (struct Box*)constants_ptr;
+    unit_box->obj = (struct Obj){
         .flags = { .is_whnf = true, .is_static = true },
         .next = null,
         .type = OBJ_BOX,
     };
-    obj_init_box(box);
-    box->val = UNIT_VAL();
+    obj_init_box(unit_box);
+    unit_box->val = UNIT_VAL();
 
-    const u32 size = (unit_size + sizeof(u64) - 1) / sizeof(u64);
+    struct Box *true_box = unit_box + 1;
+    true_box->obj = (struct Obj){
+        .flags = { .is_whnf = true, .is_static = true },
+        .next = null,
+        .type = OBJ_BOX,
+    };
+    obj_init_box(true_box);
+    true_box->val = BOOL_VAL(true);
+
+    struct Box *false_box = unit_box + 2;
+    true_box->obj = (struct Obj){
+        .flags = { .is_whnf = true, .is_static = true },
+        .next = null,
+        .type = OBJ_BOX,
+    };
+    obj_init_box(false_box);
+    false_box->val = BOOL_VAL(false);
+
+    const u32 size = (initial_size + sizeof(u64) - 1) / sizeof(u64);
 
     *chunk = (struct Chunk){
         .constants = {
@@ -88,6 +107,11 @@ static const char *OP_NAMES[] = {
     [OP_SUBTRACT] = "OP_SUBTRACT",
     [OP_MULTIPLY] = "OP_MULTIPLY",
     [OP_DIVIDE] = "OP_DIVIDE",
+    [OP_IS_CONS] = "OP_IS_CONS",
+    [OP_IS_INT] = "OP_IS_INT",
+    [OP_IS_BOOL] = "OP_IS_BOOL",
+    [OP_IS_CHAR] = "OP_IS_CHAR",
+    [OP_IS_UNIT] = "OP_IS_UNIT",
     [OP_HEAD] = "OP_HEAD",
     [OP_TAIL] = "OP_TAIL",
     [OP_CALL_EXTERN] = "OP_CALL_EXTERN",

@@ -26,6 +26,13 @@ void declare_ident(struct Context *ctx, const char *ident)
     };
     ctx->ident_stack_len += 1;
 }
+void drop_ident(struct Context *ctx, u32 count)
+{
+    if (ctx->ident_stack_len < count) {
+        panic("dropping too many identifiers");
+    }
+    ctx->ident_stack_len -= count;
+}
 
 bool get_ident_info(struct Context *ctx, const char *ident, struct IdentSearchResult *out)
 {

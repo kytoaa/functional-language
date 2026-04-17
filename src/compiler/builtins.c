@@ -130,6 +130,10 @@ const u8 UPDATE_THUNK_BYTECODE[] = {
     OP_JUMP,
 };
 
+const u8 ERROR_BYTECODE[] = {
+    OP_END,
+};
+
 #define arr_len(arr) (sizeof(arr) / sizeof(arr[0]))
 
 const struct GlobalFunctionData FUNCTIONS[] = {
@@ -145,6 +149,7 @@ const struct GlobalFunctionData FUNCTIONS[] = {
     [GLOBAL_FUNC_LESS_EQ]      = { LESS_EQ_BYTECODE,      arr_len(LESS_EQ_BYTECODE) },
     [GLOBAL_FUNC_APPL_CONT]    = { APPL_CONT_BYTECODE,    arr_len(APPL_CONT_BYTECODE) },
     [GLOBAL_FUNC_UPDATE_THUNK] = { UPDATE_THUNK_BYTECODE, arr_len(UPDATE_THUNK_BYTECODE) },
+    [GLOBAL_FUNC_ERROR]        = { ERROR_BYTECODE,        arr_len(ERROR_BYTECODE) },
 };
 
 static u32 OFFSETS[GLOBAL_FUNCTION_COUNT + 1] = {};

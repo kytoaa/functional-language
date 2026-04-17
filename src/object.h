@@ -3,6 +3,9 @@
 
 #include "value.h"
 
+/// the minumum number of u64s required to store the obj
+#define OBJ_U64_SIZE(obj) ((sizeof(obj) + sizeof(u64) - 1) / sizeof(u64))
+
 enum ObjType {
     OBJ_BOX,
     OBJ_CONS,

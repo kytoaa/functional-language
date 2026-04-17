@@ -80,6 +80,8 @@ void traverse_node(
         }
         case AST_CASE_PATTERN:{
             struct CasePatternNode *pattern = (struct CasePatternNode*)n;
+            traverse_node(pattern->pattern, arg, pre_callback, post_callback);
+            traverse_node(pattern->condition, arg, pre_callback, post_callback);
             traverse_node(pattern->body, arg, pre_callback, post_callback);
             break;
         }

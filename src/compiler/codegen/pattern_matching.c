@@ -1,0 +1,202 @@
+#include "codegen.h"
+#include "../builtins.h"
+#include "../../vm/extern_functions.h"
+#include <stdio.h>
+
+struct CaseBranchResult {
+    u32 failure_index;
+    u32 success_index;
+};
+
+struct CaseBranchResult compile_pattern_match_branch(struct Context *ctx, struct CasePatternNode *node);
+
+void compile_case_expression(struct Context *ctx, struct CaseExprNode *node)
+{
+    compile_expr(ctx, node->value);
+
+    emit_byte(ctx, OP_JUMP_REL);
+    emit_u16(ctx, 3);
+    emit_byte(ctx, OP_JUMP_REL);
+    u32 success_jump_index = get_last_bytecode_index(ctx) + 1;
+    emit_u16(ctx, 0);
+    
+    struct CasePatternNode *branch = (struct CasePatternNode*)node->first_pattern;
+
+    while (branch != null) {
+        emit_2_bytes(ctx, OP_TRANSFER_STACK_REG, REG_1);
+        emit_2_bytes(ctx, OP_PUSH_REG_STACK, REG_1);
+        emit_2_bytes(ctx, OP_PUSH_REG_STACK, REG_1);
+
+        struct CaseBranchResult result = compile_pattern_match_branch(ctx, branch);
+        i16 diff = (i32)(success_jump_index - 1) - (i32)(result.success_index + 2);
+        u8 *diff_bytes = (u8*)&diff;
+        u8 *success_jump_bytes = get_bytecode_byte(ctx, result.success_index);
+        
+        success_jump_bytes[0] = diff_bytes[0];
+        success_jump_bytes[1] = diff_bytes[1];
+
+        if (result.failure_index != 0) {
+            i16 failure_diff = (i32)(get_last_bytecode_index(ctx) + 1) - (i32)(result.failure_index + 2);
+            u8 *failure_diff_bytes = (u8*)&failure_diff;
+            u8 *failure_jump_bytes = get_bytecode_byte(ctx, result.failure_index);
+
+            failure_jump_bytes[0] = failure_diff_bytes[0];
+            failure_jump_bytes[1] = failure_diff_bytes[1];
+        }
+
+        branch = branch->next_pattern;
+    }
+    emit_byte(ctx, OP_PUSH_U64);
+    emit_u64(ctx, (u64)"could not match any pattern\n");
+    emit_byte(ctx, OP_CALL_EXTERN);
+    emit_u64(ctx, (u64)print_c_string);
+    emit_2_bytes(ctx, OP_JUMP_GLOBALS, GLOBAL_FUNC_ERROR);
+    u32 success_end_addr = get_last_bytecode_index(ctx) + 1;
+    i16 success_diff = (i32)success_end_addr - (i32)(success_jump_index + 2);
+    u8 *success_diff_bytes = (u8*)&success_diff;
+    u8 *success_jump_bytes = get_bytecode_byte(ctx, success_jump_index);
+
+    success_jump_bytes[0] = success_diff_bytes[0];
+    success_jump_bytes[1] = success_diff_bytes[1];
+}
+
+static u8 type_check_op(enum LiteralType lit)
+{
+    switch (lit) {
+        case LITERAL_TYPE_NUMBER:
+            return OP_IS_INT;
+        case LITERAL_TYPE_BOOLEAN:
+            return OP_IS_BOOL;
+        case LITERAL_TYPE_UNIT:
+            return OP_IS_UNIT;
+        case LITERAL_TYPE_CHARACTER:
+            return OP_IS_CHAR;
+    }
+}
+
+/// expects expression to match at top of stack, returns index of jump on match failure
+/// returns 0 if irrefutable
+static u32 compile_pattern_node(struct Context *ctx, struct AstNode *node)
+{
+    switch (node->kind) {
+        case AST_IDENTIFIER:{
+            struct IdentifierNode *ident = (struct IdentifierNode*)node;
+            declare_ident(ctx, ident->src_loc);
+            emit_byte(ctx, OP_CREATE_BINDING);
+            return 0;
+        }
+        case AST_BIN_OP:{
+            struct BinOpNode *cons = (struct BinOpNode*)node;
+            emit_byte(ctx, OP_EVAL);
+            emit_byte(ctx, OP_IS_CONS);
+            emit_byte(ctx, OP_JUMP_REL_CONDITIONAL);
+            emit_u16(ctx, 4);
+            emit_byte(ctx, OP_POP_U64);
+            emit_byte(ctx, OP_JUMP_REL);
+            u32 cons_check_index = get_last_bytecode_index(ctx) + 1;
+            emit_u16(ctx, 0);
+
+            emit_2_bytes(ctx, OP_TRANSFER_STACK_REG, REG_1);
+            emit_2_bytes(ctx, OP_PUSH_REG_STACK, REG_1);
+            emit_2_bytes(ctx, OP_PUSH_REG_STACK, REG_1);
+            emit_byte(ctx, OP_HEAD);
+            u32 l_failure = compile_pattern_node(ctx, cons->l);
+
+            emit_byte(ctx, OP_TAIL);
+            u32 r_failure = compile_pattern_node(ctx, cons->r);
+
+            if (l_failure != 0) {
+                // l should jump to `POP_U64` as the cons is still below on the stack
+                i16 l_jump = (i32)(cons_check_index - 2) - (i32)(l_failure + 2);
+                u8 *l_failure_bytes = get_bytecode_byte(ctx, l_failure);
+                u8 *l_jump_bytes = (u8*)&l_jump;
+                l_failure_bytes[0] = l_jump_bytes[0];
+                l_failure_bytes[1] = l_jump_bytes[1];
+            }
+            if (r_failure != 0) {
+                i16 r_jump = (i32)(cons_check_index - 1) - (i32)(r_failure + 2);
+                u8 *r_failure_bytes = get_bytecode_byte(ctx, r_failure);
+                u8 *r_jump_bytes = (u8*)&r_jump;
+                r_failure_bytes[0] = r_jump_bytes[0];
+                r_failure_bytes[1] = r_jump_bytes[1];
+            }
+            return cons_check_index;
+        }
+        case AST_LITERAL:{
+            struct LiteralNode *literal = (struct LiteralNode*)node;
+
+            emit_byte(ctx, OP_EVAL);
+            emit_byte(ctx, type_check_op(literal->type));
+            emit_byte(ctx, OP_JUMP_REL_CONDITIONAL);
+            emit_u16(ctx, 4);
+            emit_byte(ctx, OP_POP_U64);
+            emit_byte(ctx, OP_JUMP_REL);
+            u32 failure_index = get_last_bytecode_index(ctx) + 1;
+            emit_u16(ctx, 0);
+
+            compile_literal(ctx, literal);
+            emit_byte(ctx, OP_EVAL);
+            emit_byte(ctx, OP_EQUAL);
+
+            emit_byte(ctx, OP_JUMP_REL_CONDITIONAL);
+            emit_u16(ctx, 3);
+            emit_byte(ctx, OP_JUMP_REL);
+            u32 current_index = get_last_bytecode_index(ctx) + 1;
+            i16 jump = (i32)(failure_index - 1) - (i32)(current_index + 2);
+            emit_u16(ctx, jump);
+
+            return failure_index;
+        }
+        default:
+            panic("not a valid pattern");
+            return 0;
+    }
+}
+
+/// returns the bytecode index of the pattern exit
+struct CaseBranchResult compile_pattern_match_branch(struct Context *ctx, struct CasePatternNode *node)
+{
+    u32 ident_count = ctx->ident_stack_len;
+
+    u32 pattern_failure_index = compile_pattern_node(ctx, node->pattern);
+
+    u32 exit_point_index = pattern_failure_index;
+
+    if (node->condition != null) {
+        compile_expr(ctx, node->condition);
+        emit_byte(ctx, OP_JUMP_REL_CONDITIONAL);
+        emit_u16(ctx, 3);
+        emit_byte(ctx, OP_JUMP_REL);
+        exit_point_index = get_last_bytecode_index(ctx) + 1;
+        emit_u16(ctx, 0);
+
+        if (pattern_failure_index != 0) {
+            i16 diff = (i32)(exit_point_index - 1) - (i32)(pattern_failure_index + 2);
+            u8 *diff_bytes = (u8*)&diff;
+            u8 *pattern_failure_bytes = get_bytecode_byte(ctx, pattern_failure_index);
+            pattern_failure_bytes[0] = diff_bytes[0];
+            pattern_failure_bytes[1] = diff_bytes[1];
+        }
+    }
+
+    emit_byte(ctx, OP_POP_U64);
+    printf("\nbody: %d\n", node->body->kind);
+    compile_expr(ctx, node->body);
+
+    u32 final_ident_count = ctx->ident_stack_len;
+
+    for (u32 i = 0; i < final_ident_count - ident_count; i++) {
+        drop_ident(ctx, 1);
+        emit_byte(ctx, OP_REMOVE_BINDING);
+    }
+
+    emit_byte(ctx, OP_JUMP_REL);
+    u32 correct_index = get_last_bytecode_index(ctx) + 1;
+    emit_u16(ctx, 0);
+
+    return (struct CaseBranchResult){
+        .failure_index = exit_point_index,
+        .success_index = correct_index,
+    };
+}
+

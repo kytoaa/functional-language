@@ -1,4 +1,5 @@
 #include "debug.h"
+#include <stdio.h>
 
 static void print_register(FILE *out, u8 reg)
 {
@@ -48,8 +49,10 @@ static u16 read_u16(u8 *bytes)
 u32 print_instruction(FILE *out, u8 *bytes)
 {
     const char *op_name = bytecode_op_name(bytes[0]);
-    if (op_name == null)
+    if (op_name == null) {
+        printf("\n%d\n", bytes[0]);
         panic("invalid instruction");
+    }
     fprintf(out, "%s", op_name);
 
     u32 consumed = 1;

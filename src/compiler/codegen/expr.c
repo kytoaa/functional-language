@@ -1,11 +1,9 @@
 #include "codegen.h"
 #include "../builtins.h"
+#include <stdio.h>
 
 // starts with + to ensure no clashes
 static const char *SELF_IDENT = "+closure_self";
-
-void compile_lambda(struct Context *ctx, struct LambdaNode *node, const char *bind_to);
-void compile_thunk(struct Context *ctx, struct AstNode *node, const char *bind_to);
 
 void compile_declaration(struct Context *ctx, struct DeclarationNode *node)
 {
@@ -33,6 +31,8 @@ void compile_identifier(struct Context *ctx, struct IdentifierNode *node)
         emit_byte(ctx, OP_CAPTURE_READ);
         emit_u16(ctx, ident.offset);
         emit_byte(ctx, capture_index);
+    } else {
+        panic("non existent identifier");
     }
 }
 
@@ -40,16 +40,12 @@ void compile_literal(struct Context *ctx, struct LiteralNode *node)
 {
     u32 constant = 0;
     // unit is at index 0 as all units are identical
-    if (node->type != LITERAL_TYPE_UNIT) {
-        u32 constant = create_constant(ctx, OBJ_BOX, sizeof(struct Box));
+    if (node->type != LITERAL_TYPE_UNIT && node->type != LITERAL_TYPE_BOOLEAN) {
+        constant = create_constant(ctx, OBJ_BOX, sizeof(struct Box));
+        printf("constant at %d\n", constant);
         struct Value *value = &((struct Box*)get_constant(ctx, constant))->val;
 
         switch (node->type) {
-            case LITERAL_TYPE_BOOLEAN:{
-                value->type = VALUE_BOOL;
-                value->as.boolean = node->as.boolean;
-                break;
-            }
             case LITERAL_TYPE_NUMBER:{
                 value->type = VALUE_INT;
                 value->as.integer = node->as.number;
@@ -65,6 +61,9 @@ void compile_literal(struct Context *ctx, struct LiteralNode *node)
                 break;
             }
         }
+    } else if (node->type == LITERAL_TYPE_BOOLEAN) {
+        // true and false are boxes 1 and 2 respectively
+        constant = (node->as.boolean ? 1 : 2) * OBJ_U64_SIZE(struct Box);
     }
     emit_byte(ctx, OP_PUSH_CONST);
     emit_u16(ctx, constant);
@@ -110,63 +109,55 @@ void compile_bin_op(struct Context *ctx, struct BinOpNode *node)
     }
 }
 
-void compile_pattern_match(struct Context *ctx, struct AstNode *node)
-{
-    if (node->kind == AST_IDENTIFIER) {
-
-    } else if (node->kind == AST_LITERAL) {
-        emit_byte(ctx, OP_EVAL);
-        compile_literal(ctx, (struct LiteralNode*)node);
-        emit_byte(ctx, OP_EQUAL);
-    }
-}
-
-void compile_case_branch(struct Context *ctx, struct CasePatternNode *node)
-{
-
-}
-
 void compile_if_expr(struct Context *ctx, struct IfExprNode *node)
 {
     compile_expr(ctx, node->condition);
     emit_byte(ctx, OP_EVAL);
     emit_byte(ctx, OP_JUMP_REL_CONDITIONAL);
-    emit_byte(ctx, 0);
-    u32 true_jump_instruction = get_last_bytecode_index(ctx);
-    emit_byte(ctx, 0);
+    u32 true_jump_instruction = get_last_bytecode_index(ctx) + 1;
+    emit_u16(ctx, 0);
 
     compile_expr(ctx, node->else_expr);
-    emit_byte(ctx, OP_JUMP_REL_CONDITIONAL);
-    emit_byte(ctx, 0);
-    u32 end_jump_instruction = get_last_bytecode_index(ctx);
-    emit_byte(ctx, 0);
+    emit_byte(ctx, OP_JUMP_REL);
+    u32 end_jump_instruction = get_last_bytecode_index(ctx) + 1;
+    emit_u16(ctx, 0);
 
     u32 true_jump_location = get_last_bytecode_index(ctx) + 1;
-    usize diff = true_jump_location - (true_jump_instruction + sizeof(i16));
+    i16 diff = true_jump_location - (true_jump_instruction + sizeof(i16));
 
-    union FromBytes diff_bytes = { .u16 = diff };
-
+    u8 *diff_bytes = (u8*)&diff;
     u8 *true_jump_instruction_bytes = get_bytecode_byte(ctx, true_jump_instruction);
-    true_jump_instruction_bytes[0] = diff_bytes.bytes[0];
-    true_jump_instruction_bytes[1] = diff_bytes.bytes[1];
+
+    true_jump_instruction_bytes[0] = diff_bytes[0];
+    true_jump_instruction_bytes[1] = diff_bytes[1];
 
     compile_expr(ctx, node->then_expr);
     u32 end_jump_location = get_last_bytecode_index(ctx) + 1;
-    diff_bytes.u16 = end_jump_location - (end_jump_instruction + sizeof(i16));
+    diff = end_jump_location - (end_jump_instruction + sizeof(i16));
 
+    diff_bytes = (u8*)&diff;
     u8 *end_jump_instruction_bytes = get_bytecode_byte(ctx, end_jump_instruction);
-    end_jump_instruction_bytes[0] = diff_bytes.bytes[0];
-    end_jump_instruction_bytes[1] = diff_bytes.bytes[1];
+
+    end_jump_instruction_bytes[0] = diff_bytes[0];
+    end_jump_instruction_bytes[1] = diff_bytes[1];
 }
 
 void compile_let_expr(struct Context *ctx, struct LetExprNode *node)
 {
+    u32 ident_count = ctx->ident_stack_len;
+
     struct DeclarationNode *decl = (struct DeclarationNode*)node->first_decl;
     while (decl != null) {
         compile_declaration(ctx, decl);
         decl = decl->next_declaration;
     }
     compile_thunk(ctx, node->body, null);
+
+    u32 final_ident_count = ctx->ident_stack_len;
+    for (u32 i = 0; i < final_ident_count - ident_count; i++) {
+        drop_ident(ctx, 1);
+        emit_byte(ctx, OP_REMOVE_BINDING);
+    }
 }
 
 /// leaves the constructed lambda at the top of the stack
@@ -367,6 +358,15 @@ void compile_expr(struct Context *ctx, struct AstNode *node)
             break;
         case AST_APPLICATION:
             compile_application(ctx, (struct ApplicationNode*)node);
+            break;
+        case AST_CASE_EXPR:
+            compile_case_expression(ctx, (struct CaseExprNode*)node);
+            break;
+        case AST_IF_EXPR:
+            compile_if_expr(ctx, (struct IfExprNode*)node);
+            break;
+        default:
+            panic("unknown ast node");
             break;
     }
 }

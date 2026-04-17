@@ -19,7 +19,6 @@ struct FunctionBindingNode {
     const char *src_loc;
     u32 len;
     struct FunctionBindingNode *next_binding;
-    struct AstNode *function;
 };
 
 struct DeclarationNode {
@@ -77,7 +76,6 @@ struct IdentifierNode {
     struct AstNode node;
     const char *src_loc;
     u32 len;
-    struct AstNode *declaration;
 };
 
 enum LiteralType {

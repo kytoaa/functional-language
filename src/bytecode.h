@@ -113,6 +113,14 @@ enum Bytecode {
     /// expects `l` at top and `r` below for `l / r`
     OP_DIVIDE,
 
+    /// checks the item at the top of the stack, pushes a boxed bool
+    /// stack: `[val]` -> `[val, result]`
+    OP_IS_CONS,
+    OP_IS_INT,
+    OP_IS_BOOL,
+    OP_IS_CHAR,
+    OP_IS_UNIT,
+
     OP_HEAD,
     OP_TAIL,
 

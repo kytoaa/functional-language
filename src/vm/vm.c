@@ -354,6 +354,44 @@ next_instruction:
             break;
         }
 
+        case OP_IS_CONS:{
+            Val val = pop_val();
+            push_val(val);
+            if (val->type != OBJ_CONS) {
+                push_val(&vm.code.constants[OBJ_U64_SIZE(struct Box) * 2]);
+            } else {
+                push_val(&vm.code.constants[OBJ_U64_SIZE(struct Box)]);
+            }
+            break;
+        }
+        #define IS_VAL_OP(val_type) do {\
+            Val val = pop_val();\
+            push_val(val);\
+            if (val->type != OBJ_BOX) {\
+                push_val(&vm.code.constants[OBJ_U64_SIZE(struct Box) * 2]);\
+            } else {\
+                struct Box *box = (struct Box*)val;\
+                push_val(&vm.code.constants[((box->val.type == (val_type)) ? 1 : 2) * OBJ_U64_SIZE(struct Box)]);\
+            }\
+        } while (0)
+
+        case OP_IS_INT:{
+            IS_VAL_OP(VALUE_INT);
+            break;
+        }
+        case OP_IS_BOOL:{
+            IS_VAL_OP(VALUE_BOOL);
+            break;
+        }
+        case OP_IS_CHAR:{
+            IS_VAL_OP(VALUE_CHAR);
+            break;
+        }
+        case OP_IS_UNIT:{
+            IS_VAL_OP(VALUE_UNIT);
+            break;
+        }
+
         case OP_HEAD:{
             Val val = pop_val();
             if (val->type != OBJ_CONS) {

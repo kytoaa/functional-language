@@ -99,29 +99,7 @@ static void print_bindings(struct FunctionBindingNode *node)
 
 static void print_identifier(struct IdentifierNode *node)
 {
-    if (node->declaration == null) {
-        printf("%.*s", node->len, node->src_loc);
-    } else {
-        printf("[%.*s(%d); ", node->len, node->src_loc, (i8)node->declaration->depth - (i8)node->node.depth );
-        switch (node->declaration->kind) {
-            case AST_FUNCTION_BINDING:{
-                struct FunctionBindingNode *binding = (struct FunctionBindingNode*)node->declaration;
-                printf("lambda with [ ");
-                print_bindings(((struct LambdaNode*)binding->function)->bindings);
-                printf("]]");
-                break;
-            }
-            case AST_DECLARATION:{
-                struct DeclarationNode *declaration = (struct DeclarationNode*)node->declaration;
-                printf("%.*s]", declaration->name_len, declaration->name);
-                break;
-            }
-            default:{
-                panic("unreachable, ident declaration should be decl or lambda");
-                break;
-            }
-        }
-    }
+    printf("%.*s", node->len, node->src_loc);
 }
 
 static void print_lambda(struct LambdaNode *node)
