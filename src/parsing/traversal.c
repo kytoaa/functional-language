@@ -71,6 +71,8 @@ void traverse_node(
         }
         case AST_CASE_EXPR:{
             struct CaseExprNode *node = (struct CaseExprNode*)n;
+            traverse_node(node->value, arg, pre_callback, post_callback);
+
             struct CasePatternNode *pattern = (struct CasePatternNode*)node->first_pattern;
             while (pattern != null) {
                 traverse_node(AS_NODE(pattern), arg, pre_callback, post_callback);

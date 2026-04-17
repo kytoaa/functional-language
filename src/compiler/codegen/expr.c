@@ -7,6 +7,7 @@ static const char *SELF_IDENT = "+closure_self";
 
 void compile_declaration(struct Context *ctx, struct DeclarationNode *node)
 {
+    printf("declaring %.*s\n", node->name_len, node->name);
     declare_ident(ctx, node->name);
     if (node->body->kind == AST_LAMBDA) {
         compile_lambda(ctx, (struct LambdaNode*)node->body, node->name);
@@ -32,6 +33,7 @@ void compile_identifier(struct Context *ctx, struct IdentifierNode *node)
         emit_u16(ctx, ident.offset);
         emit_byte(ctx, capture_index);
     } else {
+        printf("%.*s\n", node->len, node->src_loc);
         panic("non existent identifier");
     }
 }
@@ -194,6 +196,7 @@ void compile_lambda(struct Context *ctx, struct LambdaNode *node, const char *bi
     declare_ident(&context, SELF_IDENT);
 
     compile_expr(&context, node->body);
+
     // bindings + 1 to remove closure pointer
     for (u32 i = 0; i < bindings + 1; i++) {
         emit_byte(&context, OP_REMOVE_BINDING);

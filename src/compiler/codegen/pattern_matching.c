@@ -180,7 +180,6 @@ struct CaseBranchResult compile_pattern_match_branch(struct Context *ctx, struct
     }
 
     emit_byte(ctx, OP_POP_U64);
-    printf("\nbody: %d\n", node->body->kind);
     compile_expr(ctx, node->body);
 
     u32 final_ident_count = ctx->ident_stack_len;

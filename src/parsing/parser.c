@@ -578,6 +578,7 @@ static struct AstNode *declaration()
         .node = { AST_DECLARATION },
         .name = name,
         .name_len = name_len,
+        .is_global = false,
         .bindings = binding,
         .body = expr(PREC_EXPR),
     };
@@ -596,6 +597,7 @@ bool build_ast(const char *src, struct AstNode **out, struct ParseError *err)
     struct DeclarationNode *node = null;
     while (parser.current.type != TOKEN_EOF) {
         struct DeclarationNode *current = (struct DeclarationNode*)declaration();
+        current->is_global = true;
 
         if (parser.has_error) {
             *err = parser.err;
