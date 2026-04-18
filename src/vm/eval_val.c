@@ -88,6 +88,7 @@ static void eval_application(struct Application *application)
         push_val(application);
         function_call();
     } else {
+        set_whnf(&application->obj);
         push_val(application);
     }
 }

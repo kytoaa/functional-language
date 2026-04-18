@@ -94,13 +94,15 @@ enum Bytecode {
 
     /// `op u16` constant;
     OP_PUSH_CONST,
+
+    /// pushes true to the stack
     OP_TRUE,
+    /// pushes false to the stack
     OP_FALSE,
+
     OP_EQUAL,
     OP_GREATER,
     OP_LESS,
-    OP_AND,
-    OP_OR,
     OP_NOT,
     /// add the items at the top of the stack, commutative
     OP_ADD,

@@ -99,6 +99,24 @@ void compile_bin_op(struct Context *ctx, struct BinOpNode *node)
         case AST_BIN_OP_CONS:
             op = GLOBAL_FUNC_CONS;
             break;
+        case AST_BIN_OP_OR:
+            op = GLOBAL_FUNC_OR;
+            break;
+        case AST_BIN_OP_AND:
+            op = GLOBAL_FUNC_AND;
+            break;
+        case AST_BIN_OP_LESS:
+            op = GLOBAL_FUNC_LESS;
+            break;
+        case AST_BIN_OP_LESS_EQ:
+            op = GLOBAL_FUNC_LESS_EQ;
+            break;
+        case AST_BIN_OP_GREATER:
+            op = GLOBAL_FUNC_GREATER;
+            break;
+        case AST_BIN_OP_GREATER_EQ:
+            op = GLOBAL_FUNC_GREATER_EQ;
+            break;
         default:
             panic("unreachable, invalid expression");
             break;
@@ -268,6 +286,9 @@ void compile_thunk(struct Context *ctx, struct AstNode *node, const char *bind_t
     declare_ident(&context, SELF_IDENT);
 
     compile_expr(&context, node);
+
+    // remove the self binding
+    emit_byte(&context, OP_REMOVE_BINDING);
 
     // swap result and continuation
     emit_byte(&context, OP_SWAP);

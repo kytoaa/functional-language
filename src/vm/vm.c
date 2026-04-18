@@ -37,6 +37,9 @@ static void typecheck(Val val, enum ValueType type, const char *error)
     }
 }
 
+#define TRUE_BOX_CONST (&vm.code.constants[OBJ_U64_SIZE(struct Box)])
+#define FALSE_BOX_CONST (&vm.code.constants[OBJ_U64_SIZE(struct Box) * 2])
+
 static enum InterpretResult run_interpreter()
 {
 next_instruction:
@@ -282,13 +285,22 @@ next_instruction:
             break;
         }
 
+        case OP_TRUE:{
+            push_val(&vm.code.constants[OBJ_U64_SIZE(struct Box)]);
+            break;
+        }
+        case OP_FALSE:{
+            push_val(&vm.code.constants[OBJ_U64_SIZE(struct Box) * 2]);
+            break;
+        }
+
         #define NUM_BIN_OP(op) do {\
-            Val l = pop_val();\
-            typecheck(l, VALUE_INT, "expected a number for " #op " l arg");\
             Val r = pop_val();\
             typecheck(r, VALUE_INT, "expected a number for " #op " r arg");\
-            struct Box *l_box = (struct Box*)l;\
+            Val l = pop_val();\
+            typecheck(l, VALUE_INT, "expected a number for " #op " l arg");\
             struct Box *r_box = (struct Box*)r;\
+            struct Box *l_box = (struct Box*)l;\
                                                \
             i32 result = l_box->val.as.integer op r_box->val.as.integer;\
             struct Box *result_box = obj_create_box();\
@@ -296,17 +308,15 @@ next_instruction:
             push_val(result_box);\
         } while (0)
         #define BOOL_BIN_OP(op, arg_type, arg_type_name) do {\
-            Val l = pop_val();\
-            typecheck(l, arg_type, "expected a " #arg_type_name " for " #op " l arg");\
             Val r = pop_val();\
             typecheck(r, arg_type, "expected a " #arg_type_name " for " #op " r arg");\
-            struct Box *l_box = (struct Box*)l;\
+            Val l = pop_val();\
+            typecheck(l, arg_type, "expected a " #arg_type_name " for " #op " l arg");\
             struct Box *r_box = (struct Box*)r;\
+            struct Box *l_box = (struct Box*)l;\
                                                \
             bool result = l_box->val.as.integer op r_box->val.as.integer;\
-            struct Box *result_box = obj_create_box();\
-            result_box->val = BOOL_VAL(result);\
-            push_val(result_box);\
+            push_val(result ? TRUE_BOX_CONST : FALSE_BOX_CONST);\
         } while (0)
         #define COMPARISON_BIN_OP(op) BOOL_BIN_OP(op, VALUE_INT, number)
 
@@ -340,28 +350,14 @@ next_instruction:
             Val val = pop_val();
             typecheck(val, VALUE_BOOL, "expected a boolean for `!` argument");
             struct Box *val_box = (struct Box*)val;
-            struct Box *result = obj_create_box();
-            result->val = BOOL_VAL(!val_box->val.as.boolean);
-            push_val(result);
-            break;
-        }
-        case OP_AND:{
-            BOOL_BIN_OP(&&, VALUE_BOOL, boolean);
-            break;
-        }
-        case OP_OR:{
-            BOOL_BIN_OP(||, VALUE_BOOL, boolean);
+            push_val(val_box->val.as.boolean ? FALSE_BOX_CONST : TRUE_BOX_CONST);
             break;
         }
 
         case OP_IS_CONS:{
             Val val = pop_val();
             push_val(val);
-            if (val->type != OBJ_CONS) {
-                push_val(&vm.code.constants[OBJ_U64_SIZE(struct Box) * 2]);
-            } else {
-                push_val(&vm.code.constants[OBJ_U64_SIZE(struct Box)]);
-            }
+            push_val(val->type == OBJ_CONS ? TRUE_BOX_CONST : FALSE_BOX_CONST);\
             break;
         }
         #define IS_VAL_OP(val_type) do {\
@@ -436,9 +432,7 @@ next_instruction:
             }
 
             bool equal = value_equal(l_box->val, r_box->val);
-            struct Box *result = obj_create_box();
-            result->val = BOOL_VAL(equal);
-            push_val(result);
+            push_val(equal ? TRUE_BOX_CONST : FALSE_BOX_CONST);
             break;
         }
 

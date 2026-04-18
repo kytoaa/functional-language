@@ -62,7 +62,7 @@ const u8 DIV_BYTECODE[] = {
     OP_EVAL,   // [..cont r l']
     OP_SWAP,   // [..cont l' r]
     OP_EVAL,   // [..cont l' r']
-    OP_DIVIDE, // [..cont les]
+    OP_DIVIDE, // [..cont res]
     OP_SWAP,   // [..res cont]
     OP_JUMP,
 };
@@ -104,6 +104,11 @@ const u8 GREATER_BYTECODE[] = {
 /// `[..cont r l]`
 const u8 GREATER_EQ_BYTECODE[] = {
     OP_PUSH_REG_STACK, (u8)INSTRUCTION_PTR,
+    OP_U64_ADD, 17, 0, 0, 0, 0, 0, 0, 0,
+    OP_SWAP,
+    OP_TRANSFER_STACK_REG, REG_1,
+    OP_SWAP,
+    OP_PUSH_REG_STACK, REG_1,
     OP_JUMP_GLOBALS, (u8)GLOBAL_FUNC_LESS,
     OP_NOT,
     OP_SWAP,
@@ -113,8 +118,38 @@ const u8 GREATER_EQ_BYTECODE[] = {
 /// `[..cont r l]`
 const u8 LESS_EQ_BYTECODE[] = {
     OP_PUSH_REG_STACK, (u8)INSTRUCTION_PTR,
+    OP_U64_ADD, 17, 0, 0, 0, 0, 0, 0, 0,
+    OP_SWAP,
+    OP_TRANSFER_STACK_REG, REG_1,
+    OP_SWAP,
+    OP_PUSH_REG_STACK, REG_1,
     OP_JUMP_GLOBALS, (u8)GLOBAL_FUNC_GREATER,
     OP_NOT,
+    OP_SWAP,
+    OP_JUMP,
+};
+
+/// expected stack layout
+/// `[..cont r l]`
+const u8 OR_BYTECODE[] = {
+    OP_EVAL,
+    OP_JUMP_REL_CONDITIONAL,
+    2, 0,
+    OP_SWAP,
+    OP_JUMP,
+    OP_POP_U64,
+    OP_TRUE,
+    OP_SWAP,
+    OP_JUMP,
+};
+/// expected stack layout
+/// `[..cont r l]`
+const u8 AND_BYTECODE[] = {
+    OP_EVAL,
+    OP_JUMP_REL_CONDITIONAL,
+    2, 0,
+    OP_POP_U64,
+    OP_FALSE,
     OP_SWAP,
     OP_JUMP,
 };
@@ -147,6 +182,8 @@ const struct GlobalFunctionData FUNCTIONS[] = {
     [GLOBAL_FUNC_LESS]         = { LESS_BYTECODE,         arr_len(LESS_BYTECODE) },
     [GLOBAL_FUNC_GREATER_EQ]   = { GREATER_EQ_BYTECODE,   arr_len(GREATER_EQ_BYTECODE) },
     [GLOBAL_FUNC_LESS_EQ]      = { LESS_EQ_BYTECODE,      arr_len(LESS_EQ_BYTECODE) },
+    [GLOBAL_FUNC_OR]           = { OR_BYTECODE,           arr_len(OR_BYTECODE) },
+    [GLOBAL_FUNC_AND]          = { AND_BYTECODE,          arr_len(AND_BYTECODE) },
     [GLOBAL_FUNC_APPL_CONT]    = { APPL_CONT_BYTECODE,    arr_len(APPL_CONT_BYTECODE) },
     [GLOBAL_FUNC_UPDATE_THUNK] = { UPDATE_THUNK_BYTECODE, arr_len(UPDATE_THUNK_BYTECODE) },
     [GLOBAL_FUNC_ERROR]        = { ERROR_BYTECODE,        arr_len(ERROR_BYTECODE) },
