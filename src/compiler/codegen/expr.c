@@ -105,6 +105,9 @@ void compile_bin_op(struct Context *ctx, struct BinOpNode *node)
         case AST_BIN_OP_AND:
             op = GLOBAL_FUNC_AND;
             break;
+        case AST_BIN_OP_EQUAL:
+            op = GLOBAL_FUNC_EQUAL;
+            break;
         case AST_BIN_OP_LESS:
             op = GLOBAL_FUNC_LESS;
             break;
@@ -171,7 +174,8 @@ void compile_let_expr(struct Context *ctx, struct LetExprNode *node)
         compile_declaration(ctx, decl);
         decl = decl->next_declaration;
     }
-    compile_thunk(ctx, node->body, null);
+    compile_expr(ctx, node->body);
+    //compile_thunk(ctx, node->body, null);
 
     u32 final_ident_count = ctx->ident_stack_len;
     for (u32 i = 0; i < final_ident_count - ident_count; i++) {
@@ -201,9 +205,8 @@ void compile_lambda(struct Context *ctx, struct LambdaNode *node, const char *bi
     // lambda setup
 
     emit_byte(&context, OP_JUMP_REL);
-    emit_byte(&context, 0);
-    u32 jump_location = get_last_bytecode_index(&context);
-    emit_byte(&context, 0);
+    u32 jump_location = get_last_bytecode_index(&context) + 1;
+    emit_u16(ctx, 0);
 
     // closure expects arguments on stack, first binding at top
     for (u32 i = 0; i < bindings; i++) {
@@ -222,11 +225,15 @@ void compile_lambda(struct Context *ctx, struct LambdaNode *node, const char *bi
     // swap result and continuation
     emit_byte(&context, OP_SWAP);
     emit_byte(&context, OP_JUMP);
+
     u32 jump_target = get_last_bytecode_index(&context) + 1;
-    union FromBytes diff_bytes = { .u16 = (u16)(jump_target - (jump_location + sizeof(i16))) };
+    i16 diff = (i32)jump_target - ((i32)jump_location + 2);
+
+    u8 *diff_bytes = (u8*)&diff;
     u8 *jump_location_bytes = get_bytecode_byte(&context, jump_location);
-    jump_location_bytes[0] = diff_bytes.bytes[0];
-    jump_location_bytes[1] = diff_bytes.bytes[1];
+
+    jump_location_bytes[0] = diff_bytes[0];
+    jump_location_bytes[1] = diff_bytes[1];
 
     struct IdentSearchResult self_ident = {};
     get_ident_info(ctx, SELF_IDENT, &self_ident);
@@ -277,9 +284,8 @@ void compile_thunk(struct Context *ctx, struct AstNode *node, const char *bind_t
     init_context(&context, ctx);
 
     emit_byte(&context, OP_JUMP_REL);
-    emit_byte(&context, 0);
-    u32 jump_location = get_last_bytecode_index(&context);
-    emit_byte(&context, 0);
+    u32 jump_location = get_last_bytecode_index(&context) + 1;
+    emit_u16(&context, 0);
 
     emit_2_bytes(&context, OP_PUSH_REG_STACK, REG_1);
     emit_byte(&context, OP_CREATE_BINDING);
@@ -293,11 +299,16 @@ void compile_thunk(struct Context *ctx, struct AstNode *node, const char *bind_t
     // swap result and continuation
     emit_byte(&context, OP_SWAP);
     emit_byte(&context, OP_JUMP);
+
+
     u32 jump_target = get_last_bytecode_index(&context) + 1;
-    union FromBytes diff_bytes = { .u16 = (u16)(jump_target - (jump_location + sizeof(i16))) };
+    i16 diff = (i32)jump_target - ((i32)jump_location + 2);
+
+    u8 *diff_bytes = (u8*)&diff;
     u8 *jump_location_bytes = get_bytecode_byte(&context, jump_location);
-    jump_location_bytes[0] = diff_bytes.bytes[0];
-    jump_location_bytes[1] = diff_bytes.bytes[1];
+
+    jump_location_bytes[0] = diff_bytes[0];
+    jump_location_bytes[1] = diff_bytes[1];
 
     struct IdentSearchResult self_ident = {};
     get_ident_info(ctx, SELF_IDENT, &self_ident);

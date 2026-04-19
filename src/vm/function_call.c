@@ -4,8 +4,7 @@
 
 static void jump_to_closure(struct Closure *closure)
 {
-    struct Box **closure_payload = obj_dyn_fields(TO_OBJ(closure));
-    vm.registers[REG_1] = (u64)closure_payload;
+    vm.registers[REG_1] = (u64)closure;
     instruction_ptr = closure->info->address;
 }
 

@@ -1,7 +1,6 @@
 #include "codegen.h"
 #include "../builtins.h"
 #include "../../vm/extern_functions.h"
-#include <stdio.h>
 
 struct CaseBranchResult {
     u32 failure_index;
@@ -23,6 +22,7 @@ void compile_case_expression(struct Context *ctx, struct CaseExprNode *node)
     struct CasePatternNode *branch = (struct CasePatternNode*)node->first_pattern;
 
     while (branch != null) {
+        // TODO: add logic to unbind all extra bindings on error by pushing binding ptr to stack
         emit_2_bytes(ctx, OP_TRANSFER_STACK_REG, REG_1);
         emit_2_bytes(ctx, OP_PUSH_REG_STACK, REG_1);
         emit_2_bytes(ctx, OP_PUSH_REG_STACK, REG_1);

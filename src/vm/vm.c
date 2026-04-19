@@ -121,7 +121,6 @@ next_instruction:
 
         case OP_JUMP:{
             u64 addr = pop_stack();
-            printf("jumping to %llu\n", addr);
             instruction_ptr = addr;
             break;
         }
@@ -199,8 +198,10 @@ next_instruction:
             if (offset > vm.registers[BINDING_PTR])
                 panic("reading binding at invalid offset");
         #endif
-            u64 *binding = (u64*)vm.bindings[vm.registers[BINDING_PTR] - offset];
-            push_stack(binding[capture]);
+            Val dyn_obj = (Val)vm.bindings[vm.registers[BINDING_PTR] - offset];
+            struct Box **payload = obj_dyn_fields(dyn_obj);
+            printf("reading from %lu\n", (u64)dyn_obj);
+            push_val(payload[capture]);
             break;
         }
         case OP_UPDATE_THUNK:{

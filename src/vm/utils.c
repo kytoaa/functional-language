@@ -86,9 +86,6 @@ u64 pop_stack()
 void push_stack(u64 val)
 {
     vm.stack[stack_ptr++] = val;
-    if (val == 2) {
-        runtime_error("pushed 2");
-    }
 }
 
 u64 address_of_global(enum GlobalFunction global)

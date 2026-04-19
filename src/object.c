@@ -6,6 +6,10 @@ static struct Obj *most_recent_alloc = null;
 static struct Obj *alloc_obj(u32 size)
 {
     struct Obj *new_obj = alloc_mem(size);
+    for (u32 i = 0; i < size; i++) {
+        ((u8*)new_obj)[i] = 0;
+    }
+
     new_obj->next = most_recent_alloc;
     most_recent_alloc = new_obj;
 
@@ -52,6 +56,10 @@ struct Application *obj_create_application(u8 arg_count)
     const u32 size = sizeof(struct Application) + sizeof(void*) * arg_count;
     struct Application *appl = (struct Application*)alloc_obj(size);
 
+    for (u32 i = 0; i < arg_count; i++) {
+        ((u64*)(appl + 1))[i] = 0;
+    }
+
     appl->obj.type = OBJ_APPLICATION;
     appl->obj.flags.is_whnf = false;
     appl->arg_count = arg_count;
@@ -65,6 +73,10 @@ struct Closure *obj_create_closure(struct ClosureInfo *info)
     const u32 size = sizeof(struct Closure) + (info->capture_count * sizeof(struct Object*));
     struct Closure *closure = (struct Closure*)alloc_obj(size);
 
+    for (u32 i = 0; i < info->capture_count; i++) {
+        ((u64*)(closure + 1))[i] = 0;
+    }
+
     closure->obj.type = OBJ_CLOSURE;
     closure->obj.flags.is_whnf = true;
     closure->info = info;
@@ -75,6 +87,10 @@ struct Thunk *obj_create_thunk(struct ClosureInfo *info)
 {
     const u32 size = sizeof(struct Thunk) + (info->capture_count * sizeof(struct Object*));
     struct Thunk *thunk = (struct Thunk*)alloc_obj(size);
+
+    for (u32 i = 0; i < info->capture_count; i++) {
+        ((u64*)(thunk + 1))[i] = 0;
+    }
 
     thunk->obj.type = OBJ_THUNK;
     thunk->obj.flags.is_whnf = false;
