@@ -21,9 +21,16 @@ void compile_case_expression(struct Context *ctx, struct CaseExprNode *node)
     
     struct CasePatternNode *branch = (struct CasePatternNode*)node->first_pattern;
 
+    // set up stack with [..bindings, expr]
+    emit_2_bytes(ctx, OP_PUSH_REG_STACK, BINDING_PTR);
+    emit_byte(ctx, OP_SWAP);
+
     while (branch != null) {
-        // TODO: add logic to unbind all extra bindings on error by pushing binding ptr to stack
         emit_2_bytes(ctx, OP_TRANSFER_STACK_REG, REG_1);
+        // unbind any extra bindings
+        emit_2_bytes(ctx, OP_TRANSFER_STACK_REG, BINDING_PTR);
+        // set up stack with [..bindings, expr, expr]
+        emit_2_bytes(ctx, OP_PUSH_REG_STACK, BINDING_PTR);
         emit_2_bytes(ctx, OP_PUSH_REG_STACK, REG_1);
         emit_2_bytes(ctx, OP_PUSH_REG_STACK, REG_1);
 
@@ -179,6 +186,7 @@ struct CaseBranchResult compile_pattern_match_branch(struct Context *ctx, struct
         }
     }
 
+    emit_byte(ctx, OP_POP_U64);
     emit_byte(ctx, OP_POP_U64);
     compile_expr(ctx, node->body);
 

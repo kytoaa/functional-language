@@ -47,5 +47,4 @@ main = let
 	fibs = 0 :: 1 :: (zipWith : add : fibs : (tail : fibs));
 	fib2 n = head : (drop : n : fibs);
 
-	in fib2 : 12;
-
+	in fib : 7;
