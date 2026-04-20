@@ -44,8 +44,8 @@ static enum InterpretResult run_interpreter()
 {
 next_instruction:
 
-    print_stack(vm.config.out);
-    print_instruction(vm.config.out, &vm.code.instructions[instruction_ptr]);
+    //print_stack(vm.config.out);
+    //print_instruction(vm.config.out, &vm.code.instructions[instruction_ptr]);
     u8 current_instruction = read_instruction();
     switch (current_instruction) {
         case OP_NOOP:
@@ -200,7 +200,6 @@ next_instruction:
         #endif
             Val dyn_obj = (Val)vm.bindings[vm.registers[BINDING_PTR] - offset];
             struct Box **payload = obj_dyn_fields(dyn_obj);
-            printf("reading from %lu\n", (u64)dyn_obj);
             push_val(payload[capture]);
             break;
         }

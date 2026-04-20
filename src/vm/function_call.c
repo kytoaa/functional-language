@@ -98,7 +98,6 @@ void handle_continuation()
     }
 
     if (remaining_args < closure->info->arity) {
-        printf("\nargs < arity :: %llu < %u\n", remaining_args, closure->info->arity);
         struct Application *constructed_appl = obj_create_application(remaining_args);
         constructed_appl->closure = TO_OBJ(closure);
         struct Box **new_payload = obj_dyn_fields(TO_OBJ(constructed_appl));
@@ -107,11 +106,9 @@ void handle_continuation()
             new_payload[i] = (struct Box*)pop_val();
         }
     } else if (remaining_args == closure->info->arity) {
-        printf("\nargs == arity :: %llu == %u\n", remaining_args, closure->info->arity);
         // args are on stack in correct order
         jump_to_closure(closure);
     } else {
-        printf("\nargs > arity :: %llu > %u\n", remaining_args, closure->info->arity);
         // `remaining_args > closure->info->arity`
         u32 extra_args = remaining_args - closure->info->arity;
 
