@@ -1,16 +1,9 @@
 main = let
-	range n = n :: (range : n + 1);
-
 	head l = case l of
 		| x :: xs -> x;
 	tail l = case l of
 		| x :: xs -> xs;
 
-	take n l = case n :: l of
-		| 0 :: rest 	 -> ()
-		| n :: (x :: xs) -> x :: (take : n - 1 : xs)
-		| otherwise      -> ();
-	
 	drop n l = case n :: l of
 		| 0 :: xs 		 -> xs
 		| n :: (x :: xs) -> drop : n - 1 : xs
@@ -20,5 +13,20 @@ main = let
 	foldr f a l = case l of
 		| x :: xs	-> f : x : (foldr : f : a : xs)
 		| otherwise -> a;
+	
+	add a b = a + b;
+	sum = foldr : add : 0;
 
-	in foldr : (fun x rest -> if x == 3 then true else rest) : false : (range : 0);
+	fib n = case n of
+		| 0 -> 0
+		| 1 -> 1
+		| n -> (fib : n - 1) + (fib : n - 2);
+	
+	zipwith f a b = case a :: b of
+		| (a :: as) :: (b :: bs) -> (f : a : b) :: (zipwith : f : as : bs)
+		| otherwise				 -> ();
+	
+	fibs = 0 :: 1 :: (zipwith : add : fibs : (tail : fibs));
+	fib2 n = head : (drop : n : fibs);
+
+	in fib : 22;

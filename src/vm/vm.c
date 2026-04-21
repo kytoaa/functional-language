@@ -3,8 +3,6 @@
 #include "function_call.h"
 #include "../prelude.h"
 #include "../compiler/builtins.h"
-#include "../compiler/debug.h"
-#include <stdio.h>
 #include <string.h>
 
 #define DEBUG_CHECKS
@@ -102,12 +100,12 @@ next_instruction:
             if (offset > vm.registers[BINDING_PTR])
                 panic("reading binding at invalid offset");
         #endif
-            push_stack(vm.bindings[vm.registers[BINDING_PTR] - offset]);
+            push_val((Val)vm.bindings[vm.registers[BINDING_PTR] - offset]);
             break;
         }
         case OP_CREATE_BINDING:{
             u64 value = pop_stack();
-            vm.bindings[vm.registers[BINDING_PTR]++] = value;
+            vm.bindings[vm.registers[BINDING_PTR]++] = (u64)as_val(value);
             break;
         }
         case OP_REMOVE_BINDING:{
@@ -188,7 +186,7 @@ next_instruction:
             struct Box **arguments = obj_dyn_fields(dyn_obj);
             struct Box *value = arguments[index];
 
-            push_val(value);
+            push_val(TO_OBJ(value));
             break;
         }
         case OP_CAPTURE_READ:{
@@ -198,9 +196,9 @@ next_instruction:
             if (offset > vm.registers[BINDING_PTR])
                 panic("reading binding at invalid offset");
         #endif
-            Val dyn_obj = (Val)vm.bindings[vm.registers[BINDING_PTR] - offset];
+            Val dyn_obj = val_ptr((Val)vm.bindings[vm.registers[BINDING_PTR] - offset]);
             struct Box **payload = obj_dyn_fields(dyn_obj);
-            push_val(payload[capture]);
+            push_val(TO_OBJ(payload[capture]));
             break;
         }
         case OP_UPDATE_THUNK:{
@@ -220,7 +218,7 @@ next_instruction:
             u16 closure_index = read_u16();
             struct ClosureInfo *closure_info = &vm.code.functions[closure_index];
             struct Closure *closure = obj_create_closure(closure_info);
-            push_val(closure);
+            push_val(TO_OBJ(closure));
             break;
         }
         case OP_WRITE_CLOSURE:{
@@ -244,7 +242,7 @@ next_instruction:
             u16 closure_index = read_u16();
             struct ClosureInfo *closure_info = &vm.code.functions[closure_index];
             struct Thunk *thunk = obj_create_thunk(closure_info);
-            push_val(thunk);
+            push_val(TO_OBJ(thunk));
             break;
         }
         case OP_WRITE_THUNK:{
@@ -275,22 +273,22 @@ next_instruction:
             struct Cons *cons = obj_create_cons();
             cons->l = l;
             cons->r = r;
-            push_val(cons);
+            push_val(TO_OBJ(cons));
             break;
         }
 
         case OP_PUSH_CONST:{
             u16 const_index = read_u16();
-            push_val(&vm.code.constants[const_index]);
+            push_val((Val)&vm.code.constants[const_index]);
             break;
         }
 
         case OP_TRUE:{
-            push_val(&vm.code.constants[OBJ_U64_SIZE(struct Box)]);
+            push_val((Val)TRUE_BOX_CONST);
             break;
         }
         case OP_FALSE:{
-            push_val(&vm.code.constants[OBJ_U64_SIZE(struct Box) * 2]);
+            push_val((Val)FALSE_BOX_CONST);
             break;
         }
 
@@ -305,7 +303,7 @@ next_instruction:
             i32 result = l_box->val.as.integer op r_box->val.as.integer;\
             struct Box *result_box = obj_create_box();\
             result_box->val = INT_VAL(result);\
-            push_val(result_box);\
+            push_val(TO_OBJ(result_box));\
         } while (0)
         #define BOOL_BIN_OP(op, arg_type, arg_type_name) do {\
             Val r = pop_val();\
@@ -316,7 +314,7 @@ next_instruction:
             struct Box *l_box = (struct Box*)l;\
                                                \
             bool result = l_box->val.as.integer op r_box->val.as.integer;\
-            push_val(result ? TRUE_BOX_CONST : FALSE_BOX_CONST);\
+            push_val(result ? (Val)TRUE_BOX_CONST : (Val)FALSE_BOX_CONST);\
         } while (0)
         #define COMPARISON_BIN_OP(op) BOOL_BIN_OP(op, VALUE_INT, number)
 
@@ -350,24 +348,24 @@ next_instruction:
             Val val = pop_val();
             typecheck(val, VALUE_BOOL, "expected a boolean for `!` argument");
             struct Box *val_box = (struct Box*)val;
-            push_val(val_box->val.as.boolean ? FALSE_BOX_CONST : TRUE_BOX_CONST);
+            push_val(val_box->val.as.boolean ? (Val)FALSE_BOX_CONST : (Val)TRUE_BOX_CONST);
             break;
         }
 
         case OP_IS_CONS:{
             Val val = pop_val();
             push_val(val);
-            push_val(val->type == OBJ_CONS ? TRUE_BOX_CONST : FALSE_BOX_CONST);\
+            push_val(val->type == OBJ_CONS ? (Val)TRUE_BOX_CONST : (Val)FALSE_BOX_CONST);
             break;
         }
         #define IS_VAL_OP(val_type) do {\
             Val val = pop_val();\
             push_val(val);\
             if (val->type != OBJ_BOX) {\
-                push_val(&vm.code.constants[OBJ_U64_SIZE(struct Box) * 2]);\
+                push_val((Val)FALSE_BOX_CONST);\
             } else {\
                 struct Box *box = (struct Box*)val;\
-                push_val(&vm.code.constants[((box->val.type == (val_type)) ? 1 : 2) * OBJ_U64_SIZE(struct Box)]);\
+                push_val((box->val.type == (val_type)) ? (Val)TRUE_BOX_CONST : (Val)FALSE_BOX_CONST);\
             }\
         } while (0)
 
@@ -432,7 +430,7 @@ next_instruction:
             }
 
             bool equal = value_equal(l_box->val, r_box->val);
-            push_val(equal ? TRUE_BOX_CONST : FALSE_BOX_CONST);
+            push_val(equal ? (Val)TRUE_BOX_CONST : (Val)FALSE_BOX_CONST);
             break;
         }
 
@@ -449,6 +447,8 @@ next_instruction:
         #undef BOOL_BIN_OP
         #undef NUM_BIN_OP
     }
+
+    try_gc();
 
     goto next_instruction;
 
@@ -490,4 +490,5 @@ void run_vm(struct Chunk *chunk, struct VmConfig config)
 void end_vm()
 {
     free_mem(vm.code.constants);
+    free_objects();
 }

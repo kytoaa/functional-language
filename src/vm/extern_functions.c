@@ -23,9 +23,6 @@ static void print_value(struct Value val)
         case VALUE_CHAR:
             fprintf(vm.config.out, "%c", val.as.character);
             break;
-        case VALUE_OBJ:
-            print_val(val.as.object);
-            break;
     }
 }
 

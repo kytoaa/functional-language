@@ -83,9 +83,20 @@ u64 pop_stack()
 {
     return vm.stack[--stack_ptr];
 }
+Val pop_val()
+{
+    u64 val = pop_stack();
+    if ((val & 0x8000000000000000) == 0)
+        panic("not a val");
+    return (Val)(val & 0x7fffffffffffffff);
+}
 void push_stack(u64 val)
 {
     vm.stack[stack_ptr++] = val;
+}
+void push_val(Val val)
+{
+    push_stack((u64)val | 0x8000000000000000);
 }
 
 u64 address_of_global(enum GlobalFunction global)

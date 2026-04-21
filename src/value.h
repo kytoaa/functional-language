@@ -8,12 +8,9 @@ enum ValueType {
     VALUE_INT,
     VALUE_BOOL,
     VALUE_CHAR,
-    VALUE_OBJ,
 };
 
 struct Obj;
-
-typedef struct Obj *Val;
 
 /// values are typically boxed
 struct Value {
@@ -45,8 +42,6 @@ static inline bool value_equal(struct Value l, struct Value r)
             return l.as.boolean == r.as.boolean;
         case VALUE_CHAR:
             return l.as.character == r.as.character;
-        case VALUE_OBJ:
-            panic("cannot compare objects");
     }
     return false;
 }
@@ -55,16 +50,13 @@ static inline bool value_equal(struct Value l, struct Value r)
 #define BOOL_VAL(val)   ((struct Value){ VALUE_BOOL, { .boolean = (val) } })
 #define CHAR_VAL(val)   ((struct Value){ VALUE_CHAR, { .character = (val) } })
 #define UNIT_VAL()      ((struct Value){ VALUE_UNIT, { .object = null } })
-#define OBJ_VAL(val)    ((struct Value){ VALUE_OBJ, { .object = (val) } })
 
 #define IS_INT(val)     ((val).type == VALUE_INT)
 #define IS_BOOL(val)    ((val).type == VALUE_BOOL)
 #define IS_CHAR(val)    ((val).type == VALUE_CHAR)
-#define IS_OBJ(val)     ((val).type == VALUE_OBJ)
 
 #define AS_INT(val)     ((val).as.integer)
 #define AS_BOOL(val)    ((val).as.boolean)
 #define AS_CHAR(val)    ((val).as.character)
-#define AS_OBJ(val)     ((val).as.object)
 
 #endif

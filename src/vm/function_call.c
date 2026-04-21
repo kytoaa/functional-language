@@ -4,7 +4,7 @@
 
 static void jump_to_closure(struct Closure *closure)
 {
-    vm.registers[REG_1] = (u64)closure;
+    vm.registers[REG_1] = (u64)as_val(closure);
     instruction_ptr = closure->info->address;
 }
 
@@ -13,7 +13,7 @@ static void exact_arg_call(struct Application *application, struct Closure *clos
     struct Box **payload = obj_dyn_fields(TO_OBJ(application));
 
     for (u32 i = 0; i < application->arg_count; i++) {
-        push_stack((u64)payload[application->arg_count - (i + 1)]);
+        push_val((Val)payload[application->arg_count - (i + 1)]);
     }
 
     jump_to_closure(closure);
@@ -29,7 +29,7 @@ static void application_call(Val application_val)
     struct Closure *closure = (struct Closure*)application->closure;
 
     if (application->arg_count < closure->info->arity) {
-        push_stack((u64)application);
+        push_val((Val)application);
         return;
     } else if (application->arg_count == closure->info->arity) {
         exact_arg_call(application, closure);
@@ -43,7 +43,7 @@ static void application_call(Val application_val)
                 push_stack(i);
                 push_stack(address_of_global(GLOBAL_FUNC_APPL_CONT));
             }
-            push_stack((u64)payload[application->arg_count - (i + 1)]);
+            push_val((Val)payload[application->arg_count - (i + 1)]);
         }
 
         jump_to_closure(closure);
@@ -81,7 +81,7 @@ void handle_continuation()
             struct Box **payload = obj_dyn_fields(TO_OBJ(application));
 
             for (u32 i = 0; i < application->arg_count; i++) {
-                push_stack((u64)payload[application->arg_count - (i + 1)]);
+                push_val((Val)payload[application->arg_count - (i + 1)]);
             }
             remaining_args += application->arg_count;
             closure = (struct Closure*)application->closure;

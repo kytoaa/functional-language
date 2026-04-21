@@ -45,14 +45,9 @@ void eval_val()
 
 static void eval_box(struct Box *box)
 {
-    switch (box->val.type) {
-        case VALUE_OBJ:
-            return eval_value(box->val.as.object);
-        default:
-            set_whnf(&box->obj);
-            push_val(box);
-            return;
-    }
+    set_whnf(&box->obj);
+    push_val(TO_OBJ(box));
+    return;
 }
 
 static void eval_thunk(struct Thunk *thunk)
@@ -61,11 +56,11 @@ static void eval_thunk(struct Thunk *thunk)
         return eval_value(thunk->evaluated);
     }
     u64 addr = thunk->info->address;
-    vm.registers[REG_1] = (u64)thunk;
+    vm.registers[REG_1] = (u64)as_val(thunk);
 
     // push continuation, pushes eval op to loop until whnf
     push_stack(instruction_ptr - 1);
-    push_val(thunk);
+    push_val((Val)thunk);
     // continue to update thunk
     push_stack(address_of_global(GLOBAL_FUNC_UPDATE_THUNK));
     jump(addr);
@@ -84,11 +79,11 @@ static void eval_application(struct Application *application)
 
     if (application->arg_count >= ((struct Closure*)application->closure)->info->arity) {
         push_stack(instruction_ptr - 1);
-        push_val(application);
+        push_val((Val)application);
         function_call();
     } else {
         set_whnf(&application->obj);
-        push_val(application);
+        push_val((Val)application);
     }
 }
 

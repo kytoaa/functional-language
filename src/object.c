@@ -1,7 +1,34 @@
 #include "object.h"
 #include "prelude.h"
+#include "vm/gc.h"
 
 static struct Obj *most_recent_alloc = null;
+
+struct Obj **get_most_recent_alloc()
+{
+    return &most_recent_alloc;
+}
+
+static u64 allocated_memory = 0;
+static u64 heap_size = 1024;
+
+void try_gc()
+{
+    if (allocated_memory > heap_size) {
+        run_gc();
+        heap_size *= 2;
+        allocated_memory = 0;
+    }
+}
+void free_objects()
+{
+    while (most_recent_alloc != null) {
+        struct Obj *object = most_recent_alloc;
+        most_recent_alloc = object->next;
+        free_mem(object);
+    }
+    end_gc();
+}
 
 static struct Obj *alloc_obj(u32 size)
 {
@@ -15,6 +42,8 @@ static struct Obj *alloc_obj(u32 size)
 
     new_obj->flags.is_whnf = false;
     new_obj->flags.is_static = false;
+
+    allocated_memory += size;
 
     return new_obj;
 }

@@ -21,8 +21,9 @@ enum ObjType {
 #define IS_WHNF(val)    (val->flags.is_whnf)
 
 typedef struct {
-    bool is_whnf: 1;
-    bool is_static: 1;
+    bool is_whnf : 1;
+    bool is_static : 1;
+    bool gc_marked : 1;
 } ObjFlags;
 
 struct Obj {
@@ -30,6 +31,11 @@ struct Obj {
     ObjFlags flags;
     struct Obj *next;
 };
+
+typedef struct Obj *Val;
+
+#define val_ptr(val) ((Val)(((u64)val) & 0x7fffffffffffffff))
+#define as_val(val) ((Val)((u64)(val) | 0x8000000000000000))
 
 struct Box {
     struct Obj obj;
@@ -79,11 +85,6 @@ struct Application {
     /// struct Box *arguments[]
 };
 
-static inline bool is_obj_type(struct Value val, enum ObjType type)
-{
-    return IS_OBJ(val) && OBJ_TYPE(val) == type;
-}
-
 struct Box *obj_create_box();
 struct Cons *obj_create_cons();
 struct Application *obj_create_application(u8 arg_count);
@@ -94,5 +95,9 @@ void obj_init_box(struct Box *box);
 void obj_init_cons(struct Cons *cons);
 
 struct Box **obj_dyn_fields(struct Obj *obj);
+
+struct Obj **get_most_recent_alloc();
+void try_gc();
+void free_objects();
 
 #endif
