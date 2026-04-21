@@ -105,7 +105,15 @@ void compile_file(const struct CompilerConfig *config)
     struct IdentifierTable identifiers;
     init_ident_table(&identifiers);
 
-    traverse_node(ast, &identifiers, generate_symbols, null);
+    if (ast->kind == AST_DECLARATION) {
+        struct DeclarationNode *decl = (struct DeclarationNode*)ast;
+        while (decl != null) {
+            traverse_node(AS_NODE(decl), &identifiers, generate_symbols, null);
+            decl = decl->next_declaration;
+        }
+    } else {
+        traverse_node(ast, &identifiers, generate_symbols, null);
+    }
 
     printf("%.*s", identifiers.items[0].len, identifiers.items[0].ptr);
     for (u32 i = 1; i < identifiers.count; i++) {

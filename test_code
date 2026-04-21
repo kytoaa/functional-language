@@ -1,9 +1,9 @@
-main = let
-	head l = case l of
-		| x :: xs -> x;
-	tail l = case l of
-		| x :: xs -> xs;
+head l = case l of
+    | x :: xs -> x;
+tail l = case l of
+    | x :: xs -> xs;
 
+main = let
 	drop n l = case n :: l of
 		| 0 :: xs 		 -> xs
 		| n :: (x :: xs) -> drop : n - 1 : xs
@@ -29,4 +29,4 @@ main = let
 	fibs = 0 :: 1 :: (zipwith : add : fibs : (tail : fibs));
 	fib2 n = head : (drop : n : fibs);
 
-	in fib : 22;
+	in fib2 : 22;

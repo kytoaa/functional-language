@@ -1,4 +1,6 @@
+#include "expr.h"
 #include "codegen.h"
+#include "pattern_matching.h"
 #include "../builtins.h"
 #include <stdio.h>
 
@@ -23,6 +25,7 @@ void compile_identifier(struct Context *ctx, struct IdentifierNode *node)
 {
     struct IdentSearchResult ident = {};
     u8 capture_index = 0;
+    u32 global_index = 0;
     if (get_ident_info(ctx, node->src_loc, &ident)) {
         emit_byte(ctx, OP_READ_BINDING);
         emit_u16(ctx, ident.offset);
@@ -32,6 +35,9 @@ void compile_identifier(struct Context *ctx, struct IdentifierNode *node)
         emit_byte(ctx, OP_CAPTURE_READ);
         emit_u16(ctx, ident.offset);
         emit_byte(ctx, capture_index);
+    } else if (resolve_global(ctx, node->src_loc, &global_index)) {
+        emit_byte(ctx, OP_PUSH_CONST);
+        emit_u32(ctx, global_index);
     } else {
         printf("%.*s\n", node->len, node->src_loc);
         panic("non existent identifier");
@@ -68,7 +74,7 @@ void compile_literal(struct Context *ctx, struct LiteralNode *node)
         constant = (node->as.boolean ? 1 : 2) * OBJ_U64_SIZE(struct Box);
     }
     emit_byte(ctx, OP_PUSH_CONST);
-    emit_u16(ctx, constant);
+    emit_u32(ctx, constant);
 }
 
 void compile_bin_op(struct Context *ctx, struct BinOpNode *node)
@@ -178,10 +184,9 @@ void compile_let_expr(struct Context *ctx, struct LetExprNode *node)
     //compile_thunk(ctx, node->body, null);
 
     u32 final_ident_count = ctx->ident_stack_len;
-    for (u32 i = 0; i < final_ident_count - ident_count; i++) {
-        drop_ident(ctx, 1);
-        emit_byte(ctx, OP_REMOVE_BINDING);
-    }
+
+    drop_ident(ctx, final_ident_count - ident_count);
+    emit_2_bytes(ctx, OP_REMOVE_BINDINGS, final_ident_count - ident_count);
 }
 
 /// leaves the constructed lambda at the top of the stack
@@ -219,9 +224,7 @@ void compile_lambda(struct Context *ctx, struct LambdaNode *node, const char *bi
     compile_expr(&context, node->body);
 
     // bindings + 1 to remove closure pointer
-    for (u32 i = 0; i < bindings + 1; i++) {
-        emit_byte(&context, OP_REMOVE_BINDING);
-    }
+    emit_2_bytes(&context, OP_REMOVE_BINDINGS, bindings + 1);
     // swap result and continuation
     emit_byte(&context, OP_SWAP);
     emit_byte(&context, OP_JUMP);
@@ -245,35 +248,48 @@ void compile_lambda(struct Context *ctx, struct LambdaNode *node, const char *bi
     };
     u16 closure_info_index = create_closure_info(ctx, info);
 
-    if (bind_to != null) {
-        // no bindings have been added, if `bind_to != null` then the caller
-        // already created a binding in `ctx` which gets bound here
-        emit_byte(ctx, OP_CREATE_CLOSURE);
-        emit_u16(ctx, closure_info_index);
-        emit_byte(ctx, OP_CREATE_BINDING);
-    }
+    if (context.capture_stack_len > 0) {
+        if (bind_to != null) {
+            // no bindings have been added, if `bind_to != null` then the caller
+            // already created a binding in `ctx` which gets bound here
+            emit_byte(ctx, OP_CREATE_CLOSURE);
+            emit_u16(ctx, closure_info_index);
+            emit_byte(ctx, OP_CREATE_BINDING);
+        }
 
-    for (u32 i = 0; i < context.capture_stack_len; i++) {
-        struct Capture capture = context.capture_stack[i];
-        if (capture.is_local) {
-            emit_byte(ctx, OP_READ_BINDING);
-            emit_u16(ctx, capture.parent_index);
+        for (u32 i = 0; i < context.capture_stack_len; i++) {
+            struct Capture capture = context.capture_stack[i];
+            if (capture.is_local) {
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, capture.parent_index);
+            } else {
+                emit_byte(ctx, OP_CAPTURE_READ);
+                emit_u16(ctx, self_ident.offset);
+                emit_byte(ctx, capture.parent_index);
+            }
+        }
+
+        if (bind_to == null) {
+            emit_byte(ctx, OP_CREATE_CLOSURE);
+            emit_u16(ctx, closure_info_index);
         } else {
-            emit_byte(ctx, OP_CAPTURE_READ);
+            get_ident_info(ctx, bind_to, &self_ident);
+            emit_byte(ctx, OP_READ_BINDING);
             emit_u16(ctx, self_ident.offset);
-            emit_byte(ctx, capture.parent_index);
+        }
+        emit_byte(ctx, OP_WRITE_CLOSURE);
+    } else {
+        u32 constant = create_constant(ctx, OBJ_CLOSURE, sizeof(struct Closure));
+        struct Closure *closure_const = (struct Closure*)get_constant(ctx, constant);
+        closure_const->info = (struct ClosureInfo*)(u64)closure_info_index;
+        emit_byte(ctx, OP_PUSH_CONST);
+        emit_u32(ctx, constant);
+
+        if (bind_to != null) {
+            emit_byte(ctx, OP_COPY);
+            emit_byte(ctx, OP_CREATE_BINDING);
         }
     }
-
-    if (bind_to == null) {
-        emit_byte(ctx, OP_CREATE_CLOSURE);
-        emit_u16(ctx, closure_info_index);
-    } else {
-        get_ident_info(ctx, bind_to, &self_ident);
-        emit_byte(ctx, OP_READ_BINDING);
-        emit_u16(ctx, self_ident.offset);
-    }
-    emit_byte(ctx, OP_WRITE_CLOSURE);
 
     end_context(&context);
 }
@@ -320,35 +336,49 @@ void compile_thunk(struct Context *ctx, struct AstNode *node, const char *bind_t
     };
     u16 closure_info_index = create_closure_info(ctx, info);
 
-    if (bind_to != null) {
-        // no bindings have been added, if `bind_to != null` then the caller
-        // already created a binding in `ctx` which gets bound here
-        emit_byte(ctx, OP_CREATE_THUNK);
-        emit_u16(ctx, closure_info_index);
-        emit_byte(ctx, OP_CREATE_BINDING);
-    }
+    if (context.capture_stack_len > 0) {
+        if (bind_to != null) {
+            // no bindings have been added, if `bind_to != null` then the caller
+            // already created a binding in `ctx` which gets bound here
+            emit_byte(ctx, OP_CREATE_THUNK);
+            emit_u16(ctx, closure_info_index);
+            emit_byte(ctx, OP_CREATE_BINDING);
+        }
 
-    for (u32 i = 0; i < context.capture_stack_len; i++) {
-        struct Capture capture = context.capture_stack[i];
-        if (capture.is_local) {
-            emit_byte(ctx, OP_READ_BINDING);
-            emit_u16(ctx, capture.parent_index);
+        for (u32 i = 0; i < context.capture_stack_len; i++) {
+            struct Capture capture = context.capture_stack[i];
+            if (capture.is_local) {
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, capture.parent_index);
+            } else {
+                emit_byte(ctx, OP_CAPTURE_READ);
+                emit_u16(ctx, self_ident.offset);
+                emit_byte(ctx, capture.parent_index);
+            }
+        }
+
+        if (bind_to == null) {
+            emit_byte(ctx, OP_CREATE_THUNK);
+            emit_u16(ctx, closure_info_index);
         } else {
-            emit_byte(ctx, OP_CAPTURE_READ);
+            get_ident_info(ctx, bind_to, &self_ident);
+            emit_byte(ctx, OP_READ_BINDING);
             emit_u16(ctx, self_ident.offset);
-            emit_byte(ctx, capture.parent_index);
+        }
+        emit_byte(ctx, OP_WRITE_THUNK);
+    } else {
+        u32 constant = create_constant(ctx, OBJ_THUNK, sizeof(struct Thunk));
+        struct Thunk *thunk_const = (struct Thunk*)get_constant(ctx, constant);
+        thunk_const->evaluated = null;
+        thunk_const->info = (struct ClosureInfo*)(u64)closure_info_index;
+        emit_byte(ctx, OP_PUSH_CONST);
+        emit_u32(ctx, constant);
+
+        if (bind_to != null) {
+            emit_byte(ctx, OP_COPY);
+            emit_byte(ctx, OP_CREATE_BINDING);
         }
     }
-
-    if (bind_to == null) {
-        emit_byte(ctx, OP_CREATE_THUNK);
-        emit_u16(ctx, closure_info_index);
-    } else {
-        get_ident_info(ctx, bind_to, &self_ident);
-        emit_byte(ctx, OP_READ_BINDING);
-        emit_u16(ctx, self_ident.offset);
-    }
-    emit_byte(ctx, OP_WRITE_THUNK);
 
     end_context(&context);
 }

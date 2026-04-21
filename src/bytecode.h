@@ -6,8 +6,10 @@
 
 enum Bytecode {
     OP_NOOP,
-    /// copy the value at the top of the stack to the given register
+    /// move the value at the top of the stack to the given register
     OP_TRANSFER_STACK_REG,
+    /// copy the value at the top of the stack to the given register
+    OP_COPY_STACK_REG,
     /// pushes the value in the given register to the stack
     OP_PUSH_REG_STACK,
     /// sets the given register to the value
@@ -16,6 +18,8 @@ enum Bytecode {
 
     /// swaps the two items at the top of the stack
     OP_SWAP,
+    /// creates a copy of the item at the top of the stack
+    OP_COPY,
 
     /// pushes a u64 to the top of the stack
     OP_PUSH_U64,
@@ -33,6 +37,9 @@ enum Bytecode {
     OP_CREATE_BINDING,
     /// pops the item at the top of the ident stack
     OP_REMOVE_BINDING,
+    /// pop a number of bindings
+    /// `op u8`
+    OP_REMOVE_BINDINGS,
 
     /// unconditional jump, pops the address from the stack
     OP_JUMP,
@@ -92,7 +99,7 @@ enum Bytecode {
     /// stack: `[r, l]`
     OP_CREATE_CONS,
 
-    /// `op u16` constant;
+    /// `op u32` constant;
     OP_PUSH_CONST,
 
     /// pushes true to the stack

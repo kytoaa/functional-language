@@ -7,7 +7,15 @@ static void reduce_node(struct AstNode *node, void *arg);
 
 void reduce_ast(struct AstNode *node)
 {
-    traverse_node(node, null, reduce_node, null);
+    if (node->kind == AST_DECLARATION) {
+        struct DeclarationNode *decl = (struct DeclarationNode*)node;
+        while (decl != null) {
+            traverse_node(AS_NODE(decl), null, reduce_node, null);
+            decl = decl->next_declaration;
+        }
+    } else {
+        traverse_node(node, null, reduce_node, null);
+    }
 }
 
 /// converts declaration to a lambda

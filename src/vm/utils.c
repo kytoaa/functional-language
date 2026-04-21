@@ -53,6 +53,20 @@ u64 read_u64()
 
     return values.as_u64;
 }
+u32 read_u32()
+{
+    // ip may not be aligned so using union to deal with unaligned read
+    union {
+        u8 bytes[sizeof(u32)];
+        u32 as_u32;
+    } values;
+
+    for (u8 i = 0; i < sizeof(u32); i++) {
+        values.bytes[i] = read_instruction();
+    }
+
+    return values.as_u32;
+}
 u16 read_u16()
 {
     // ip may not be aligned so using union to deal with unaligned read

@@ -45,6 +45,17 @@ static u16 read_u16(u8 *bytes)
         },
     }.u16;
 }
+static u32 read_u32(u8 *bytes)
+{
+    return (union { u32 u32; u8 bytes[4]; }){
+        .bytes = {
+            bytes[0],
+            bytes[1],
+            bytes[2],
+            bytes[3],
+        },
+    }.u32;
+}
 
 u32 print_instruction(FILE *out, u8 *bytes)
 {
@@ -59,6 +70,7 @@ u32 print_instruction(FILE *out, u8 *bytes)
 
     switch (bytes[0]) {
         case OP_TRANSFER_STACK_REG:
+        case OP_COPY_STACK_REG:
         case OP_PUSH_REG_STACK:
         case OP_JUMP_REG:
             print_register(out, bytes[1]);
@@ -75,13 +87,19 @@ u32 print_instruction(FILE *out, u8 *bytes)
 
         case OP_READ_BINDING:
         case OP_CREATE_CLOSURE:
-        case OP_CREATE_THUNK:
-        case OP_PUSH_CONST:{
+        case OP_CREATE_THUNK:{
             u16 u16 = read_u16(&bytes[1]);
             consumed += 2;
             fprintf(out, " %d", u16);
             break;
         }
+        case OP_REMOVE_BINDINGS:{
+            u8 u8 = bytes[1];
+            consumed += 1;
+            fprintf(out, " %d", u8);
+            break;
+        }
+
         case OP_JUMP_REL:
         case OP_JUMP_REL_CONDITIONAL:{
             i16 jump = (i16)read_u16(&bytes[1]);
@@ -111,6 +129,12 @@ u32 print_instruction(FILE *out, u8 *bytes)
             i64 val = (i64)read_u64(&bytes[1]);
             consumed += 8;
             fprintf(out, " %lld", val);
+            break;
+        }
+        case OP_PUSH_CONST:{
+            u32 val = read_u32(&bytes[1]);
+            consumed += 4;
+            fprintf(out, " %u", val);
             break;
         }
     }

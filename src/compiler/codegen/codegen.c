@@ -8,12 +8,45 @@ void init_context(struct Context *ctx, struct Context *parent)
     ctx->parent = parent;
     ctx->identifier_table = parent->identifier_table;
     ctx->compiling_chunk = parent->compiling_chunk;
+    ctx->globals = parent->globals;
     ctx->ident_stack_len = 0;
     ctx->capture_stack_len = 0;
 }
 void end_context(struct Context *ctx)
 {
     (void)ctx;
+}
+
+void declare_global(struct Context *ctx, const char *ident, u32 constant_index)
+{
+    if (ctx->globals->len == ctx->globals->cap) {
+        u32 new_cap = (ctx->globals->cap == 0) ? 2 : ctx->globals->cap * 2;
+        struct Global *new_ptr = realloc_mem(ctx->globals->ptr, new_cap * sizeof(struct Global));
+        ctx->globals->ptr = new_ptr;
+        ctx->globals->cap = new_cap;
+    }
+
+    for (u32 i = 0; i < ctx->globals->len; i++) {
+        if (ctx->globals->ptr[i].ident == ident) {
+            panic("redeclared global");
+        }
+    }
+
+    ctx->globals->ptr[ctx->globals->len++] = (struct Global){
+        .ident = ident,
+        .constant_index = constant_index,
+    };
+}
+bool resolve_global(struct Context *ctx, const char *ident, u32 *out)
+{
+    for (u32 i = 0; i < ctx->globals->len; i++) {
+        struct Global global = ctx->globals->ptr[i];
+        if (global.ident == ident) {
+            *out = global.constant_index;
+            return true;
+        }
+    }
+    return false;
 }
 
 void declare_ident(struct Context *ctx, const char *ident)
@@ -156,7 +189,12 @@ u32 create_constant(struct Context *ctx, enum ObjType type, u32 size)
     constants->len += size;
 
     struct Obj *obj = (struct Obj*)&constants->ptr[index];
+
+    obj->flags.is_static = true;
+    obj->flags.gc_marked = false;
+    obj->next = null;
     obj->type = type;
+
     if (type == OBJ_BOX) {
         obj_init_box((struct Box*)obj);
     }

@@ -1,4 +1,5 @@
 #include "codegen.h"
+#include "expr.h"
 #include "../builtins.h"
 #include "../../vm/extern_functions.h"
 
@@ -26,13 +27,12 @@ void compile_case_expression(struct Context *ctx, struct CaseExprNode *node)
     emit_byte(ctx, OP_SWAP);
 
     while (branch != null) {
-        emit_2_bytes(ctx, OP_TRANSFER_STACK_REG, REG_1);
+        emit_byte(ctx, OP_SWAP);
         // unbind any extra bindings
-        emit_2_bytes(ctx, OP_TRANSFER_STACK_REG, BINDING_PTR);
+        emit_2_bytes(ctx, OP_COPY_STACK_REG, BINDING_PTR);
         // set up stack with [..bindings, expr, expr]
-        emit_2_bytes(ctx, OP_PUSH_REG_STACK, BINDING_PTR);
-        emit_2_bytes(ctx, OP_PUSH_REG_STACK, REG_1);
-        emit_2_bytes(ctx, OP_PUSH_REG_STACK, REG_1);
+        emit_byte(ctx, OP_SWAP);
+        emit_byte(ctx, OP_COPY);
 
         struct CaseBranchResult result = compile_pattern_match_branch(ctx, branch);
         i16 diff = (i32)(success_jump_index - 1) - (i32)(result.success_index + 2);
@@ -103,9 +103,7 @@ static u32 compile_pattern_node(struct Context *ctx, struct AstNode *node)
             u32 cons_check_index = get_last_bytecode_index(ctx) + 1;
             emit_u16(ctx, 0);
 
-            emit_2_bytes(ctx, OP_TRANSFER_STACK_REG, REG_1);
-            emit_2_bytes(ctx, OP_PUSH_REG_STACK, REG_1);
-            emit_2_bytes(ctx, OP_PUSH_REG_STACK, REG_1);
+            emit_byte(ctx, OP_COPY);
             emit_byte(ctx, OP_HEAD);
             u32 l_failure = compile_pattern_node(ctx, cons->l);
 
@@ -192,10 +190,8 @@ struct CaseBranchResult compile_pattern_match_branch(struct Context *ctx, struct
 
     u32 final_ident_count = ctx->ident_stack_len;
 
-    for (u32 i = 0; i < final_ident_count - ident_count; i++) {
-        drop_ident(ctx, 1);
-        emit_byte(ctx, OP_REMOVE_BINDING);
-    }
+    drop_ident(ctx, final_ident_count - ident_count);
+    emit_2_bytes(ctx, OP_REMOVE_BINDINGS, final_ident_count - ident_count);
 
     emit_byte(ctx, OP_JUMP_REL);
     u32 correct_index = get_last_bytecode_index(ctx) + 1;

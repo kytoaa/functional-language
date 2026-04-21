@@ -13,6 +13,10 @@
 struct Identifier {
     const char *ident;
 };
+struct Global {
+    const char *ident;
+    u32 constant_index;
+};
 struct Capture {
     union {
         u8 value;
@@ -23,12 +27,19 @@ struct Capture {
     };
 };
 
+struct GlobalList {
+    struct Global *ptr;
+    u32 len;
+    u32 cap;
+};
+
 struct Context {
     struct Context *parent;
     struct IdentifierTable *identifier_table;
     struct Chunk *compiling_chunk;
     struct Identifier ident_stack[IDENT_STACK_SIZE];
     struct Capture capture_stack[IDENT_STACK_SIZE];
+    struct GlobalList *globals;
     u32 ident_stack_len;
     u32 capture_stack_len;
 };
@@ -40,6 +51,9 @@ struct IdentSearchResult {
     /// ident offset from the top of the binding stack, 0 being top
     u16 offset;
 };
+
+void declare_global(struct Context *ctx, const char *ident, u32 constant_index);
+bool resolve_global(struct Context *ctx, const char *ident, u32 *out);
 
 void declare_ident(struct Context *ctx, const char *ident);
 void drop_ident(struct Context *ctx, u32 count);
@@ -61,22 +75,5 @@ u32 create_constant(struct Context *ctx, enum ObjType type, u32 size);
 u64 *get_constant(struct Context *ctx, u32 index);
 
 u16 create_closure_info(struct Context *ctx, struct ClosureInfo info);
-
-union FromBytes {
-    u8 bytes[2];
-    u16 u16;
-};
-
-void compile_expr(struct Context *ctx, struct AstNode *node);
-void compile_declaration(struct Context *ctx, struct DeclarationNode *node);
-
-void compile_literal(struct Context *ctx, struct LiteralNode *node);
-void compile_identifier(struct Context *ctx, struct IdentifierNode *node);
-void compile_bin_op(struct Context *ctx, struct BinOpNode *node);
-
-void compile_lambda(struct Context *ctx, struct LambdaNode *node, const char *bind_to);
-void compile_thunk(struct Context *ctx, struct AstNode *node, const char *bind_to);
-
-void compile_case_expression(struct Context *ctx, struct CaseExprNode *node);
 
 #endif

@@ -3,6 +3,7 @@
 #include "function_call.h"
 #include "../prelude.h"
 #include "../compiler/builtins.h"
+#include "../compiler/debug.h"
 #include <string.h>
 
 #define DEBUG_CHECKS
@@ -55,6 +56,11 @@ next_instruction:
             vm.registers[reg] = val;
             break;
         }
+        case OP_COPY_STACK_REG:{
+            u8 reg = read_reg();
+            vm.registers[reg] = vm.stack[stack_ptr - 1];
+            break;
+        }
         case OP_PUSH_REG_STACK:{
             u8 reg = read_reg();
             u64 val = vm.registers[reg];
@@ -76,6 +82,15 @@ next_instruction:
             u64 below = pop_stack();
             push_stack(top);
             push_stack(below);
+            break;
+        }
+        case OP_COPY:{
+        #ifdef DEBUG_CHECKS
+            if (stack_ptr < 1)
+                panic("copy operation with empty stack");
+        #endif
+            u64 value = vm.stack[stack_ptr - 1];
+            vm.stack[stack_ptr++] = value;
             break;
         }
         case OP_PUSH_U64:{
@@ -114,6 +129,15 @@ next_instruction:
                 panic("no bindings to pop");
         #endif
             vm.registers[BINDING_PTR] -= 1;
+            break;
+        }
+        case OP_REMOVE_BINDINGS:{
+            u8 bindings = read_instruction();
+        #ifdef DEBUG_CHECKS
+            if (vm.registers[BINDING_PTR] < bindings)
+                panic("removing too many bindings");
+        #endif
+            vm.registers[BINDING_PTR] -= bindings;
             break;
         }
 
@@ -278,8 +302,16 @@ next_instruction:
         }
 
         case OP_PUSH_CONST:{
-            u16 const_index = read_u16();
-            push_val((Val)&vm.code.constants[const_index]);
+            u32 const_index = read_u32();
+            Val constant = (Val)&vm.code.constants[const_index];
+            if (constant->type == OBJ_CLOSURE) {
+                struct Closure *closure = (struct Closure*)constant;
+                closure->info = &vm.code.functions[(u64)closure->info];
+            } else if (constant->type == OBJ_THUNK) {
+                struct Thunk *thunk = (struct Thunk*)constant;
+                thunk->info = &vm.code.functions[(u64)thunk->info];
+            }
+            push_val(constant);
             break;
         }
 

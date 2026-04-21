@@ -14,6 +14,7 @@ void print_stack(FILE *out);
 u8 read_instruction();
 u8 read_reg();
 u64 read_u64();
+u32 read_u32();
 u16 read_u16();
 u64 read_stack(u64 offset);
 
