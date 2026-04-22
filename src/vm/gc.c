@@ -1,9 +1,14 @@
+#define LOG_GC
+
 #include "gc.h"
 #include "../object.h"
 #include "../prelude.h"
 #include "vm.h"
 
-#define LOG_GC
+#ifdef LOG_GC
+#include <stdio.h>
+#endif
+
 
 struct Worklist {
     u32 len;

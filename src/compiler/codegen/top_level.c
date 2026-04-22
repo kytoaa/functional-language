@@ -65,6 +65,7 @@ static void compile_top_level_decl(struct Context *ctx, struct DeclarationNode *
             .capture_count = 0,
         });
 
+        const_thunk->evaluated = null;
         const_thunk->info = (struct ClosureInfo*)(u64)closure_info;
     }
 }

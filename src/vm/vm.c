@@ -3,7 +3,6 @@
 #include "function_call.h"
 #include "../prelude.h"
 #include "../compiler/builtins.h"
-#include "../compiler/debug.h"
 #include <string.h>
 
 #define DEBUG_CHECKS
@@ -304,13 +303,6 @@ next_instruction:
         case OP_PUSH_CONST:{
             u32 const_index = read_u32();
             Val constant = (Val)&vm.code.constants[const_index];
-            if (constant->type == OBJ_CLOSURE) {
-                struct Closure *closure = (struct Closure*)constant;
-                closure->info = &vm.code.functions[(u64)closure->info];
-            } else if (constant->type == OBJ_THUNK) {
-                struct Thunk *thunk = (struct Thunk*)constant;
-                thunk->info = &vm.code.functions[(u64)thunk->info];
-            }
             push_val(constant);
             break;
         }
@@ -487,6 +479,34 @@ next_instruction:
     return INTERPRET_OK;
 }
 
+static void remap_constants(u64 *constants, u32 cap, struct ClosureInfo *closures)
+{
+    u64 *current_ptr = constants;
+    while (current_ptr < constants + cap) {
+        struct Obj *obj = (struct Obj*)current_ptr;
+        if (obj->type == OBJ_CLOSURE) {
+            struct Closure *closure = (struct Closure*)obj;
+            closure->info = &closures[(u64)closure->info];
+        } else if (obj->type == OBJ_THUNK) {
+            struct Thunk *thunk = (struct Thunk*)obj;
+            thunk->info = &closures[(u64)thunk->info];
+        }
+        switch (obj->type) {
+            case OBJ_BOX:
+                current_ptr += OBJ_U64_SIZE(struct Box);
+                break;
+            case OBJ_CLOSURE:
+                current_ptr += OBJ_U64_SIZE(struct Closure);
+                break;
+            case OBJ_THUNK:
+                current_ptr += OBJ_U64_SIZE(struct Thunk);
+                break;
+            default:
+                panic("shouldnt be a constant");
+        }
+    }
+}
+
 void run_vm(struct Chunk *chunk, struct VmConfig config)
 {
     if (vm.code.constants != null)
@@ -516,6 +536,8 @@ void run_vm(struct Chunk *chunk, struct VmConfig config)
         },
         .config = config,
     };
+
+    remap_constants(vm.code.constants, chunk->constants.len, vm.code.functions);
 
     run_interpreter();
 }
