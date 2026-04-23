@@ -479,8 +479,10 @@ next_instruction:
     return INTERPRET_OK;
 }
 
-static void remap_constants(u64 *constants, u32 cap, struct ClosureInfo *closures)
+static u32 remap_constants(u64 *constants, u32 cap, struct ClosureInfo *closures)
 {
+    u32 thunk_count = 0;
+
     u64 *current_ptr = constants;
     while (current_ptr < constants + cap) {
         struct Obj *obj = (struct Obj*)current_ptr;
@@ -500,6 +502,31 @@ static void remap_constants(u64 *constants, u32 cap, struct ClosureInfo *closure
                 break;
             case OBJ_THUNK:
                 current_ptr += OBJ_U64_SIZE(struct Thunk);
+                thunk_count += 1;
+                break;
+            default:
+                panic("shouldnt be a constant");
+        }
+    }
+    return thunk_count;
+}
+static void populate_static_thunks(struct Thunk **mem, u64 *constants, u32 total_thunks)
+{
+    u64 *current_ptr = constants;
+    u32 thunk_count = 0;
+    while (thunk_count < total_thunks) {
+        struct Obj *obj = (struct Obj*)current_ptr;
+        switch (obj->type) {
+            case OBJ_BOX:
+                current_ptr += OBJ_U64_SIZE(struct Box);
+                break;
+            case OBJ_CLOSURE:
+                current_ptr += OBJ_U64_SIZE(struct Closure);
+                break;
+            case OBJ_THUNK:
+                mem[thunk_count] = (struct Thunk*)current_ptr;
+                current_ptr += OBJ_U64_SIZE(struct Thunk);
+                thunk_count += 1;
                 break;
             default:
                 panic("shouldnt be a constant");
@@ -537,7 +564,11 @@ void run_vm(struct Chunk *chunk, struct VmConfig config)
         .config = config,
     };
 
-    remap_constants(vm.code.constants, chunk->constants.len, vm.code.functions);
+    u32 thunk_count = remap_constants(vm.code.constants, chunk->constants.len, vm.code.functions);
+    struct Thunk **static_thunks = alloc_mem(thunk_count * sizeof(struct Thunk*));
+    populate_static_thunks(static_thunks, vm.code.constants, thunk_count);
+    vm.static_thunks.ptr = static_thunks;
+    vm.static_thunks.len = thunk_count;
 
     run_interpreter();
 }

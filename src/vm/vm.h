@@ -29,6 +29,10 @@ struct VM {
     u64 registers[REG_COUNT];
     u64 bindings[IDENT_COUNT];
     u64 stack[STACK_SIZE];
+    struct {
+        struct Thunk **ptr;
+        u32 len;
+    } static_thunks;
 };
 
 enum InterpretResult {

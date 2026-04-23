@@ -3,30 +3,26 @@ head l = case l of
 tail l = case l of
     | x :: xs -> xs;
 
-main = let
-	drop n l = case n :: l of
-		| 0 :: xs 		 -> xs
-		| n :: (x :: xs) -> drop : n - 1 : xs
-		| otherwise		 -> ();
+drop n l = case n :: l of
+    | 0 :: xs 		 -> xs
+    | n :: (x :: xs) -> drop : n - 1 : xs
+    | otherwise		 -> ();
 
+foldr f a l = case l of
+    | x :: xs	-> f : x : (foldr : f : a : xs)
+    | otherwise -> a;
 
-	foldr f a l = case l of
-		| x :: xs	-> f : x : (foldr : f : a : xs)
-		| otherwise -> a;
-	
-	add a b = a + b;
-	sum = foldr : add : 0;
+add a b = a + b;
+sum = foldr : add : 0;
 
-	fib n = case n of
-		| 0 -> 0
-		| 1 -> 1
-		| n -> (fib : n - 1) + (fib : n - 2);
-	
-	zipwith f a b = case a :: b of
-		| (a :: as) :: (b :: bs) -> (f : a : b) :: (zipwith : f : as : bs)
-		| otherwise				 -> ();
-	
-	fibs = 0 :: 1 :: (zipwith : add : fibs : (tail : fibs));
-	fib2 n = head : (drop : n : fibs);
+zipwith f = let
+    go a b = case a :: b of
+        | () :: _ -> ()
+        | _ :: () -> ()
+        | (a :: as) :: (b :: bs) -> (f : a : b) :: (go : as : bs);
+    in go;
 
-	in fib2 : 22;
+fibs = 0 :: 1 :: (zipwith : add : fibs : (tail : fibs));
+fib n = head : (drop : n : fibs);
+
+main = fib : 22;

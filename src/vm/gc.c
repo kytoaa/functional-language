@@ -129,6 +129,9 @@ static void mark_roots(struct VM *vm)
     for (u32 i = 0; i < vm->registers[BINDING_PTR]; i++) {
         mark_vm_val(vm->bindings[i]);
     }
+    for (u32 i = 0; i < vm->static_thunks.len; i++) {
+        mark_obj(vm->static_thunks.ptr[i]->evaluated);
+    }
     mark_vm_val(vm->registers[REG_1]);
 }
 
