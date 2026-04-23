@@ -8,6 +8,7 @@ struct Parser {
     struct Token current;
     bool has_error;
     struct ParseError err;
+    const char *src;
 };
 
 static struct Parser parser = {};
@@ -25,6 +26,14 @@ static void error(struct Token token, const char *msg)
     parser.has_error = true;
     parser.err.token = token;
     parser.err.msg = msg;
+}
+
+static inline struct Location prev_loc()
+{
+    return (struct Location){
+        .line = parser.prev.line,
+        .file_pos = parser.prev.start - parser.src,
+    };
 }
 
 static void consume(enum TokenType type, const char *error_msg)
@@ -193,7 +202,7 @@ static struct AstNode *unary()
 
     struct UnaryOpNode *node = ALLOC_NODE(struct UnaryOpNode);
     *node = (struct UnaryOpNode){
-        .node = { AST_UNARY_OP },
+        .node = { AST_UNARY_OP, prev_loc() },
         .op = op,
         .val = expr(PREC_UNARY),
     };
@@ -253,8 +262,9 @@ static struct AstNode *binary(enum Precedence precedence, struct AstNode *lhs)
 
     struct BinOpNode *node = ALLOC_NODE(struct BinOpNode);
 
+    struct Location loc = prev_loc();
     *node = (struct BinOpNode){
-        .node = { AST_BIN_OP },
+        .node = { AST_BIN_OP, loc },
         .op = op,
         .l = lhs,
         .r = expr(precedence + 1),
@@ -267,8 +277,9 @@ static struct AstNode *application(enum Precedence precedence, struct AstNode *l
 {
     struct ApplicationNode *node = ALLOC_NODE(struct ApplicationNode);
 
+    struct Location loc = prev_loc();
     *node = (struct ApplicationNode){
-        .node = { AST_APPLICATION },
+        .node = { AST_APPLICATION, loc },
         .function = lhs,
         .argument = expr(PREC_APPLICATION + 1),
     };
@@ -281,7 +292,7 @@ static struct AstNode *identifier()
     struct IdentifierNode *ident = ALLOC_NODE(struct IdentifierNode);
 
     *ident = (struct IdentifierNode){
-        .node = { AST_IDENTIFIER },
+        .node = { AST_IDENTIFIER, prev_loc() },
         .src_loc = parser.prev.start,
         .len = parser.prev.len,
     };
@@ -308,7 +319,7 @@ static struct AstNode *number()
     }
 
     *num = (struct LiteralNode){
-        .node = { AST_LITERAL },
+        .node = { AST_LITERAL, prev_loc() },
         .type = LITERAL_TYPE_NUMBER,
         .as.number = n,
     };
@@ -321,7 +332,7 @@ static struct AstNode *boolean()
     struct LiteralNode *node = ALLOC_NODE(struct LiteralNode);
 
     *node = (struct LiteralNode){
-        .node = { AST_LITERAL },
+        .node = { AST_LITERAL, prev_loc() },
         .type = LITERAL_TYPE_BOOLEAN,
         .as.boolean = *parser.prev.start == 't',
     };
@@ -334,7 +345,7 @@ static struct AstNode *unit()
     struct LiteralNode *node = ALLOC_NODE(struct LiteralNode);
 
     *node = (struct LiteralNode){
-        .node = { AST_LITERAL },
+        .node = { AST_LITERAL, prev_loc() },
         .type = LITERAL_TYPE_UNIT,
     };
 
@@ -358,7 +369,7 @@ static struct FunctionBindingNode *bindings(enum TokenType end)
         }
         struct FunctionBindingNode *next_binding = ALLOC_NODE(struct FunctionBindingNode);
         *next_binding = (struct FunctionBindingNode){
-            .node = { AST_FUNCTION_BINDING },
+            .node = { AST_FUNCTION_BINDING, prev_loc() },
             .next_binding = binding,
             .src_loc = parser.prev.start,
             .len = parser.prev.len,
@@ -373,6 +384,7 @@ static struct FunctionBindingNode *bindings(enum TokenType end)
 static struct AstNode *lambda()
 {
     struct LambdaNode *node = ALLOC_NODE(struct LambdaNode);
+    struct Location loc = prev_loc();
 
     struct FunctionBindingNode *binding = bindings(TOKEN_ARROW);
 
@@ -381,7 +393,7 @@ static struct AstNode *lambda()
     struct AstNode *body = expr(PREC_EXPR);
 
     *node = (struct LambdaNode){
-        .node = { AST_LAMBDA },
+        .node = { AST_LAMBDA, loc },
         .bindings = binding,
         .body = body,
     };
@@ -392,6 +404,7 @@ static struct AstNode *lambda()
 static struct AstNode *if_expr()
 {
     struct IfExprNode *node = ALLOC_NODE(struct IfExprNode);
+    struct Location loc = prev_loc();
 
     struct AstNode *condition = expr(PREC_EXPR);
     consume(TOKEN_THEN, "expected `then`");
@@ -400,7 +413,7 @@ static struct AstNode *if_expr()
     struct AstNode *else_expr = expr(PREC_EXPR);
 
     *node = (struct IfExprNode){
-        .node = { AST_IF_EXPR },
+        .node = { AST_IF_EXPR, loc },
         .condition = condition,
         .then_expr = then_expr,
         .else_expr = else_expr,
@@ -417,6 +430,7 @@ static void **declaration_get_next(void *decl)
 static struct AstNode *let_expr()
 {
     struct LetExprNode *node = ALLOC_NODE(struct LetExprNode);
+    struct Location loc = prev_loc();
 
     struct DeclarationNode *current_decl = null;
 
@@ -436,7 +450,7 @@ static struct AstNode *let_expr()
     struct AstNode *body = expr(PREC_EXPR);
 
     *node = (struct LetExprNode){
-        .node = { AST_LET_EXPR },
+        .node = { AST_LET_EXPR, loc },
         .first_decl = AS_NODE(current_decl),
         .body = body,
     };
@@ -484,6 +498,7 @@ static void **case_pattern_get_next(void *pat)
 static struct AstNode *case_expr()
 {
     struct CaseExprNode *node = ALLOC_NODE(struct CaseExprNode);
+    struct Location loc = prev_loc();
 
     struct AstNode *condition = expr(PREC_EXPR);
     consume(TOKEN_OF, "expected `of` after expression in `case`");
@@ -494,6 +509,7 @@ static struct AstNode *case_expr()
         if (parser.current.type != TOKEN_PIPE)
             break;
         advance();
+        struct Location pat_loc = prev_loc();
 
         struct AstNode *pat_expr = expr(PREC_EXPR);
 
@@ -512,7 +528,7 @@ static struct AstNode *case_expr()
         struct CasePatternNode *current_pattern = ALLOC_NODE(struct CasePatternNode);
 
         *current_pattern = (struct CasePatternNode){
-            .node = { AST_CASE_PATTERN },
+            .node = { AST_CASE_PATTERN, pat_loc },
             .pattern = pat_expr,
             .condition = pat_cond,
             .body = pat_body,
@@ -523,7 +539,7 @@ static struct AstNode *case_expr()
     pattern = reverse_linked_list(pattern, case_pattern_get_next);
 
     *node = (struct CaseExprNode){
-        .node = { AST_CASE_EXPR },
+        .node = { AST_CASE_EXPR, loc },
         .value = condition,
         .first_pattern = AS_NODE(pattern),
     };
@@ -569,13 +585,14 @@ static struct AstNode *declaration()
     u32 name_len = parser.prev.len;
 
     struct DeclarationNode *declaration = ALLOC_NODE(struct DeclarationNode);
+    struct Location loc = prev_loc();
 
     struct FunctionBindingNode *binding = bindings(TOKEN_EQ);
 
     consume(TOKEN_EQ, "expected `=`");
 
     *declaration = (struct DeclarationNode){
-        .node = { AST_DECLARATION },
+        .node = { AST_DECLARATION, loc },
         .name = name,
         .name_len = name_len,
         .is_global = false,
@@ -591,6 +608,7 @@ static struct AstNode *declaration()
 bool build_ast(const char *src, struct AstNode **out, struct ParseError *err)
 {
     init_lexer(src);
+    parser.src = src;
 
     advance();
 

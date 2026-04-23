@@ -56,7 +56,7 @@ int main(int argc, const char *argv[])
         .output = stdout,
         .error = stderr,
         .src = buffer,
-        .file_name = "repl",
+        .file_name = argv[1],
         .file_name_len = 4,
     });
 }

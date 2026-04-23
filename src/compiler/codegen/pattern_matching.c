@@ -153,7 +153,7 @@ static u32 compile_pattern_node(struct Context *ctx, struct AstNode *node)
             return failure_index;
         }
         default:
-            panic("not a valid pattern");
+            panic("unreachable: not a valid pattern");
             return 0;
     }
 }

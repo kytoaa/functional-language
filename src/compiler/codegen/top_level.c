@@ -4,15 +4,19 @@
 
 static void globals_pass(struct Context *ctx, struct DeclarationNode *node)
 {
-    while (node != null) {
-        u32 constant_index = 0;
-        if (node->body->kind == AST_LAMBDA) {
-            constant_index = create_constant(ctx, OBJ_CLOSURE, sizeof(struct Closure));
-        } else {
-            constant_index = create_constant(ctx, OBJ_THUNK, sizeof(struct Thunk));
-        }
+    const char *main_ident = ident_table_get(ctx->identifier_table, "main", 4);
 
-        declare_global(ctx, node->name, constant_index);
+    while (node != null) {
+        if (node->name != main_ident) {
+            u32 constant_index = 0;
+            if (node->body->kind == AST_LAMBDA) {
+                constant_index = create_constant(ctx, OBJ_CLOSURE, sizeof(struct Closure));
+            } else {
+                constant_index = create_constant(ctx, OBJ_THUNK, sizeof(struct Thunk));
+            }
+
+            declare_global(ctx, node->name, constant_index, node->node.loc);
+        }
 
         node = node->next_declaration;
     }
@@ -90,10 +94,10 @@ void compile_top_level(struct Context *ctx, struct DeclarationNode *first_decl)
     while (decl != null) {
         if (decl->name == main_ident) {
             if (main_decl != null) {
-                panic("multiple main declarations");
+                multiple_main_decl_err(ctx, decl->node.loc, main_decl->node.loc);
             }
             if (decl->body->kind == AST_LAMBDA) {
-                panic("main cannot have any arguments");
+                main_args_err(ctx, decl->node.loc);
             }
             main_decl = decl;
         } else {

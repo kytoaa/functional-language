@@ -3,12 +3,15 @@
 #include "../../bytecode.h"
 #include "../../object.h"
 
+static void codegen_error(struct Context *ctx, struct CodegenError error);
+
 void init_context(struct Context *ctx, struct Context *parent)
 {
     ctx->parent = parent;
     ctx->identifier_table = parent->identifier_table;
     ctx->compiling_chunk = parent->compiling_chunk;
     ctx->globals = parent->globals;
+    ctx->errors = parent->errors;
     ctx->ident_stack_len = 0;
     ctx->capture_stack_len = 0;
 }
@@ -17,7 +20,7 @@ void end_context(struct Context *ctx)
     (void)ctx;
 }
 
-void declare_global(struct Context *ctx, const char *ident, u32 constant_index)
+void declare_global(struct Context *ctx, const char *ident, u32 constant_index, struct Location loc)
 {
     if (ctx->globals->len == ctx->globals->cap) {
         u32 new_cap = (ctx->globals->cap == 0) ? 2 : ctx->globals->cap * 2;
@@ -28,12 +31,14 @@ void declare_global(struct Context *ctx, const char *ident, u32 constant_index)
 
     for (u32 i = 0; i < ctx->globals->len; i++) {
         if (ctx->globals->ptr[i].ident == ident) {
-            panic("redeclared global");
+            redeclared_global_err(ctx, loc, ctx->globals->ptr[i].loc);
+            return;
         }
     }
 
     ctx->globals->ptr[ctx->globals->len++] = (struct Global){
         .ident = ident,
+        .loc = loc,
         .constant_index = constant_index,
     };
 }
@@ -223,3 +228,51 @@ u16 create_closure_info(struct Context *ctx, struct ClosureInfo info)
     return index;
 }
 
+static void codegen_error(struct Context *ctx, struct CodegenError error)
+{
+    if (ctx->errors->cap == ctx->errors->len) {
+        u32 new_cap = (ctx->errors->cap == 0) ? 1 : ctx->errors->cap * 2;
+        struct CodegenError *new_ptr = realloc_mem(ctx->errors->ptr, new_cap * sizeof(struct CodegenError));
+        ctx->errors->ptr = new_ptr;
+        ctx->errors->cap = new_cap;
+    }
+    ctx->errors->ptr[ctx->errors->len++] = error;
+}
+void non_existent_ident_err(struct Context *ctx, struct Location loc)
+{
+    codegen_error(ctx, (struct CodegenError){
+        .type = CODEGEN_ERR_NON_EXISTENT_IDENT,
+        .error = { .non_existent_identifier = { .loc = loc } },
+    });
+}
+void redeclared_global_err(struct Context *ctx, struct Location loc, struct Location prev_decl_loc)
+{
+    codegen_error(ctx, (struct CodegenError){
+        .type = CODEGEN_ERR_REDECLARED_GLOBAL,
+        .error = {
+            .redeclared_global = {
+                .loc = loc,
+                .prev_decl_loc = prev_decl_loc,
+            },
+        },
+    });
+}
+void main_args_err(struct Context *ctx, struct Location loc)
+{
+    codegen_error(ctx, (struct CodegenError){
+        .type = CODEGEN_ERR_MAIN_ARGS,
+        .error = { .main_args = { .loc = loc } }
+    });
+}
+void multiple_main_decl_err(struct Context *ctx, struct Location loc, struct Location prev_decl_loc)
+{
+    codegen_error(ctx, (struct CodegenError){
+        .type = CODEGEN_ERR_MULTIPLE_MAIN_DECL,
+        .error = {
+            .redeclared_global = {
+                .loc = loc,
+                .prev_decl_loc = prev_decl_loc,
+            },
+        },
+    });
+}

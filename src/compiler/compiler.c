@@ -5,8 +5,10 @@
 #include "../parsing/debug.h"
 #include "../parsing/ident_table.h"
 #include "../parsing/traversal.h"
+#include "codegen/codegen.h"
 #include "codegen/top_level.h"
 #include "debug.h"
+#include "error_output.h"
 #include "reduction.h"
 
 struct FileData {
@@ -85,6 +87,17 @@ static void generate_symbols(struct AstNode *node, void *table)
     }
 }
 
+static void run_chunk(const struct CompilerConfig *config, struct Chunk chunk)
+{
+    for (u32 i = 0; i < chunk.closures.len; i++) {
+        struct ClosureInfo closure = chunk.closures.ptr[i];
+        printf("{ addr: %d, arity: %d, captures: %d }\n", closure.address, closure.arity, closure.capture_count);
+    }
+    print_instructions(config->output, &chunk);
+
+    run_vm(&chunk, (struct VmConfig){ .out = config->output, .error = config->error });
+}
+
 void compile_file(const struct CompilerConfig *config)
 {
     struct AstNode *ast;
@@ -130,21 +143,24 @@ void compile_file(const struct CompilerConfig *config)
     struct Chunk chunk = {};
     init_chunk(&chunk);
 
+    struct CodegenErrorList errors = {};
+
     struct Context context = {
         .compiling_chunk = &chunk,
         .identifier_table = &identifiers,
+        .errors = &errors,
     };
     printf("compiling\n");
     compile_top_level(&context, (struct DeclarationNode*)ast);
     printf("done\n");
 
-    for (u32 i = 0; i < chunk.closures.len; i++) {
-        struct ClosureInfo closure = chunk.closures.ptr[i];
-        printf("{ addr: %d, arity: %d, captures: %d }\n", closure.address, closure.arity, closure.capture_count);
+    if (errors.len == 0) {
+        run_chunk(config, chunk);
+    } else {
+        for (u32 i = 0; i < errors.len; i++) {
+            print_codegen_error(config, errors.ptr[i]);
+        }
     }
-    print_instructions(config->output, &chunk);
-
-    run_vm(&chunk, (struct VmConfig){ .out = config->output, .error = config->error });
 
     free_ident_table(&identifiers);
 

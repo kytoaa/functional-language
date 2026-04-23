@@ -23,9 +23,14 @@ enum NodeKind {
     AST_FUNCTION_BINDING,
 };
 
+struct Location {
+    u32 line;
+    u32 file_pos;
+};
+
 struct AstNode {
     enum NodeKind kind;
-    u8 depth;
+    struct Location loc;
 };
 
 struct AstAllocator {

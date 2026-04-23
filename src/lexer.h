@@ -3,6 +3,8 @@
 
 #include "prelude.h"
 
+#define EOF_CHAR ('\0')
+
 enum TokenType {
     TOKEN_EQ,
     TOKEN_L_PAREN,
@@ -64,6 +66,18 @@ struct Token {
 void init_lexer(const char *src);
 
 struct Token next_token();
+
+static inline bool is_alpha(char c)
+{
+    return ('a' <= c && c <= 'z')
+        || ('A' <= c && c <= 'Z')
+        || (c == '_');
+}
+static inline bool is_digit(char c)
+{
+    return '0' <= c && c <= '9';
+}
+
 
 static const char *token_type_name(enum TokenType type)
 {

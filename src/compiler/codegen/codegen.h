@@ -10,11 +10,35 @@
 
 #define IDENT_STACK_SIZE 128
 
+enum CodegenErrorType {
+    CODEGEN_ERR_NON_EXISTENT_IDENT,
+    CODEGEN_ERR_REDECLARED_GLOBAL,
+    CODEGEN_ERR_MAIN_ARGS,
+    CODEGEN_ERR_MULTIPLE_MAIN_DECL,
+};
+
+struct CodegenError {
+    enum CodegenErrorType type;
+    union {
+        struct {
+            struct Location loc;
+        } non_existent_identifier;
+        struct {
+            struct Location loc;
+            struct Location prev_decl_loc;
+        } redeclared_global;
+        struct {
+            struct Location loc;
+        } main_args;
+    } error;
+};
+
 struct Identifier {
     const char *ident;
 };
 struct Global {
     const char *ident;
+    struct Location loc;
     u32 constant_index;
 };
 struct Capture {
@@ -32,6 +56,11 @@ struct GlobalList {
     u32 len;
     u32 cap;
 };
+struct CodegenErrorList {
+    struct CodegenError *ptr;
+    u32 len;
+    u32 cap;
+};
 
 struct Context {
     struct Context *parent;
@@ -40,6 +69,7 @@ struct Context {
     struct Identifier ident_stack[IDENT_STACK_SIZE];
     struct Capture capture_stack[IDENT_STACK_SIZE];
     struct GlobalList *globals;
+    struct CodegenErrorList *errors;
     u32 ident_stack_len;
     u32 capture_stack_len;
 };
@@ -47,12 +77,17 @@ struct Context {
 void init_context(struct Context *ctx, struct Context *parent);
 void end_context(struct Context *ctx);
 
+void non_existent_ident_err(struct Context *ctx, struct Location loc);
+void redeclared_global_err(struct Context *ctx, struct Location loc, struct Location prev_decl_loc);
+void main_args_err(struct Context *ctx, struct Location loc);
+void multiple_main_decl_err(struct Context *ctx, struct Location loc, struct Location prev_decl_loc);
+
 struct IdentSearchResult {
     /// ident offset from the top of the binding stack, 0 being top
     u16 offset;
 };
 
-void declare_global(struct Context *ctx, const char *ident, u32 constant_index);
+void declare_global(struct Context *ctx, const char *ident, u32 constant_index, struct Location loc);
 bool resolve_global(struct Context *ctx, const char *ident, u32 *out);
 
 void declare_ident(struct Context *ctx, const char *ident);

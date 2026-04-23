@@ -40,7 +40,7 @@ void compile_identifier(struct Context *ctx, struct IdentifierNode *node)
         emit_u32(ctx, global_index);
     } else {
         printf("%.*s\n", node->len, node->src_loc);
-        panic("non existent identifier");
+        non_existent_ident_err(ctx, node->node.loc);
     }
 }
 
