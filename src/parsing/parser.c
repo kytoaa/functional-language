@@ -67,7 +67,7 @@ enum Precedence {
     PREC_NONE,
     PREC_EXPR,
 
-    PREC_APPLICATION, // :
+    PREC_COLON, // :
     PREC_OR,
     PREC_AND,
     PREC_EQUALITY,
@@ -75,6 +75,7 @@ enum Precedence {
     PREC_TERM, // + -
     PREC_FACTOR, // * /
     PREC_UNARY, // not -
+    PREC_APPLICATION, // a b
     PREC_PRIMARY,
 };
 
@@ -87,6 +88,7 @@ static struct AstNode *grouping();
 static struct AstNode *unary();
 
 static struct AstNode *identifier();
+static struct AstNode *underscore();
 static struct AstNode *number();
 static struct AstNode *boolean();
 static struct AstNode *unit();
@@ -109,12 +111,12 @@ typedef struct AstNode* (*PrefixParseFn)();
 struct ParseRule {
     PrefixParseFn prefix;
     InfixParseFn infix;
-    enum Precedence precedence;
-    bool left_associative;
+    enum Precedence infix_precedence;
+    bool leave_op_token;
 };
 
 static struct ParseRule rules[] = {
-    [TOKEN_L_PAREN]      = { grouping, null, PREC_NONE },
+    [TOKEN_L_PAREN]      = { grouping, application, PREC_APPLICATION, true },
     [TOKEN_R_PAREN]      = { null, null, PREC_NONE },
 
     [TOKEN_L_BRACE]      = { null, null, PREC_NONE },
@@ -123,7 +125,8 @@ static struct ParseRule rules[] = {
     [TOKEN_L_BRACKET]    = { null, null, PREC_NONE },
     [TOKEN_R_BRACKET]    = { null, null, PREC_NONE },
 
-    [TOKEN_IDENT]        = { identifier, null, PREC_NONE },
+    [TOKEN_IDENT]        = { identifier, application, PREC_APPLICATION, true },
+    [TOKEN_UNDERSCORE]   = { underscore, null, PREC_NONE },
 
     [TOKEN_ARROW]        = { null, null, PREC_NONE },
     [TOKEN_WIDE_ARROW]   = { null, null, PREC_NONE },
@@ -151,18 +154,18 @@ static struct ParseRule rules[] = {
     [TOKEN_LESS]         = { null, binary, PREC_COMPARISON },
     [TOKEN_LESS_EQ]      = { null, binary, PREC_COMPARISON },
 
-    [TOKEN_COLON]        = { null, application, PREC_APPLICATION },
+    [TOKEN_COLON]        = { null, application, PREC_COLON },
     [TOKEN_DOUBLE_COLON] = { null, binary, PREC_APPLICATION },
 
     [TOKEN_AND]          = { null, binary, PREC_AND },
     [TOKEN_OR]           = { null, binary, PREC_OR },
     [TOKEN_NOT]          = { unary, null, PREC_UNARY },
 
-    [TOKEN_UNIT]         = { unit, null, PREC_NONE },
-    [TOKEN_NUM]          = { number, null, PREC_NONE },
+    [TOKEN_UNIT]         = { unit, application, PREC_APPLICATION, true },
+    [TOKEN_NUM]          = { number, application, PREC_APPLICATION, true },
     [TOKEN_CHAR]         = { null, null, PREC_NONE },
-    [TOKEN_TRUE]         = { boolean, null, PREC_NONE },
-    [TOKEN_FALSE]        = { boolean, null, PREC_NONE },
+    [TOKEN_TRUE]         = { boolean, application, PREC_APPLICATION, true },
+    [TOKEN_FALSE]        = { boolean, application, PREC_APPLICATION, true },
 
     [TOKEN_SEMICOLON]    = { null, null, PREC_NONE },
     [TOKEN_PIPE]         = { null, null, PREC_NONE },
@@ -281,7 +284,7 @@ static struct AstNode *application(enum Precedence precedence, struct AstNode *l
     *node = (struct ApplicationNode){
         .node = { AST_APPLICATION, loc },
         .function = lhs,
-        .argument = expr(PREC_APPLICATION + 1),
+        .argument = expr(precedence + 1),
     };
 
     return AS_NODE(node);
@@ -298,6 +301,16 @@ static struct AstNode *identifier()
     };
 
     return AS_NODE(ident);
+}
+static struct AstNode *underscore()
+{
+    struct UnderscoreNode *underscore = ALLOC_NODE(struct UnderscoreNode);
+
+    *underscore = (struct UnderscoreNode){
+        .node = { AST_UNDERSCORE, prev_loc() },
+    };
+
+    return AS_NODE(underscore);
 }
 
 static struct AstNode *number()
@@ -472,6 +485,7 @@ static void check_valid_pattern(struct AstNode *pat)
                     searching = false;
                     break;
                 }
+                check_valid_pattern(bin_op->l);
                 pat = bin_op->r;
                 if (pat == null) {
                     searching = false;
@@ -480,6 +494,7 @@ static void check_valid_pattern(struct AstNode *pat)
             }
             case AST_LITERAL:
             case AST_IDENTIFIER:
+            case AST_UNDERSCORE:
                 searching = false;
                 break;
             default:
@@ -558,16 +573,21 @@ static struct AstNode *expr(enum Precedence precedence)
 
     struct AstNode *lhs = prefix();
 
-    while (precedence <= get_rule(parser.current.type)->precedence) {
-        advance();
-        struct ParseRule *infix = get_rule(parser.prev.type);
+    while (precedence <= get_rule(parser.current.type)->infix_precedence) {
+        struct ParseRule *infix = null;
+        if (get_rule(parser.current.type)->leave_op_token) {
+            infix = get_rule(parser.current.type);
+        } else {
+            advance();
+            infix = get_rule(parser.prev.type);
+        }
 
         if (infix == null || infix->infix == null) {
             error(parser.prev, "unexpected token in infix expression");
             return null;
         }
 
-        lhs = infix->infix(infix->precedence, lhs);
+        lhs = infix->infix(infix->infix_precedence, lhs);
     }
 
     return lhs;

@@ -92,6 +92,10 @@ static u32 compile_pattern_node(struct Context *ctx, struct AstNode *node)
             emit_byte(ctx, OP_CREATE_BINDING);
             return 0;
         }
+        case AST_UNDERSCORE:{
+            emit_byte(ctx, OP_POP_U64);
+            return 0;
+        }
         case AST_BIN_OP:{
             struct BinOpNode *cons = (struct BinOpNode*)node;
             emit_byte(ctx, OP_EVAL);

@@ -15,6 +15,7 @@ enum CodegenErrorType {
     CODEGEN_ERR_REDECLARED_GLOBAL,
     CODEGEN_ERR_MAIN_ARGS,
     CODEGEN_ERR_MULTIPLE_MAIN_DECL,
+    CODEGEN_ERR_USED_UNDERSCORE,
 };
 
 struct CodegenError {
@@ -30,6 +31,9 @@ struct CodegenError {
         struct {
             struct Location loc;
         } main_args;
+        struct {
+            struct Location loc;
+        } used_underscore;
     } error;
 };
 
@@ -81,6 +85,7 @@ void non_existent_ident_err(struct Context *ctx, struct Location loc);
 void redeclared_global_err(struct Context *ctx, struct Location loc, struct Location prev_decl_loc);
 void main_args_err(struct Context *ctx, struct Location loc);
 void multiple_main_decl_err(struct Context *ctx, struct Location loc, struct Location prev_decl_loc);
+void used_underscore_err(struct Context *ctx, struct Location loc);
 
 struct IdentSearchResult {
     /// ident offset from the top of the binding stack, 0 being top

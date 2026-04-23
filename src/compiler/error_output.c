@@ -82,6 +82,20 @@ void print_codegen_error(const struct CompilerConfig *config, struct CodegenErro
             );
             break;
         }
+        case CODEGEN_ERR_USED_UNDERSCORE:{
+            fprintf(
+                config->error,
+                "error: '_' is not a valid identifier\n --> %.*s:%d\n",
+                config->file_name_len, config->file_name,
+                error.error.used_underscore.loc.line
+            );
+            print_ident(
+                config->error,
+                config->src,
+                error.error.used_underscore.loc
+            );
+            break;
+        }
         case CODEGEN_ERR_REDECLARED_GLOBAL:{
             fprintf(
                 config->error,

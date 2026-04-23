@@ -139,6 +139,9 @@ static enum TokenType identifier_type()
         case 'n':
             return check_keyword("not", 3) ? TOKEN_NOT : TOKEN_IDENT;
 
+        case '_':
+            return check_keyword("_", 1) ? TOKEN_UNDERSCORE : TOKEN_IDENT;
+
         default:
             return TOKEN_IDENT;
     }

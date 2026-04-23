@@ -17,6 +17,7 @@ enum TokenType {
     TOKEN_PIPE,
 
     TOKEN_IDENT,
+    TOKEN_UNDERSCORE,
 
     TOKEN_ARROW,
     TOKEN_WIDE_ARROW,
@@ -102,6 +103,8 @@ static const char *token_type_name(enum TokenType type)
             return "TOKEN_PIPE";
         case TOKEN_IDENT:
             return "TOKEN_IDENT";
+        case TOKEN_UNDERSCORE:
+            return "TOKEN_UNDERSCORE";
         case TOKEN_ARROW:
             return "TOKEN_ARROW";
         case TOKEN_WIDE_ARROW:

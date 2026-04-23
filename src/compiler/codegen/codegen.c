@@ -276,3 +276,11 @@ void multiple_main_decl_err(struct Context *ctx, struct Location loc, struct Loc
         },
     });
 }
+void used_underscore_err(struct Context *ctx, struct Location loc)
+{
+    codegen_error(ctx, (struct CodegenError){
+        .type = CODEGEN_ERR_USED_UNDERSCORE,
+        .error = { .main_args = { .loc = loc } }
+    });
+}
+

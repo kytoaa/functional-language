@@ -78,6 +78,9 @@ struct IdentifierNode {
     const char *src_loc;
     u32 len;
 };
+struct UnderscoreNode {
+    struct AstNode node;
+};
 
 enum LiteralType {
     LITERAL_TYPE_NUMBER,

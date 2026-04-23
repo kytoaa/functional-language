@@ -430,6 +430,9 @@ void compile_expr(struct Context *ctx, struct AstNode *node)
         case AST_IF_EXPR:
             compile_if_expr(ctx, (struct IfExprNode*)node);
             break;
+        case AST_UNDERSCORE:
+            used_underscore_err(ctx, node->loc);
+            break;
         default:
             panic("unknown ast node");
             break;

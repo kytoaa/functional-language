@@ -187,6 +187,9 @@ static void print_node(struct AstNode *node)
         case AST_IDENTIFIER:
             print_identifier((struct IdentifierNode*)node);
             break;
+        case AST_UNDERSCORE:
+            printf("_");
+            break;
 
         case AST_IF_EXPR:
             print_if_expr((struct IfExprNode*)node);
