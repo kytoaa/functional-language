@@ -9,6 +9,6 @@ struct ParseError {
     struct Token token;
 };
 
-bool build_ast(const char *src, struct AstNode **out, struct ParseError *err);
+bool build_ast(const char *src, struct AstTopLevel *out, struct ParseError *err);
 
 #endif

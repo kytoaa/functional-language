@@ -29,6 +29,8 @@ enum TokenType {
     TOKEN_ELSE,
     TOKEN_CASE,
     TOKEN_OF,
+    TOKEN_USE,
+    TOKEN_MOD,
 
     TOKEN_ADD,
     TOKEN_SUB,
@@ -125,6 +127,10 @@ static const char *token_type_name(enum TokenType type)
             return "TOKEN_CASE";
         case TOKEN_OF:
             return "TOKEN_OF";
+        case TOKEN_USE:
+            return "TOKEN_USE";
+        case TOKEN_MOD:
+            return "TOKEN_MOD";
         case TOKEN_ADD:
             return "TOKEN_ADD";
         case TOKEN_SUB:

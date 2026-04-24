@@ -100,7 +100,7 @@ static void run_chunk(const struct CompilerConfig *config, struct Chunk chunk)
 
 void compile_file(const struct CompilerConfig *config)
 {
-    struct AstNode *ast;
+    struct AstTopLevel ast;
     struct ParseError parse_err;
     if (!build_ast(config->src, &ast, &parse_err)) {
         print_err(
@@ -118,14 +118,24 @@ void compile_file(const struct CompilerConfig *config)
     struct IdentifierTable identifiers;
     init_ident_table(&identifiers);
 
-    if (ast->kind == AST_DECLARATION) {
-        struct DeclarationNode *decl = (struct DeclarationNode*)ast;
+    if (ast.declarations == null) {
+        printf("no declarations");
+        return;
+    }
+
+    if (ast.declarations->kind == AST_DECLARATION) {
+        struct DeclarationNode *decl = (struct DeclarationNode*)ast.declarations;
         while (decl != null) {
             traverse_node(AS_NODE(decl), &identifiers, generate_symbols, null);
             decl = decl->next_declaration;
         }
-    } else {
-        traverse_node(ast, &identifiers, generate_symbols, null);
+    }
+    {
+        struct ModuleDeclNode *module = (struct ModuleDeclNode*)ast.modules;
+        while (module != null) {
+            traverse_node(AS_NODE(module), &identifiers, generate_symbols, null);
+            module = module->next_mod;
+        }
     }
 
     printf("%.*s", identifiers.items[0].len, identifiers.items[0].ptr);
@@ -134,11 +144,11 @@ void compile_file(const struct CompilerConfig *config)
     }
     printf("\n");
 
-    print_ast(ast);
+    print_ast(&ast);
 
     printf("\nreducing\n");
-    reduce_ast(ast);
-    print_ast(ast);
+    reduce_ast(ast.declarations);
+    print_ast(&ast);
 
     struct Chunk chunk = {};
     init_chunk(&chunk);
@@ -151,7 +161,7 @@ void compile_file(const struct CompilerConfig *config)
         .errors = &errors,
     };
     printf("compiling\n");
-    compile_top_level(&context, (struct DeclarationNode*)ast);
+    compile_top_level(&context, &ast);
     printf("done\n");
 
     if (errors.len == 0) {

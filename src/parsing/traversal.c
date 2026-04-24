@@ -15,6 +15,17 @@ void traverse_node(
         pre_callback(n, arg);
 
     switch (n->kind) {
+        case AST_MODULE_DECL:{
+            struct ModuleDeclNode *node = (struct ModuleDeclNode*)n;
+            traverse_node(AS_NODE(node->name), arg, pre_callback, post_callback);
+
+            struct DeclarationNode *decl = node->declarations;
+            while (decl != null) {
+                traverse_node(AS_NODE(decl), arg, pre_callback, post_callback);
+                decl = decl->next_declaration;
+            }
+            break;
+        }
         case AST_APPLICATION:{
             struct ApplicationNode *node = (struct ApplicationNode*)n;
             traverse_node(node->function, arg, pre_callback, post_callback);

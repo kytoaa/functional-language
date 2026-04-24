@@ -82,6 +82,8 @@ enum Precedence {
 static struct AstNode *declaration();
 static struct AstNode *expr(enum Precedence precedence);
 
+static struct AstNode *module();
+
 static struct AstNode *binary(enum Precedence precedence, struct AstNode *lhs);
 static struct AstNode *application(enum Precedence precedence, struct AstNode *lhs);
 static struct AstNode *grouping();
@@ -91,6 +93,7 @@ static struct AstNode *identifier();
 static struct AstNode *underscore();
 static struct AstNode *number();
 static struct AstNode *boolean();
+static struct AstNode *character();
 static struct AstNode *unit();
 
 static struct AstNode *lambda();
@@ -143,6 +146,9 @@ static struct ParseRule rules[] = {
     [TOKEN_CASE]         = { case_expr, null, PREC_NONE },
     [TOKEN_OF]           = { null, null, PREC_NONE },
 
+    [TOKEN_MOD]          = { null, null, PREC_NONE },
+    [TOKEN_USE]          = { null, null, PREC_NONE },
+
     [TOKEN_ADD]          = { null, binary, PREC_TERM },
     [TOKEN_SUB]          = { unary, binary, PREC_TERM },
     [TOKEN_MUL]          = { null, binary, PREC_FACTOR },
@@ -163,7 +169,7 @@ static struct ParseRule rules[] = {
 
     [TOKEN_UNIT]         = { unit, application, PREC_APPLICATION, true },
     [TOKEN_NUM]          = { number, application, PREC_APPLICATION, true },
-    [TOKEN_CHAR]         = { null, null, PREC_NONE },
+    [TOKEN_CHAR]         = { character, application, PREC_APPLICATION, true },
     [TOKEN_TRUE]         = { boolean, application, PREC_APPLICATION, true },
     [TOKEN_FALSE]        = { boolean, application, PREC_APPLICATION, true },
 
@@ -338,6 +344,33 @@ static struct AstNode *number()
     };
 
     return AS_NODE(num);
+}
+
+static struct AstNode *character()
+{
+    struct LiteralNode *node = ALLOC_NODE(struct LiteralNode);
+    u32 character = parser.prev.start[1];
+    if (character == '\\') {
+        #define char_case(a, b) case a: character = b; break;
+        switch (parser.prev.start[2]) {
+            char_case('n', '\n')
+            char_case('t', '\t')
+            char_case('r', '\r')
+            char_case('v', '\v')
+            char_case('0', '\0')
+            char_case('\'', '\'')
+            char_case('\\', '\\')
+        }
+        #undef char_case
+    }
+
+    *node = (struct LiteralNode){
+        .node = { AST_LITERAL, prev_loc() },
+        .type = LITERAL_TYPE_CHARACTER,
+        .as.character = character,
+    };
+
+    return AS_NODE(node);
 }
 
 static struct AstNode *boolean()
@@ -625,29 +658,106 @@ static struct AstNode *declaration()
     return AS_NODE(declaration);
 }
 
-bool build_ast(const char *src, struct AstNode **out, struct ParseError *err)
+static void **module_get_next(void *mod)
+{
+    return (void*)&((struct ModuleDeclNode*)mod)->next_mod;
+}
+static struct AstNode *module()
+{
+    struct Location loc = prev_loc();
+
+    struct IdentifierNode *ident = null;
+    if (parser.current.type == TOKEN_IDENT) {
+        advance();
+        ident = (struct IdentifierNode*)identifier();
+    }
+    struct DeclarationNode *current_decl = null;
+    struct ModuleDeclNode *current_submodule = null;
+    if (parser.current.type == TOKEN_EQUAL) {
+        consume(TOKEN_L_BRACE, "expected `{` after module");
+
+        while (parser.current.type != TOKEN_R_BRACE) {
+            if (parser.current.type == TOKEN_MOD) {
+                struct ModuleDeclNode *submodule = (struct ModuleDeclNode*)module();
+                if (submodule != null) {
+                    submodule->next_mod = current_submodule;
+                }
+                if (parser.has_error)
+                    return null;
+                current_submodule = submodule;
+            } else {
+                struct DeclarationNode *decl = (struct DeclarationNode*)declaration();
+                if (decl != null) {
+                    decl->next_declaration = current_decl;
+                }
+                if (parser.has_error)
+                    return null;
+                current_decl = decl;
+            }
+        }
+
+        current_decl = reverse_linked_list(current_decl, declaration_get_next);
+        current_submodule = reverse_linked_list(current_submodule, module_get_next);
+        consume(TOKEN_R_BRACE, "unreachable: expected `}`");
+    }
+    if (ident == null && current_decl == null) {
+        error(parser.prev, "modules must have a name, body or both");
+        return null;
+    }
+
+    struct ModuleDeclNode *node = ALLOC_NODE(struct ModuleDeclNode);
+
+    *node = (struct ModuleDeclNode){
+        .node = { AST_MODULE_DECL, loc },
+        .name = ident,
+        .declarations = current_decl,
+        .submodules = current_submodule,
+        .next_mod = null,
+    };
+
+    return AS_NODE(node);
+}
+
+bool build_ast(const char *src, struct AstTopLevel *out, struct ParseError *err)
 {
     init_lexer(src);
     parser.src = src;
 
     advance();
 
-    struct DeclarationNode *node = null;
+    struct ModuleDeclNode *modules = null;
+    struct DeclarationNode *declarations = null;
     while (parser.current.type != TOKEN_EOF) {
-        struct DeclarationNode *current = (struct DeclarationNode*)declaration();
-        current->is_global = true;
+        if (parser.current.type == TOKEN_MOD) {
+            struct ModuleDeclNode *current = (struct ModuleDeclNode*)module();
 
-        if (parser.has_error) {
-            *err = parser.err;
-            return false;
+            if (parser.has_error) {
+                *err = parser.err;
+                return false;
+            }
+
+            current->next_mod = modules;
+            modules = current;
+        } else {
+            struct DeclarationNode *current = (struct DeclarationNode*)declaration();
+            current->is_global = true;
+
+            if (parser.has_error) {
+                *err = parser.err;
+                return false;
+            }
+
+            current->next_declaration = declarations;
+            declarations = current;
         }
-
-        current->next_declaration = node;
-        node = current;
     }
-    node = reverse_linked_list(node, declaration_get_next);
+    declarations = reverse_linked_list(declarations, declaration_get_next);
+    modules = reverse_linked_list(modules, module_get_next);
 
-    *out = AS_NODE(node);
+    *out = (struct AstTopLevel){
+        .declarations = AS_NODE(declarations),
+        .modules = AS_NODE(modules),
+    };
 
     return true;
 }

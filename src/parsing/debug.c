@@ -217,13 +217,14 @@ static void print_node(struct AstNode *node)
     }
 }
 
-void print_ast(struct AstNode *root)
+void print_ast(struct AstTopLevel *top_level)
 {
-    while (root != null) {
-        print_node(root);
+    struct AstNode *decl = top_level->declarations;
+    while (decl != null) {
+        print_node(decl);
 
-        if (root->kind == AST_DECLARATION) {
-            root = AS_NODE(((struct DeclarationNode*)root)->next_declaration);
+        if (decl->kind == AST_DECLARATION) {
+            decl = AS_NODE(((struct DeclarationNode*)decl)->next_declaration);
         }
         printf("\n");
     }

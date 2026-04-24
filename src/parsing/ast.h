@@ -22,6 +22,8 @@ enum NodeKind {
     AST_CASE_PATTERN,
     AST_LAMBDA,
     AST_FUNCTION_BINDING,
+    AST_MODULE_DECL,
+    AST_USE_DECL,
 };
 
 struct Location {
@@ -32,6 +34,11 @@ struct Location {
 struct AstNode {
     enum NodeKind kind;
     struct Location loc;
+};
+
+struct AstTopLevel {
+    struct AstNode *modules;
+    struct AstNode *declarations;
 };
 
 struct AstAllocator {

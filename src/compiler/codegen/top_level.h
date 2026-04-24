@@ -3,6 +3,6 @@
 
 #include "codegen.h"
 
-void compile_top_level(struct Context *ctx, struct DeclarationNode *first_decl);
+void compile_top_level(struct Context *ctx, struct AstTopLevel *top_level);
 
 #endif

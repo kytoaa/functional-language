@@ -3,6 +3,6 @@
 
 #include "ast.h"
 
-void print_ast(struct AstNode *root);
+void print_ast(struct AstTopLevel *top_level);
 
 #endif

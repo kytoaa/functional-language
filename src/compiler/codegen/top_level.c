@@ -74,7 +74,7 @@ static void compile_top_level_decl(struct Context *ctx, struct DeclarationNode *
     }
 }
 
-void compile_top_level(struct Context *ctx, struct DeclarationNode *first_decl)
+void compile_top_level(struct Context *ctx, struct AstTopLevel *top_level)
 {
     const char *main_ident = ident_table_get(ctx->identifier_table, "main", 4);
 
@@ -85,6 +85,8 @@ void compile_top_level(struct Context *ctx, struct DeclarationNode *first_decl)
     u32 main_jump_location = get_last_bytecode_index(ctx) + 1;
     emit_u64(ctx, 0);
     emit_byte(ctx, OP_JUMP);
+
+    struct DeclarationNode *first_decl = (struct DeclarationNode*)top_level->declarations;
 
     globals_pass(ctx, first_decl);
 

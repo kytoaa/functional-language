@@ -126,4 +126,16 @@ struct CaseExprNode {
     struct AstNode *first_pattern;
 };
 
+struct ModuleDeclNode {
+    struct AstNode node;
+    struct IdentifierNode *name;
+    struct DeclarationNode *declarations;
+    struct ModuleDeclNode *submodules;
+    struct ModuleDeclNode *next_mod;
+};
+
+struct UseDeclNode {
+    struct AstNode node;
+};
+
 #endif
