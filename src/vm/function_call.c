@@ -167,5 +167,5 @@ void partial_apply()
     application->closure = TO_OBJ(closure);
     application->arg_count = arg_count + extra_args;
 
-    push_val(application);
+    push_val(TO_OBJ(application));
 }

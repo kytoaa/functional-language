@@ -1,3 +1,5 @@
+mod my_module = {};
+
 head l = case l of
     | x :: xs -> x;
 tail l = case l of

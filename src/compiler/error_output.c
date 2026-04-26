@@ -3,6 +3,7 @@
 #include "compiler.h"
 #include "../parsing/ast.h"
 #include "../lexer.h"
+#include "file_compilation.h"
 #include <stdio.h>
 
 struct LineIdentPrintInfo {
@@ -65,8 +66,10 @@ static void print_ident(FILE *err, const char *src, struct Location loc)
     fprintf(err, "\n");
 }
 
-void print_codegen_error(const struct CompilerConfig *config, struct CodegenError error)
+void print_codegen_error(struct Compiler *compiler, struct CodegenError error)
 {
+    const char *src = get_compiled_file(compiler, error.file_index)->src;
+    const struct CompilerConfig *config = &compiler->config;
     switch (error.type) {
         case CODEGEN_ERR_NON_EXISTENT_IDENT:{
             fprintf(
@@ -77,7 +80,7 @@ void print_codegen_error(const struct CompilerConfig *config, struct CodegenErro
             );
             print_ident(
                 config->error,
-                config->src,
+                src,
                 error.error.non_existent_identifier.loc
             );
             break;
@@ -91,7 +94,7 @@ void print_codegen_error(const struct CompilerConfig *config, struct CodegenErro
             );
             print_ident(
                 config->error,
-                config->src,
+                src,
                 error.error.used_underscore.loc
             );
             break;
@@ -105,7 +108,7 @@ void print_codegen_error(const struct CompilerConfig *config, struct CodegenErro
             );
             print_ident(
                 config->error,
-                config->src,
+                src,
                 error.error.redeclared_global.loc
             );
             fprintf(
@@ -116,7 +119,7 @@ void print_codegen_error(const struct CompilerConfig *config, struct CodegenErro
             );
             print_ident(
                 config->error,
-                config->src,
+                src,
                 error.error.redeclared_global.prev_decl_loc
             );
             break;
@@ -130,7 +133,7 @@ void print_codegen_error(const struct CompilerConfig *config, struct CodegenErro
             );
             print_ident(
                 config->error,
-                config->src,
+                src,
                 error.error.redeclared_global.loc
             );
             fprintf(
@@ -141,7 +144,7 @@ void print_codegen_error(const struct CompilerConfig *config, struct CodegenErro
             );
             print_ident(
                 config->error,
-                config->src,
+                src,
                 error.error.redeclared_global.prev_decl_loc
             );
             break;
@@ -155,7 +158,7 @@ void print_codegen_error(const struct CompilerConfig *config, struct CodegenErro
             );
             print_ident(
                 config->error,
-                config->src,
+                src,
                 error.error.main_args.loc
             );
             break;
@@ -163,3 +166,54 @@ void print_codegen_error(const struct CompilerConfig *config, struct CodegenErro
     }
 }
 
+void print_err(const struct CompilerConfig *config, const struct ParseError *err, struct FileData file)
+{
+    FILE *output = config->error;
+
+    fprintf(output, "error: ");
+    if (err->token.type == TOKEN_ERROR) {
+        fprintf(output, "%.*s\n", err->token.len, err->token.start);
+        fprintf(output, " --> %.*s:%d\n", file.file_name_len, file.file_name, err->token.line);
+    } else {
+        fprintf(output, "%s\n", err->msg);
+        fprintf(
+            output,
+            " --> %.*s:%d\n",
+            file.file_name_len,
+            file.file_name,
+            err->token.line
+        );
+        if (err->token.start == null || file.src == null)
+            return;
+        fprintf(output, "  |\n");
+        fprintf(
+            output,
+            err->token.line > 9 ? "%d| " : "%d | ",
+            err->token.line
+        );
+
+        u32 line_start_pos = err->token.start - file.src;
+        u32 line_end_pos = line_start_pos;
+        while (line_start_pos > 1 && file.src[line_start_pos - 1] != '\n') {
+            line_start_pos -= 1;
+        }
+        while (file.src[line_end_pos] != '\n' && file.src[line_end_pos] != '\0') {
+            line_end_pos += 1;
+        }
+        fprintf(output, "%.*s\n  | ", line_end_pos - line_start_pos, file.src + line_start_pos);
+
+        for (const char *i = file.src + line_start_pos; i < err->token.start; i++) {
+            fprintf(output, " ");
+        }
+        for (u32 i = 0; i < err->token.len; i++) {
+            fprintf(output, "^");
+        }
+        fprintf(output, "\n");
+    }
+    fflush(output);
+}
+
+void print_module_resolution_error(const struct CompilerConfig *config, const char *module_name)
+{
+    fprintf(config->error, "could not locate file '%s'\n", module_name);
+}

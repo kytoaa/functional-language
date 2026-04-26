@@ -7,11 +7,16 @@
 struct CompilerConfig {
     FILE *output;
     FILE *error;
+    const char *file_name;
+    u32 file_name_len;
+};
+
+struct FileData {
     const char *src;
     const char *file_name;
     u32 file_name_len;
 };
 
-void compile_file(const struct CompilerConfig *config);
+void compile_file(const struct CompilerConfig config);
 
 #endif

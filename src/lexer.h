@@ -21,6 +21,7 @@ enum TokenType {
 
     TOKEN_ARROW,
     TOKEN_WIDE_ARROW,
+    TOKEN_TWO_DOT,
     TOKEN_FUN,
     TOKEN_LET,
     TOKEN_IN,

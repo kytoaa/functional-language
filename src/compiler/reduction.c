@@ -5,16 +5,17 @@
 
 static void reduce_node(struct AstNode *node, void *arg);
 
-void reduce_ast(struct AstNode *node)
+void reduce_ast(struct AstTopLevel *ast)
 {
-    if (node->kind == AST_DECLARATION) {
-        struct DeclarationNode *decl = (struct DeclarationNode*)node;
-        while (decl != null) {
-            traverse_node(AS_NODE(decl), null, reduce_node, null);
-            decl = decl->next_declaration;
-        }
-    } else {
-        traverse_node(node, null, reduce_node, null);
+    struct DeclarationNode *decl = (struct DeclarationNode*)ast->declarations;
+    while (decl != null) {
+        traverse_node(AS_NODE(decl), null, reduce_node, null);
+        decl = decl->next_declaration;
+    }
+    struct ModuleDeclNode *mod = (struct ModuleDeclNode*)ast->modules;
+    while (mod != null) {
+        traverse_node(AS_NODE(mod), null, reduce_node, null);
+        mod = mod->next_mod;
     }
 }
 

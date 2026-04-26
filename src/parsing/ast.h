@@ -24,6 +24,7 @@ enum NodeKind {
     AST_FUNCTION_BINDING,
     AST_MODULE_DECL,
     AST_USE_DECL,
+    AST_NAMESPACE_ACCESS,
 };
 
 struct Location {

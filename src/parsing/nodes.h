@@ -132,10 +132,18 @@ struct ModuleDeclNode {
     struct DeclarationNode *declarations;
     struct ModuleDeclNode *submodules;
     struct ModuleDeclNode *next_mod;
+    bool has_body;
+};
+
+struct NamespaceAccessNode {
+    struct AstNode node;
+    struct IdentifierNode *ident;
+    struct AstNode *rhs;
 };
 
 struct UseDeclNode {
     struct AstNode node;
+    struct AstNode *use_expr;
 };
 
 #endif

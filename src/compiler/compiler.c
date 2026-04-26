@@ -1,91 +1,13 @@
 #include "compiler.h"
 #include "../vm/vm.h"
-#include "../parsing/parser.h"
-#include "../parsing/nodes.h"
-#include "../parsing/debug.h"
 #include "../parsing/ident_table.h"
-#include "../parsing/traversal.h"
+#include "../parsing/debug.h"
 #include "codegen/codegen.h"
 #include "codegen/top_level.h"
 #include "debug.h"
 #include "error_output.h"
-#include "reduction.h"
-
-struct FileData {
-    const char *src;
-    const char *file_name;
-    u32 file_name_len;
-};
-
-static void print_err(FILE *output, const struct ParseError *err, struct FileData file)
-{
-    fprintf(output, "error: ");
-    if (err->token.type == TOKEN_ERROR) {
-        fprintf(output, "%.*s\n", err->token.len, err->token.start);
-        fprintf(output, " --> %.*s:%d\n", file.file_name_len, file.file_name, err->token.line);
-    } else {
-        fprintf(output, "%s\n", err->msg);
-        fprintf(
-            output,
-            " --> %.*s:%d\n",
-            file.file_name_len,
-            file.file_name,
-            err->token.line
-        );
-        if (err->token.start == null || file.src == null)
-            return;
-        fprintf(output, "  |\n");
-        fprintf(
-            output,
-            err->token.line > 9 ? "%d| " : "%d | ",
-            err->token.line
-        );
-
-        u32 line_start_pos = err->token.start - file.src;
-        u32 line_end_pos = line_start_pos;
-        while (line_start_pos > 1 && file.src[line_start_pos - 1] != '\n') {
-            line_start_pos -= 1;
-        }
-        while (file.src[line_end_pos] != '\n' && file.src[line_end_pos] != '\0') {
-            line_end_pos += 1;
-        }
-        fprintf(output, "%.*s\n  | ", line_end_pos - line_start_pos, file.src + line_start_pos);
-
-        for (const char *i = file.src + line_start_pos; i < err->token.start; i++) {
-            fprintf(output, " ");
-        }
-        for (u32 i = 0; i < err->token.len; i++) {
-            fprintf(output, "^");
-        }
-        fprintf(output, "\n");
-    }
-    fflush(output);
-}
-
-static void generate_symbols(struct AstNode *node, void *table)
-{
-    struct IdentifierTable *identifiers = table;
-
-    switch (node->kind) {
-        case AST_IDENTIFIER:{
-            struct IdentifierNode *ident = (struct IdentifierNode*)node;
-            ident->src_loc = ident_table_get(identifiers, ident->src_loc, ident->len);
-            break;
-        }
-        case AST_DECLARATION:{
-            struct DeclarationNode *decl = (struct DeclarationNode*)node;
-            decl->name = ident_table_get(identifiers, decl->name, decl->name_len);
-            break;
-        }
-        case AST_FUNCTION_BINDING:{
-            struct FunctionBindingNode *binding = (struct FunctionBindingNode*)node;
-            binding->src_loc = ident_table_get(identifiers, binding->src_loc, binding->len);
-            break;
-        }
-        default:
-            break;
-    }
-}
+#include "file_compilation.h"
+#include "module_resolution.h"
 
 static void run_chunk(const struct CompilerConfig *config, struct Chunk chunk)
 {
@@ -98,57 +20,14 @@ static void run_chunk(const struct CompilerConfig *config, struct Chunk chunk)
     run_vm(&chunk, (struct VmConfig){ .out = config->output, .error = config->error });
 }
 
-void compile_file(const struct CompilerConfig *config)
+void compile_file(const struct CompilerConfig config)
 {
-    struct AstTopLevel ast;
-    struct ParseError parse_err;
-    if (!build_ast(config->src, &ast, &parse_err)) {
-        print_err(
-            config->error,
-            &parse_err,
-            (struct FileData){
-                config->src,
-                config->file_name,
-                config->file_name_len
-            }
-        );
-        return;
-    }
+    struct Compiler compiler = { .config = config };
+    init_ident_table(&compiler.identifiers);
 
-    struct IdentifierTable identifiers;
-    init_ident_table(&identifiers);
+    compile_module(&compiler, null, config.file_name, config.file_name_len);
 
-    if (ast.declarations == null) {
-        printf("no declarations");
-        return;
-    }
-
-    if (ast.declarations->kind == AST_DECLARATION) {
-        struct DeclarationNode *decl = (struct DeclarationNode*)ast.declarations;
-        while (decl != null) {
-            traverse_node(AS_NODE(decl), &identifiers, generate_symbols, null);
-            decl = decl->next_declaration;
-        }
-    }
-    {
-        struct ModuleDeclNode *module = (struct ModuleDeclNode*)ast.modules;
-        while (module != null) {
-            traverse_node(AS_NODE(module), &identifiers, generate_symbols, null);
-            module = module->next_mod;
-        }
-    }
-
-    printf("%.*s", identifiers.items[0].len, identifiers.items[0].ptr);
-    for (u32 i = 1; i < identifiers.count; i++) {
-        printf(", %.*s", identifiers.items[i].len, identifiers.items[i].ptr);
-    }
-    printf("\n");
-
-    print_ast(&ast);
-
-    printf("\nreducing\n");
-    reduce_ast(ast.declarations);
-    print_ast(&ast);
+    print_ast(&compiler.files.ptr[0].ast);
 
     struct Chunk chunk = {};
     init_chunk(&chunk);
@@ -157,22 +36,24 @@ void compile_file(const struct CompilerConfig *config)
 
     struct Context context = {
         .compiling_chunk = &chunk,
-        .identifier_table = &identifiers,
+        .identifier_table = &compiler.identifiers,
         .errors = &errors,
     };
-    printf("compiling\n");
-    compile_top_level(&context, &ast);
-    printf("done\n");
+
+    struct ModuleCtx ctx = resolve_ast(&compiler, &compiler.files.ptr[0]);
+
+    compile_top_level(&context, &compiler.files.ptr[0].ast);
 
     if (errors.len == 0) {
-        run_chunk(config, chunk);
+        run_chunk(&config, chunk);
     } else {
         for (u32 i = 0; i < errors.len; i++) {
-            print_codegen_error(config, errors.ptr[i]);
+            print_codegen_error(&compiler, errors.ptr[i]);
         }
     }
 
-    free_ident_table(&identifiers);
+    free_ident_table(&compiler.identifiers);
+    free_mem(compiler.files.ptr);
 
     return;
 }

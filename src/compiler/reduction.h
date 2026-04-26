@@ -3,6 +3,6 @@
 
 #include "../parsing/ast.h"
 
-void reduce_ast(struct AstNode *node);
+void reduce_ast(struct AstTopLevel *ast);
 
 #endif

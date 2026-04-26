@@ -20,6 +20,7 @@ enum CodegenErrorType {
 
 struct CodegenError {
     enum CodegenErrorType type;
+    u16 file_index;
     union {
         struct {
             struct Location loc;

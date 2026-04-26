@@ -102,6 +102,13 @@ static void print_identifier(struct IdentifierNode *node)
     printf("%.*s", node->len, node->src_loc);
 }
 
+static void print_namespace_access(struct NamespaceAccessNode *node)
+{
+    print_identifier(node->ident);
+    printf("..");
+    print_node(node->rhs);
+}
+
 static void print_lambda(struct LambdaNode *node)
 {
     printf("(fun ");
@@ -190,6 +197,9 @@ static void print_node(struct AstNode *node)
         case AST_UNDERSCORE:
             printf("_");
             break;
+        case AST_NAMESPACE_ACCESS:
+            print_namespace_access((struct NamespaceAccessNode*)node);
+            break;
 
         case AST_IF_EXPR:
             print_if_expr((struct IfExprNode*)node);
@@ -219,6 +229,8 @@ static void print_node(struct AstNode *node)
 
 void print_ast(struct AstTopLevel *top_level)
 {
+    if (top_level == null)
+        return;
     struct AstNode *decl = top_level->declarations;
     while (decl != null) {
         print_node(decl);

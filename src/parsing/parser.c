@@ -76,6 +76,7 @@ enum Precedence {
     PREC_FACTOR, // * /
     PREC_UNARY, // not -
     PREC_APPLICATION, // a b
+    PREC_NAMESPACE,
     PREC_PRIMARY,
 };
 
@@ -86,6 +87,7 @@ static struct AstNode *module();
 
 static struct AstNode *binary(enum Precedence precedence, struct AstNode *lhs);
 static struct AstNode *application(enum Precedence precedence, struct AstNode *lhs);
+static struct AstNode *namespace(enum Precedence precedence, struct AstNode *lhs);
 static struct AstNode *grouping();
 static struct AstNode *unary();
 
@@ -133,6 +135,8 @@ static struct ParseRule rules[] = {
 
     [TOKEN_ARROW]        = { null, null, PREC_NONE },
     [TOKEN_WIDE_ARROW]   = { null, null, PREC_NONE },
+
+    [TOKEN_TWO_DOT]      = { null, namespace, PREC_NAMESPACE },
 
     [TOKEN_FUN]          = { lambda, null, PREC_NONE },
 
@@ -291,6 +295,30 @@ static struct AstNode *application(enum Precedence precedence, struct AstNode *l
         .node = { AST_APPLICATION, loc },
         .function = lhs,
         .argument = expr(precedence + 1),
+    };
+
+    return AS_NODE(node);
+}
+static struct AstNode *namespace(enum Precedence precedence, struct AstNode *lhs)
+{
+    if (lhs->kind != AST_IDENTIFIER) {
+        error(parser.prev, "namespace must lhs not an identifier");
+        return null;
+    }
+    struct NamespaceAccessNode *node = ALLOC_NODE(struct NamespaceAccessNode);
+
+    struct Location loc = prev_loc();
+
+    struct AstNode *rhs = expr(precedence);
+    if (rhs->kind != AST_IDENTIFIER && rhs->kind != AST_NAMESPACE_ACCESS) {
+        error(parser.prev, "namespace must rhs not an identifier or namespace access");
+        return null;
+    }
+
+    *node = (struct NamespaceAccessNode){
+        .node = { AST_APPLICATION, loc },
+        .ident = (struct IdentifierNode*)lhs,
+        .rhs = rhs,
     };
 
     return AS_NODE(node);
@@ -665,6 +693,7 @@ static void **module_get_next(void *mod)
 static struct AstNode *module()
 {
     struct Location loc = prev_loc();
+    advance();
 
     struct IdentifierNode *ident = null;
     if (parser.current.type == TOKEN_IDENT) {
@@ -673,7 +702,10 @@ static struct AstNode *module()
     }
     struct DeclarationNode *current_decl = null;
     struct ModuleDeclNode *current_submodule = null;
-    if (parser.current.type == TOKEN_EQUAL) {
+    bool has_body = false;
+    if (parser.current.type == TOKEN_EQ) {
+        has_body = true;
+        advance();
         consume(TOKEN_L_BRACE, "expected `{` after module");
 
         while (parser.current.type != TOKEN_R_BRACE) {
@@ -704,6 +736,7 @@ static struct AstNode *module()
         error(parser.prev, "modules must have a name, body or both");
         return null;
     }
+    consume(TOKEN_SEMICOLON, "expected `;` after module declaration");
 
     struct ModuleDeclNode *node = ALLOC_NODE(struct ModuleDeclNode);
 
@@ -713,6 +746,7 @@ static struct AstNode *module()
         .declarations = current_decl,
         .submodules = current_submodule,
         .next_mod = null,
+        .has_body = has_body,
     };
 
     return AS_NODE(node);
@@ -740,12 +774,12 @@ bool build_ast(const char *src, struct AstTopLevel *out, struct ParseError *err)
             modules = current;
         } else {
             struct DeclarationNode *current = (struct DeclarationNode*)declaration();
-            current->is_global = true;
 
             if (parser.has_error) {
                 *err = parser.err;
                 return false;
             }
+            current->is_global = true;
 
             current->next_declaration = declarations;
             declarations = current;

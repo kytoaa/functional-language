@@ -230,6 +230,9 @@ struct Token next_token()
         case '<':
             return make_token(match('=') ? TOKEN_LESS_EQ : TOKEN_LESS);
 
+        case '.':
+            return make_token(match('.') ? TOKEN_TWO_DOT : TOKEN_ERROR);
+
         case '+':
             return make_token(TOKEN_ADD);
         case '-':
