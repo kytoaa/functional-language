@@ -60,12 +60,6 @@ static bool find_global_in(struct ModuleGlobals *mod, const char *ident, bool se
         struct Global *current = &mod->globals[i];
 
         if (current->node->name == ident) {
-            printf(
-                "found %.*s, %s\n",
-                current->node->name_len,
-                current->node->name,
-                current->is_public ? "public" : "private"
-            );
             if (search_private || current->is_public) {
                 *const_index_out = current->constant_index;
                 return true;

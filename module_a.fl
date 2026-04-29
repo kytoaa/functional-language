@@ -1,0 +1,9 @@
+mod = {
+    drop = drop_;
+};
+
+drop_ n l = case n :: l of
+    | 0 :: xs 		 -> xs
+    | n :: (x :: xs) -> drop_ (n - 1) xs
+    | otherwise		 -> ();
+

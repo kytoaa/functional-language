@@ -26,7 +26,20 @@ void compile_file(const struct CompilerConfig config)
     init_ident_table(&compiler.identifiers);
     init_chunk(&compiler.chunk);
 
-    compile_module(&compiler, null, config.file_name, config.file_name_len);
+    const char *file_extension = config.file_name + config.file_name_len - 1;
+    while (file_extension > config.file_name && *file_extension != '.') {
+        file_extension -= 1;
+    }
+    if (file_extension - config.file_name != config.file_name_len - (sizeof(FILE_EXTENSION) - 1)) {
+        panic("input error, not a source file\n");
+    }
+    for (u32 i = 0; i < sizeof(FILE_EXTENSION) - 2; i++) {
+        if (file_extension[i + 1] != FILE_EXTENSION[i + 1])
+            panic("input error, not a source file\n");
+    }
+    const u32 file_name_len = config.file_name_len - (sizeof(FILE_EXTENSION) - 1);
+
+    compile_module(&compiler, null, config.file_name, file_name_len);
 
     print_ast(&compiler.files.ptr[0].ast);
 

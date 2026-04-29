@@ -90,7 +90,6 @@ struct CodegenErrorList generate_code(struct Compiler *compiler, struct ModuleCt
                 main_decl = global->node;
                 continue;
             }
-            printf("global %.*s\n", global->node->name_len, global->node->name);
             compile_top_level_decl(&ctx, mod->globals[i].node);
         }
     }

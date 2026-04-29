@@ -1,7 +1,6 @@
 #include "module_resolution.h"
 #include "../parsing/ast.h"
 #include "file_compilation.h"
-#include <stdio.h>
 
 u16 compiled_file_index(const struct Module *module)
 {
@@ -38,17 +37,6 @@ struct Module *get_module(struct ModuleCtx *ctx, u16 index)
         return null;
 
     return &ctx->modules.ptr[index];
-}
-
-static struct Module *find_module(struct ModuleCtx *ctx, const char *name, u16 parent)
-{
-    for (u16 i = 0; i < ctx->modules.count; i++) {
-        struct Module *current = &ctx->modules.ptr[i];
-        if (current->name == name && current->parent_index == parent) {
-            return current;
-        }
-    }
-    return null;
 }
 
 static void declare_item(struct Module *mod, struct ModuleItem item)
@@ -117,7 +105,6 @@ static void declare_module_items(struct ModuleCtx *ctx, struct ModuleDeclNode *m
     }
     struct ModuleDeclNode *submodule = module->submodules;
     while (submodule != null) {
-        printf("declaring submodule %.*s\n", submodule->name->len, submodule->name->src_loc);
         if (submodule->name == null) {
             panic("inline submodules cannot have a self module");
         } else if (submodule->has_body == false) {
@@ -177,18 +164,19 @@ static void resolve_top_level(struct ModuleCtx *ctx, const struct AstTopLevel *a
     while (submodule != null) {
         if (submodule->name == null) {
             declare_module_items(ctx, submodule, mod_index);
+            submodule = submodule->next_mod;
             continue;
         }
 
+        declare_item(mod, (struct ModuleItem){
+            .name = submodule->name->src_loc,
+            .name_len = submodule->name->len,
+            .is_submodule = true,
+            .submodule.is_public = false,
+        });
         if (!submodule->has_body) {
             queue_file_resolution(ctx, submodule->name->src_loc, submodule->name->len, mod_index);
         } else {
-            declare_item(mod, (struct ModuleItem){
-                .name = submodule->name->src_loc,
-                .name_len = submodule->name->len,
-                .is_submodule = true,
-                .submodule.is_public = false,
-            });
             queue_node_resolution(ctx, submodule, mod_index);
         }
 

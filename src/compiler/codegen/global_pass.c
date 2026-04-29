@@ -6,7 +6,6 @@
 
 static void global_decl(struct ModuleGlobals *globals, struct Chunk *chunk, struct DeclarationNode *node, bool is_public)
 {
-    printf("global decl '%.*s'\n", node->name_len, node->name);
     u32 constant_index = 0;
     if (node->body->kind == AST_LAMBDA) {
         constant_index = create_constant(chunk, OBJ_CLOSURE, sizeof(struct Closure));
@@ -28,7 +27,6 @@ static void run_global_pass_on(
     module_globals->module = module_index;
 
     if (is_file_module(module)) {
-        printf("file module\n");
         struct AstTopLevel *ast = &get_compiled_file(compiler, compiled_file_index(module))->ast;
 
         struct DeclarationNode *decl = (struct DeclarationNode*)ast->declarations;
