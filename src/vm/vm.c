@@ -3,6 +3,7 @@
 #include "function_call.h"
 #include "../prelude.h"
 #include "../compiler/builtins.h"
+#include "../compiler/debug.h"
 #include <string.h>
 
 #define DEBUG_CHECKS
@@ -492,6 +493,7 @@ static u32 remap_constants(u64 *constants, u32 cap, struct ClosureInfo *closures
         } else if (obj->type == OBJ_THUNK) {
             struct Thunk *thunk = (struct Thunk*)obj;
             thunk->info = &closures[(u64)thunk->info];
+            thunk->evaluated = null;
         }
         switch (obj->type) {
             case OBJ_BOX:

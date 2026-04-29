@@ -1,5 +1,6 @@
 #include "expr.h"
 #include "codegen.h"
+#include "global_resolution.h"
 #include "pattern_matching.h"
 #include "../builtins.h"
 #include <stdio.h>
@@ -35,7 +36,7 @@ void compile_identifier(struct Context *ctx, struct IdentifierNode *node)
         emit_byte(ctx, OP_CAPTURE_READ);
         emit_u16(ctx, ident.offset);
         emit_byte(ctx, capture_index);
-    } else if (resolve_global(ctx, node->src_loc, &global_index)) {
+    } else if (resolve_global(ctx->globals, ctx->module_index, node->src_loc, &global_index)) {
         emit_byte(ctx, OP_PUSH_CONST);
         emit_u32(ctx, global_index);
     } else {
@@ -49,7 +50,7 @@ void compile_literal(struct Context *ctx, struct LiteralNode *node)
     u32 constant = 0;
     // unit is at index 0 as all units are identical
     if (node->type != LITERAL_TYPE_UNIT && node->type != LITERAL_TYPE_BOOLEAN) {
-        constant = create_constant(ctx, OBJ_BOX, sizeof(struct Box));
+        constant = create_constant(ctx->compiling_chunk, OBJ_BOX, sizeof(struct Box));
         printf("constant at %d\n", constant);
         struct Value *value = &((struct Box*)get_constant(ctx, constant))->val;
 
@@ -68,6 +69,9 @@ void compile_literal(struct Context *ctx, struct LiteralNode *node)
                 value->type = VALUE_UNIT;
                 break;
             }
+            default:
+                panic("unreachable: invalid literal type");
+                return;
         }
     } else if (node->type == LITERAL_TYPE_BOOLEAN) {
         // true and false are boxes 1 and 2 respectively
@@ -279,7 +283,7 @@ void compile_lambda(struct Context *ctx, struct LambdaNode *node, const char *bi
         }
         emit_byte(ctx, OP_WRITE_CLOSURE);
     } else {
-        u32 constant = create_constant(ctx, OBJ_CLOSURE, sizeof(struct Closure));
+        u32 constant = create_constant(ctx->compiling_chunk, OBJ_CLOSURE, sizeof(struct Closure));
         struct Closure *closure_const = (struct Closure*)get_constant(ctx, constant);
         closure_const->info = (struct ClosureInfo*)(u64)closure_info_index;
         emit_byte(ctx, OP_PUSH_CONST);
@@ -367,7 +371,7 @@ void compile_thunk(struct Context *ctx, struct AstNode *node, const char *bind_t
         }
         emit_byte(ctx, OP_WRITE_THUNK);
     } else {
-        u32 constant = create_constant(ctx, OBJ_THUNK, sizeof(struct Thunk));
+        u32 constant = create_constant(ctx->compiling_chunk, OBJ_THUNK, sizeof(struct Thunk));
         struct Thunk *thunk_const = (struct Thunk*)get_constant(ctx, constant);
         thunk_const->evaluated = null;
         thunk_const->info = (struct ClosureInfo*)(u64)closure_info_index;
@@ -381,6 +385,27 @@ void compile_thunk(struct Context *ctx, struct AstNode *node, const char *bind_t
     }
 
     end_context(&context);
+}
+
+void namespace_access_expr(struct Context *ctx, struct NamespaceAccessNode *node)
+{
+    u32 constant_index = 0;
+    struct IdentifierNode *err = resolve_global_path(
+        ctx->globals,
+        (struct GlobalSearch){
+            .origin_module = ctx->module_index,
+            .searching_for = node,
+        },
+        &constant_index
+    );
+
+    if (err != null) {
+        non_existent_ident_err(ctx, err->node.loc);
+        return;
+    }
+
+    emit_byte(ctx, OP_PUSH_CONST);
+    emit_u32(ctx, constant_index);
 }
 
 void compile_application(struct Context *ctx, struct ApplicationNode *application)
@@ -432,6 +457,9 @@ void compile_expr(struct Context *ctx, struct AstNode *node)
             break;
         case AST_UNDERSCORE:
             used_underscore_err(ctx, node->loc);
+            break;
+        case AST_NAMESPACE_ACCESS:
+            namespace_access_expr(ctx, (struct NamespaceAccessNode*)node);
             break;
         default:
             panic("unknown ast node");

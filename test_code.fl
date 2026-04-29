@@ -1,14 +1,14 @@
-mod my_module = {};
+mod a = {
+    drop n l = case n :: l of
+        | 0 :: xs 		 -> xs
+        | n :: (x :: xs) -> drop (n - 1) xs
+        | otherwise		 -> ();
+};
 
 head l = case l of
     | x :: xs -> x;
 tail l = case l of
     | x :: xs -> xs;
-
-drop n l = case n :: l of
-    | 0 :: xs 		 -> xs
-    | n :: (x :: xs) -> drop (n - 1) xs
-    | otherwise		 -> ();
 
 foldr f a l = case l of
     | x :: xs	-> f x (foldr f a xs)
@@ -43,7 +43,7 @@ flatten a = case a of
     | false :: _ -> None;
 
 fibs = 0 :: 1 :: (zipwith add fibs (tail fibs));
-fib n = head : drop n fibs;
+fib n = head : a..drop n fibs;
 
 main = fib 12;
 

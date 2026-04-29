@@ -3,6 +3,6 @@
 
 #include "codegen.h"
 
-void compile_top_level(struct Context *ctx, struct AstTopLevel *top_level);
+struct CodegenErrorList generate_code(struct Compiler *compiler, struct ModuleCtx *modules);
 
 #endif

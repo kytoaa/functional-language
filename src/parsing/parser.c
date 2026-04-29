@@ -302,21 +302,21 @@ static struct AstNode *application(enum Precedence precedence, struct AstNode *l
 static struct AstNode *namespace(enum Precedence precedence, struct AstNode *lhs)
 {
     if (lhs->kind != AST_IDENTIFIER) {
-        error(parser.prev, "namespace must lhs not an identifier");
+        error(parser.prev, "namespace lhs must be an identifier");
         return null;
     }
     struct NamespaceAccessNode *node = ALLOC_NODE(struct NamespaceAccessNode);
 
     struct Location loc = prev_loc();
 
-    struct AstNode *rhs = expr(precedence);
+    struct AstNode *rhs = expr(PREC_NAMESPACE);
     if (rhs->kind != AST_IDENTIFIER && rhs->kind != AST_NAMESPACE_ACCESS) {
-        error(parser.prev, "namespace must rhs not an identifier or namespace access");
+        error(parser.prev, "namespace rhs must be an identifier or namespace access");
         return null;
     }
 
     *node = (struct NamespaceAccessNode){
-        .node = { AST_APPLICATION, loc },
+        .node = { AST_NAMESPACE_ACCESS, loc },
         .ident = (struct IdentifierNode*)lhs,
         .rhs = rhs,
     };

@@ -2,6 +2,7 @@
 #include "../../prelude.h"
 #include "../../bytecode.h"
 #include "../../object.h"
+#include <string.h>
 
 static void codegen_error(struct Context *ctx, struct CodegenError error);
 
@@ -10,48 +11,14 @@ void init_context(struct Context *ctx, struct Context *parent)
     ctx->parent = parent;
     ctx->identifier_table = parent->identifier_table;
     ctx->compiling_chunk = parent->compiling_chunk;
-    ctx->globals = parent->globals;
     ctx->errors = parent->errors;
+    ctx->globals = parent->globals;
     ctx->ident_stack_len = 0;
     ctx->capture_stack_len = 0;
 }
 void end_context(struct Context *ctx)
 {
     (void)ctx;
-}
-
-void declare_global(struct Context *ctx, const char *ident, u32 constant_index, struct Location loc)
-{
-    if (ctx->globals->len == ctx->globals->cap) {
-        u32 new_cap = (ctx->globals->cap == 0) ? 2 : ctx->globals->cap * 2;
-        struct Global *new_ptr = realloc_mem(ctx->globals->ptr, new_cap * sizeof(struct Global));
-        ctx->globals->ptr = new_ptr;
-        ctx->globals->cap = new_cap;
-    }
-
-    for (u32 i = 0; i < ctx->globals->len; i++) {
-        if (ctx->globals->ptr[i].ident == ident) {
-            redeclared_global_err(ctx, loc, ctx->globals->ptr[i].loc);
-            return;
-        }
-    }
-
-    ctx->globals->ptr[ctx->globals->len++] = (struct Global){
-        .ident = ident,
-        .loc = loc,
-        .constant_index = constant_index,
-    };
-}
-bool resolve_global(struct Context *ctx, const char *ident, u32 *out)
-{
-    for (u32 i = 0; i < ctx->globals->len; i++) {
-        struct Global global = ctx->globals->ptr[i];
-        if (global.ident == ident) {
-            *out = global.constant_index;
-            return true;
-        }
-    }
-    return false;
 }
 
 void declare_ident(struct Context *ctx, const char *ident)
@@ -180,10 +147,10 @@ u8 *get_bytecode_byte(struct Context *ctx, u32 index)
     return &ctx->compiling_chunk->bytecode.ptr[index];
 }
 
-u32 create_constant(struct Context *ctx, enum ObjType type, u32 size)
+u32 create_constant(struct Chunk *chunk, enum ObjType type, u32 size)
 {
     size = (size + sizeof(u64) - 1) / sizeof(u64);
-    struct ConstantList *constants = &ctx->compiling_chunk->constants;
+    struct ConstantList *constants = &chunk->constants;
     if (constants->len + size >= constants->cap) {
         u32 new_cap = (constants->cap == 0) ? size : constants->cap * 2;
         u64 *new_ptr = realloc_mem(constants->ptr, new_cap * sizeof(u64));
@@ -194,6 +161,7 @@ u32 create_constant(struct Context *ctx, enum ObjType type, u32 size)
     constants->len += size;
 
     struct Obj *obj = (struct Obj*)&constants->ptr[index];
+    memset(obj, 0, size * sizeof(u64));
 
     obj->flags.is_static = true;
     obj->flags.gc_marked = false;

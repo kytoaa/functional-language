@@ -7,8 +7,14 @@
 
 struct ModuleItem {
     const char *name;
+    union {
+        struct DeclarationNode *decl_node;
+        struct {
+            u16 index;
+            bool is_public;
+        } submodule;
+    };
     u16 name_len;
-    u16 submodule_index;
     bool is_submodule;
 };
 
@@ -22,6 +28,8 @@ struct Module {
     u16 compiled_file_index;
     u16 parent_index;
 };
+u16 compiled_file_index(const struct Module *module);
+bool is_file_module(const struct Module *module);
 
 enum ModuleWorkKind {
     MODULE_WORK_AST_NODE,
@@ -57,5 +65,6 @@ struct ModuleCtx {
 };
 
 struct ModuleCtx resolve_ast(struct Compiler *compiler, const struct CompiledFile *file);
+struct Module *get_module(struct ModuleCtx *modules, u16 index);
 
 #endif

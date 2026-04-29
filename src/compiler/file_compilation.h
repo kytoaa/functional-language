@@ -1,9 +1,10 @@
 #ifndef func_lang_compiler_file_compilation_h
 #define func_lang_compiler_file_compilation_h
 
+#include "compiler.h"
+#include "../bytecode.h"
 #include "../parsing/ast.h"
 #include "../parsing/ident_table.h"
-#include "compiler.h"
 
 struct CompiledFile {
     struct AstTopLevel ast;
@@ -16,6 +17,7 @@ struct CompiledFile {
 struct Compiler {
     struct CompilerConfig config;
     struct IdentifierTable identifiers;
+    struct Chunk chunk;
 
     struct {
         struct CompiledFile *ptr;

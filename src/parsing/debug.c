@@ -105,8 +105,9 @@ static void print_identifier(struct IdentifierNode *node)
 static void print_namespace_access(struct NamespaceAccessNode *node)
 {
     print_identifier(node->ident);
-    printf("..");
+    printf("..(");
     print_node(node->rhs);
+    printf(")");
 }
 
 static void print_lambda(struct LambdaNode *node)

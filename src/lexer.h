@@ -112,6 +112,8 @@ static const char *token_type_name(enum TokenType type)
             return "TOKEN_ARROW";
         case TOKEN_WIDE_ARROW:
             return "TOKEN_WIDE_ARROW";
+        case TOKEN_TWO_DOT:
+            return "TOKEN_TWO_DOT";
         case TOKEN_FUN:
             return "TOKEN_FUN";
         case TOKEN_LET:

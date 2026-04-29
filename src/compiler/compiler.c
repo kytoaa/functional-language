@@ -24,28 +24,18 @@ void compile_file(const struct CompilerConfig config)
 {
     struct Compiler compiler = { .config = config };
     init_ident_table(&compiler.identifiers);
+    init_chunk(&compiler.chunk);
 
     compile_module(&compiler, null, config.file_name, config.file_name_len);
 
     print_ast(&compiler.files.ptr[0].ast);
 
-    struct Chunk chunk = {};
-    init_chunk(&chunk);
+    struct ModuleCtx modules = resolve_ast(&compiler, &compiler.files.ptr[0]);
 
-    struct CodegenErrorList errors = {};
-
-    struct Context context = {
-        .compiling_chunk = &chunk,
-        .identifier_table = &compiler.identifiers,
-        .errors = &errors,
-    };
-
-    struct ModuleCtx ctx = resolve_ast(&compiler, &compiler.files.ptr[0]);
-
-    compile_top_level(&context, &compiler.files.ptr[0].ast);
+    struct CodegenErrorList errors = generate_code(&compiler, &modules);
 
     if (errors.len == 0) {
-        run_chunk(&config, chunk);
+        run_chunk(&config, compiler.chunk);
     } else {
         for (u32 i = 0; i < errors.len; i++) {
             print_codegen_error(&compiler, errors.ptr[i]);

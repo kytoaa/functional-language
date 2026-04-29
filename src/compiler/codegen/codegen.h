@@ -7,6 +7,7 @@
 #include "../../parsing/ident_table.h"
 #include "../../bytecode.h"
 #include "../../object.h"
+#include "global_resolution.h"
 
 #define IDENT_STACK_SIZE 128
 
@@ -41,11 +42,6 @@ struct CodegenError {
 struct Identifier {
     const char *ident;
 };
-struct Global {
-    const char *ident;
-    struct Location loc;
-    u32 constant_index;
-};
 struct Capture {
     union {
         u8 value;
@@ -56,11 +52,6 @@ struct Capture {
     };
 };
 
-struct GlobalList {
-    struct Global *ptr;
-    u32 len;
-    u32 cap;
-};
 struct CodegenErrorList {
     struct CodegenError *ptr;
     u32 len;
@@ -73,10 +64,11 @@ struct Context {
     struct Chunk *compiling_chunk;
     struct Identifier ident_stack[IDENT_STACK_SIZE];
     struct Capture capture_stack[IDENT_STACK_SIZE];
-    struct GlobalList *globals;
     struct CodegenErrorList *errors;
+    struct GlobalCtx *globals;
     u32 ident_stack_len;
     u32 capture_stack_len;
+    u16 module_index;
 };
 
 void init_context(struct Context *ctx, struct Context *parent);
@@ -92,9 +84,6 @@ struct IdentSearchResult {
     /// ident offset from the top of the binding stack, 0 being top
     u16 offset;
 };
-
-void declare_global(struct Context *ctx, const char *ident, u32 constant_index, struct Location loc);
-bool resolve_global(struct Context *ctx, const char *ident, u32 *out);
 
 void declare_ident(struct Context *ctx, const char *ident);
 void drop_ident(struct Context *ctx, u32 count);
@@ -112,7 +101,7 @@ void emit_u64(struct Context *ctx, u64 value);
 u32 get_last_bytecode_index(struct Context *ctx);
 u8 *get_bytecode_byte(struct Context *ctx, u32 index);
 
-u32 create_constant(struct Context *ctx, enum ObjType type, u32 size);
+u32 create_constant(struct Chunk *chunk, enum ObjType type, u32 size);
 u64 *get_constant(struct Context *ctx, u32 index);
 
 u16 create_closure_info(struct Context *ctx, struct ClosureInfo info);

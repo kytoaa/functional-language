@@ -1,6 +1,20 @@
 #include "module_resolution.h"
 #include "../parsing/ast.h"
 #include "file_compilation.h"
+#include <stdio.h>
+
+u16 compiled_file_index(const struct Module *module)
+{
+    return module->compiled_file_index & 0x7fff;
+}
+bool is_file_module(const struct Module *module)
+{
+    return (module->compiled_file_index & 0x8000) != 0;
+}
+inline static void set_compiled_file_index(struct Module *mod, u16 index, bool is_file_mod)
+{
+    mod->compiled_file_index = index | (is_file_mod ? 0x8000 : 0);
+}
 
 static u16 create_module(struct ModuleCtx *ctx, const char *name, u16 parent)
 {
@@ -18,7 +32,7 @@ static u16 create_module(struct ModuleCtx *ctx, const char *name, u16 parent)
     return index;
 }
 
-static struct Module *get_module(struct ModuleCtx *ctx, u16 index)
+struct Module *get_module(struct ModuleCtx *ctx, u16 index)
 {
     if (index >= ctx->modules.count)
         return null;
@@ -94,6 +108,7 @@ static void declare_module_items(struct ModuleCtx *ctx, struct ModuleDeclNode *m
         declare_item(mod, (struct ModuleItem){
             .name = decl->name,
             .name_len = decl->name_len,
+            .decl_node = decl,
             .is_submodule = false,
         });
 
@@ -101,10 +116,12 @@ static void declare_module_items(struct ModuleCtx *ctx, struct ModuleDeclNode *m
     }
     struct ModuleDeclNode *submodule = module->submodules;
     while (submodule != null) {
+        printf("declaring submodule %.*s\n", submodule->name->len, submodule->name->src_loc);
         declare_item(mod, (struct ModuleItem){
             .name = submodule->name->src_loc,
             .name_len = submodule->name->len,
             .is_submodule = true,
+            .submodule.is_public = true,
         });
 
         submodule = submodule->next_mod;
@@ -117,7 +134,15 @@ static void resolve_node(struct ModuleCtx *ctx, struct ModuleDeclNode *node, u16
     struct Module *mod = get_module(ctx, mod_index);
     struct Module *parent_mod = get_module(ctx, parent);
 
-    mod->compiled_file_index = parent_mod->compiled_file_index;
+    for (u32 i = 0; i < parent_mod->items.len; i++) {
+        struct ModuleItem *item = &parent_mod->items.ptr[i];
+        if (item->name == node->name->src_loc) {
+            item->submodule.index = mod_index;
+            break;
+        }
+    }
+
+    set_compiled_file_index(mod, compiled_file_index(parent_mod), false);
 
     declare_module_items(ctx, node, mod);
 }
@@ -127,7 +152,19 @@ static void resolve_top_level(struct ModuleCtx *ctx, const struct AstTopLevel *a
     u16 mod_index = create_module(ctx, mod_name, parent);
     struct Module *mod = get_module(ctx, mod_index);
 
-    mod->compiled_file_index = file_index;
+    if (parent != (u16)-1) {
+        struct Module *parent_mod = get_module(ctx, parent);
+
+        for (u32 i = 0; i < parent_mod->items.len; i++) {
+            struct ModuleItem *item = &parent_mod->items.ptr[i];
+            if (item->name == mod_name) {
+                item->submodule.index = mod_index;
+                break;
+            }
+        }
+    }
+
+    set_compiled_file_index(mod, file_index, true);
 
     struct ModuleDeclNode *submodule = (struct ModuleDeclNode*)ast->modules;
     while (submodule != null) {
@@ -139,6 +176,12 @@ static void resolve_top_level(struct ModuleCtx *ctx, const struct AstTopLevel *a
         if (!submodule->has_body) {
             queue_file_resolution(ctx, submodule->name->src_loc, submodule->name->len, mod_index);
         } else {
+            declare_item(mod, (struct ModuleItem){
+                .name = submodule->name->src_loc,
+                .name_len = submodule->name->len,
+                .is_submodule = true,
+                .submodule.is_public = false,
+            });
             queue_node_resolution(ctx, submodule, mod_index);
         }
 
@@ -149,7 +192,7 @@ static void resolve_top_level(struct ModuleCtx *ctx, const struct AstTopLevel *a
 struct ModuleCtx resolve_ast(struct Compiler *compiler, const struct CompiledFile *file)
 {
     struct ModuleCtx ctx = {};
-    resolve_top_level(&ctx, &file->ast, 0, "main", -1);
+    resolve_top_level(&ctx, &file->ast, 0, "main", (u16)-1);
 
     struct ModuleResolutionWork work = {};
     while (pop_resolution_queue(&ctx, &work)) {
@@ -159,9 +202,9 @@ struct ModuleCtx resolve_ast(struct Compiler *compiler, const struct CompiledFil
                 break;
             }
             case MODULE_WORK_FILE:{
-                struct CompiledFile *parent = get_compiled_file(compiler, get_module(&ctx, work.parent_module)->compiled_file_index);
+                struct CompiledFile *parent = get_compiled_file(compiler, compiled_file_index(get_module(&ctx, work.parent_module)));
 
-                u32 file_index = compile_module(compiler, file, work.file.name, work.file.name_len);
+                u32 file_index = compile_module(compiler, parent, work.file.name, work.file.name_len);
                 struct CompiledFile *compiled = get_compiled_file(compiler, file_index);
 
                 resolve_top_level(&ctx, &compiled->ast, file_index, work.file.name, work.parent_module);

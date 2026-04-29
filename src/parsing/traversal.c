@@ -26,6 +26,12 @@ void traverse_node(
             }
             break;
         }
+        case AST_NAMESPACE_ACCESS:{
+            struct NamespaceAccessNode *node = (struct NamespaceAccessNode*)n;
+            traverse_node(AS_NODE(node->ident), arg, pre_callback, post_callback);
+            traverse_node(node->rhs, arg, pre_callback, post_callback);
+            break;
+        }
         case AST_APPLICATION:{
             struct ApplicationNode *node = (struct ApplicationNode*)n;
             traverse_node(node->function, arg, pre_callback, post_callback);
