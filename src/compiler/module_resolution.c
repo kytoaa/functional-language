@@ -101,8 +101,9 @@ static bool pop_resolution_queue(struct ModuleCtx *ctx, struct ModuleResolutionW
     return true;
 }
 
-static void declare_module_items(struct ModuleCtx *ctx, struct ModuleDeclNode *module, struct Module *mod)
+static void declare_module_items(struct ModuleCtx *ctx, struct ModuleDeclNode *module, u16 module_index)
 {
+    struct Module *mod = get_module(ctx, module_index);
     struct DeclarationNode *decl = module->declarations;
     while (decl != null) {
         declare_item(mod, (struct ModuleItem){
@@ -117,13 +118,19 @@ static void declare_module_items(struct ModuleCtx *ctx, struct ModuleDeclNode *m
     struct ModuleDeclNode *submodule = module->submodules;
     while (submodule != null) {
         printf("declaring submodule %.*s\n", submodule->name->len, submodule->name->src_loc);
-        declare_item(mod, (struct ModuleItem){
-            .name = submodule->name->src_loc,
-            .name_len = submodule->name->len,
-            .is_submodule = true,
-            .submodule.is_public = true,
-        });
-
+        if (submodule->name == null) {
+            panic("inline submodules cannot have a self module");
+        } else if (submodule->has_body == false) {
+            panic("inline submodules cannot declare file modules");
+        } else {
+            declare_item(mod, (struct ModuleItem){
+                .name = submodule->name->src_loc,
+                .name_len = submodule->name->len,
+                .is_submodule = true,
+                .submodule.is_public = true,
+            });
+            queue_node_resolution(ctx, submodule, module_index);
+        }
         submodule = submodule->next_mod;
     }
 }
@@ -144,7 +151,7 @@ static void resolve_node(struct ModuleCtx *ctx, struct ModuleDeclNode *node, u16
 
     set_compiled_file_index(mod, compiled_file_index(parent_mod), false);
 
-    declare_module_items(ctx, node, mod);
+    declare_module_items(ctx, node, mod_index);
 }
 
 static void resolve_top_level(struct ModuleCtx *ctx, const struct AstTopLevel *ast, u16 file_index, const char *mod_name, u16 parent)
@@ -169,7 +176,7 @@ static void resolve_top_level(struct ModuleCtx *ctx, const struct AstTopLevel *a
     struct ModuleDeclNode *submodule = (struct ModuleDeclNode*)ast->modules;
     while (submodule != null) {
         if (submodule->name == null) {
-            declare_module_items(ctx, submodule, mod);
+            declare_module_items(ctx, submodule, mod_index);
             continue;
         }
 

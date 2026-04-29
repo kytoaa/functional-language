@@ -1,8 +1,13 @@
 mod a = {
-    drop n l = case n :: l of
-        | 0 :: xs 		 -> xs
-        | n :: (x :: xs) -> drop (n - 1) xs
-        | otherwise		 -> ();
+    mod b = {
+        mod c = {
+            drop n l = case n :: l of
+                | 0 :: xs 		 -> xs
+                | n :: (x :: xs) -> drop (n - 1) xs
+                | otherwise		 -> ();
+        };
+        drop = c..drop;
+    };
 };
 
 head l = case l of
@@ -43,7 +48,7 @@ flatten a = case a of
     | false :: _ -> None;
 
 fibs = 0 :: 1 :: (zipwith add fibs (tail fibs));
-fib n = head : a..drop n fibs;
+fib n = head : a..b..drop n fibs;
 
 main = fib 12;
 

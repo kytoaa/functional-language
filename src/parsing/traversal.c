@@ -24,6 +24,11 @@ void traverse_node(
                 traverse_node(AS_NODE(decl), arg, pre_callback, post_callback);
                 decl = decl->next_declaration;
             }
+            struct ModuleDeclNode *submodule = node->submodules;
+            while (submodule != null) {
+                traverse_node(AS_NODE(submodule), arg, pre_callback, post_callback);
+                submodule = submodule->next_mod;
+            }
             break;
         }
         case AST_NAMESPACE_ACCESS:{
