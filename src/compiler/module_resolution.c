@@ -121,7 +121,6 @@ static void declare_module_items(struct ModuleCtx *ctx, struct ModuleDeclNode *m
                 });
                 queue_node_resolution(ctx, submodule, module_index);
             } else {
-                printf("declaring module path with name %.*s in %d\n", submodule->name->len, submodule->name->src_loc, module_index);
                 declare_item(mod, (struct ModuleItem){
                     .name = submodule->name->src_loc,
                     .name_len = submodule->name->len,
@@ -185,7 +184,6 @@ static void resolve_top_level(struct ModuleCtx *ctx, const struct AstTopLevel *a
         if (!submodule->has_body && submodule->declarations != null)
             path = AS_NODE(submodule->declarations);
 
-        printf("declaring submodule in %d with name %.*s\n", mod_index, submodule->name->len, submodule->name->src_loc);
         declare_item(mod, (struct ModuleItem){
             .name = submodule->name->src_loc,
             .name_len = submodule->name->len,

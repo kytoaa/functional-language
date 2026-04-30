@@ -140,7 +140,6 @@ static u16 resolve_path(struct GlobalCtx *globals, struct GlobalSearch search, b
                 module = get_module(globals->modules, module_index);
 
                 searching = (struct NamespaceAccessNode*)searching->rhs;
-                in_root = false;
                 continue;
             }
             u16 submodule = find_submodule_in(globals, searching->ident->src_loc, module_index, in_root);

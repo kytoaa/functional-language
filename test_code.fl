@@ -2,6 +2,10 @@ mod module_a;
 
 mod module_b = module_a..inner;
 
+mod module_c = {
+    a = 10;
+};
+
 head l = case l of
     | x :: xs -> x;
 tail l = case l of

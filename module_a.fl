@@ -1,7 +1,7 @@
 mod = {
     drop = drop_;
 
-    mod inner = has_a;
+    mod inner = super..module_c;
 };
 
 drop_ n l = case n :: l of
