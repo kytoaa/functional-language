@@ -41,8 +41,6 @@ void compile_file(const struct CompilerConfig config)
 
     compile_module(&compiler, null, config.file_name, file_name_len);
 
-    print_ast(&compiler.files.ptr[0].ast);
-
     struct ModuleCtx modules = resolve_ast(&compiler, &compiler.files.ptr[0]);
 
     struct CodegenErrorList errors = generate_code(&compiler, &modules);

@@ -206,16 +206,18 @@ static void codegen_error(struct Context *ctx, struct CodegenError error)
     }
     ctx->errors->ptr[ctx->errors->len++] = error;
 }
-void non_existent_ident_err(struct Context *ctx, struct Location loc)
+void non_existent_ident_err(struct Context *ctx, struct Location loc, const char *msg)
 {
     codegen_error(ctx, (struct CodegenError){
+        .additional_msg = msg,
         .type = CODEGEN_ERR_NON_EXISTENT_IDENT,
         .error = { .non_existent_identifier = { .loc = loc } },
     });
 }
-void redeclared_global_err(struct Context *ctx, struct Location loc, struct Location prev_decl_loc)
+void redeclared_global_err(struct Context *ctx, struct Location loc, struct Location prev_decl_loc, const char *msg)
 {
     codegen_error(ctx, (struct CodegenError){
+        .additional_msg = msg,
         .type = CODEGEN_ERR_REDECLARED_GLOBAL,
         .error = {
             .redeclared_global = {
@@ -225,16 +227,18 @@ void redeclared_global_err(struct Context *ctx, struct Location loc, struct Loca
         },
     });
 }
-void main_args_err(struct Context *ctx, struct Location loc)
+void main_args_err(struct Context *ctx, struct Location loc, const char *msg)
 {
     codegen_error(ctx, (struct CodegenError){
+        .additional_msg = msg,
         .type = CODEGEN_ERR_MAIN_ARGS,
         .error = { .main_args = { .loc = loc } }
     });
 }
-void multiple_main_decl_err(struct Context *ctx, struct Location loc, struct Location prev_decl_loc)
+void multiple_main_decl_err(struct Context *ctx, struct Location loc, struct Location prev_decl_loc, const char *msg)
 {
     codegen_error(ctx, (struct CodegenError){
+        .additional_msg = msg,
         .type = CODEGEN_ERR_MULTIPLE_MAIN_DECL,
         .error = {
             .redeclared_global = {
@@ -244,9 +248,10 @@ void multiple_main_decl_err(struct Context *ctx, struct Location loc, struct Loc
         },
     });
 }
-void used_underscore_err(struct Context *ctx, struct Location loc)
+void used_underscore_err(struct Context *ctx, struct Location loc, const char *msg)
 {
     codegen_error(ctx, (struct CodegenError){
+        .additional_msg = msg,
         .type = CODEGEN_ERR_USED_UNDERSCORE,
         .error = { .main_args = { .loc = loc } }
     });

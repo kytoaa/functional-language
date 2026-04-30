@@ -38,13 +38,25 @@ void declare_global_decl(
     bool is_public
 );
 
-/// returns null on success
-struct IdentifierNode *resolve_global_path(
+enum GlobalResolutionError {
+    GLOBAL_RES_OK,
+    GLOBAL_RES_ERROR_DOESNT_EXIST,
+    GLOBAL_RES_ERROR_PRIVATE,
+    GLOBAL_RES_ERROR_ROOT_SUPER,
+};
+
+struct GlobalResolutionResult {
+    struct IdentifierNode *error_finding;
+    enum GlobalResolutionError error;
+};
+
+struct GlobalResolutionResult resolve_global_path(
     struct GlobalCtx *globals,
     struct GlobalSearch search,
     u32 *constant_index_out
 );
 
-bool resolve_global(struct GlobalCtx *ctx, u16 mod, const char *ident, u32 *const_index_out);
+enum GlobalResolutionError resolve_global(struct GlobalCtx *ctx, u16 mod, const char *ident, u32 *const_index_out);
+
 
 #endif

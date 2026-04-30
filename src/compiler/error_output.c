@@ -164,6 +164,9 @@ void print_codegen_error(struct Compiler *compiler, struct CodegenError error)
             break;
         }
     }
+    if (error.additional_msg != null) {
+        fprintf(config->error, "note: %s\n", error.additional_msg);
+    }
 }
 
 void print_err(const struct CompilerConfig *config, const struct ParseError *err, struct FileData file)

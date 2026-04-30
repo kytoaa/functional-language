@@ -20,6 +20,7 @@ enum CodegenErrorType {
 };
 
 struct CodegenError {
+    const char *additional_msg;
     enum CodegenErrorType type;
     u16 file_index;
     union {
@@ -74,11 +75,11 @@ struct Context {
 void init_context(struct Context *ctx, struct Context *parent);
 void end_context(struct Context *ctx);
 
-void non_existent_ident_err(struct Context *ctx, struct Location loc);
-void redeclared_global_err(struct Context *ctx, struct Location loc, struct Location prev_decl_loc);
-void main_args_err(struct Context *ctx, struct Location loc);
-void multiple_main_decl_err(struct Context *ctx, struct Location loc, struct Location prev_decl_loc);
-void used_underscore_err(struct Context *ctx, struct Location loc);
+void non_existent_ident_err(struct Context *ctx, struct Location loc, const char *msg);
+void redeclared_global_err(struct Context *ctx, struct Location loc, struct Location prev_decl_loc, const char *msg);
+void main_args_err(struct Context *ctx, struct Location loc, const char *msg);
+void multiple_main_decl_err(struct Context *ctx, struct Location loc, struct Location prev_decl_loc, const char *msg);
+void used_underscore_err(struct Context *ctx, struct Location loc, const char *msg);
 
 struct IdentSearchResult {
     /// ident offset from the top of the binding stack, 0 being top

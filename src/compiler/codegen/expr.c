@@ -10,7 +10,6 @@ static const char *SELF_IDENT = "+closure_self";
 
 void compile_declaration(struct Context *ctx, struct DeclarationNode *node)
 {
-    printf("declaring %.*s\n", node->name_len, node->name);
     declare_ident(ctx, node->name);
     if (node->body->kind == AST_LAMBDA) {
         compile_lambda(ctx, (struct LambdaNode*)node->body, node->name);
@@ -36,12 +35,20 @@ void compile_identifier(struct Context *ctx, struct IdentifierNode *node)
         emit_byte(ctx, OP_CAPTURE_READ);
         emit_u16(ctx, ident.offset);
         emit_byte(ctx, capture_index);
-    } else if (resolve_global(ctx->globals, ctx->module_index, node->src_loc, &global_index)) {
-        emit_byte(ctx, OP_PUSH_CONST);
-        emit_u32(ctx, global_index);
     } else {
-        printf("%.*s\n", node->len, node->src_loc);
-        non_existent_ident_err(ctx, node->node.loc);
+        enum GlobalResolutionError result = resolve_global(
+            ctx->globals,
+            ctx->module_index,
+            node->src_loc,
+            &global_index
+        );
+
+        if (result == GLOBAL_RES_OK) {
+            emit_byte(ctx, OP_PUSH_CONST);
+            emit_u32(ctx, global_index);
+        } else {
+            non_existent_ident_err(ctx, node->node.loc, null);
+        }
     }
 }
 
@@ -51,7 +58,6 @@ void compile_literal(struct Context *ctx, struct LiteralNode *node)
     // unit is at index 0 as all units are identical
     if (node->type != LITERAL_TYPE_UNIT && node->type != LITERAL_TYPE_BOOLEAN) {
         constant = create_constant(ctx->compiling_chunk, OBJ_BOX, sizeof(struct Box));
-        printf("constant at %d\n", constant);
         struct Value *value = &((struct Box*)get_constant(ctx, constant))->val;
 
         switch (node->type) {
@@ -390,7 +396,7 @@ void compile_thunk(struct Context *ctx, struct AstNode *node, const char *bind_t
 void namespace_access_expr(struct Context *ctx, struct NamespaceAccessNode *node)
 {
     u32 constant_index = 0;
-    struct IdentifierNode *err = resolve_global_path(
+    struct GlobalResolutionResult result = resolve_global_path(
         ctx->globals,
         (struct GlobalSearch){
             .origin_module = ctx->module_index,
@@ -399,8 +405,14 @@ void namespace_access_expr(struct Context *ctx, struct NamespaceAccessNode *node
         &constant_index
     );
 
-    if (err != null) {
-        non_existent_ident_err(ctx, err->node.loc);
+    if (result.error != GLOBAL_RES_OK) {
+        const char *msg = null;
+        if (result.error == GLOBAL_RES_ERROR_PRIVATE) {
+            msg = "identifier is private";
+        } else if (result.error == GLOBAL_RES_ERROR_ROOT_SUPER) {
+            msg = "tried to get 'super' of the root module";
+        }
+        non_existent_ident_err(ctx, result.error_finding->node.loc, msg);
         return;
     }
 
@@ -456,7 +468,7 @@ void compile_expr(struct Context *ctx, struct AstNode *node)
             compile_if_expr(ctx, (struct IfExprNode*)node);
             break;
         case AST_UNDERSCORE:
-            used_underscore_err(ctx, node->loc);
+            used_underscore_err(ctx, node->loc, null);
             break;
         case AST_NAMESPACE_ACCESS:
             namespace_access_expr(ctx, (struct NamespaceAccessNode*)node);
