@@ -704,33 +704,42 @@ static struct AstNode *module()
     struct ModuleDeclNode *current_submodule = null;
     bool has_body = false;
     if (parser.current.type == TOKEN_EQ) {
-        has_body = true;
         advance();
-        consume(TOKEN_L_BRACE, "expected `{` after module");
-
-        while (parser.current.type != TOKEN_R_BRACE) {
-            if (parser.current.type == TOKEN_MOD) {
-                struct ModuleDeclNode *submodule = (struct ModuleDeclNode*)module();
-                if (submodule != null) {
-                    submodule->next_mod = current_submodule;
-                }
-                if (parser.has_error)
-                    return null;
-                current_submodule = submodule;
-            } else {
-                struct DeclarationNode *decl = (struct DeclarationNode*)declaration();
-                if (decl != null) {
-                    decl->next_declaration = current_decl;
-                }
-                if (parser.has_error)
-                    return null;
-                current_decl = decl;
+        if (parser.current.type == TOKEN_IDENT) {
+            struct AstNode *path = expr(PREC_NAMESPACE);
+            if (path->kind != AST_NAMESPACE_ACCESS && path->kind != AST_IDENTIFIER) {
+                error(parser.prev, "expected a module path");
+                return null;
             }
-        }
+            current_decl = (struct DeclarationNode*)path;
+        } else {
+            has_body = true;
+            consume(TOKEN_L_BRACE, "expected `{` after module");
 
-        current_decl = reverse_linked_list(current_decl, declaration_get_next);
-        current_submodule = reverse_linked_list(current_submodule, module_get_next);
-        consume(TOKEN_R_BRACE, "unreachable: expected `}`");
+            while (parser.current.type != TOKEN_R_BRACE) {
+                if (parser.current.type == TOKEN_MOD) {
+                    struct ModuleDeclNode *submodule = (struct ModuleDeclNode*)module();
+                    if (submodule != null) {
+                        submodule->next_mod = current_submodule;
+                    }
+                    if (parser.has_error)
+                        return null;
+                    current_submodule = submodule;
+                } else {
+                    struct DeclarationNode *decl = (struct DeclarationNode*)declaration();
+                    if (decl != null) {
+                        decl->next_declaration = current_decl;
+                    }
+                    if (parser.has_error)
+                        return null;
+                    current_decl = decl;
+                }
+            }
+
+            current_decl = reverse_linked_list(current_decl, declaration_get_next);
+            current_submodule = reverse_linked_list(current_submodule, module_get_next);
+            consume(TOKEN_R_BRACE, "unreachable: expected `}`");
+        }
     }
     if (ident == null && current_decl == null) {
         error(parser.prev, "modules must have a name, body or both");

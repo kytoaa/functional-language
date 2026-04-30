@@ -7,6 +7,7 @@
 
 struct ModuleItem {
     const char *name;
+    struct AstNode *path;
     union {
         struct DeclarationNode *decl_node;
         struct {
@@ -62,6 +63,8 @@ struct ModuleCtx {
         u32 len;
         u32 cap;
     } worklist;
+
+    const char *super_ident;
 };
 
 struct ModuleCtx resolve_ast(struct Compiler *compiler, const struct CompiledFile *file);

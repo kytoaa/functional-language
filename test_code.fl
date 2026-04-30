@@ -1,5 +1,7 @@
 mod module_a;
 
+mod module_b = module_a..inner;
+
 head l = case l of
     | x :: xs -> x;
 tail l = case l of
@@ -40,5 +42,5 @@ flatten a = case a of
 fibs = 0 :: 1 :: (zipwith add fibs (tail fibs));
 fib n = head : module_a..drop n fibs;
 
-main = fib 12;
+main = module_b..a;
 

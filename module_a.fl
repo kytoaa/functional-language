@@ -1,5 +1,7 @@
 mod = {
     drop = drop_;
+
+    mod inner = has_a;
 };
 
 drop_ n l = case n :: l of
@@ -7,3 +9,7 @@ drop_ n l = case n :: l of
     | n :: (x :: xs) -> drop_ (n - 1) xs
     | otherwise		 -> ();
 
+
+mod has_a = {
+    a = 2;
+};

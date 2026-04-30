@@ -75,52 +75,120 @@ bool resolve_global(struct GlobalCtx *ctx, u16 mod, const char *ident, u32 *cons
     return find_global_in(&ctx->globals_per_module[mod], ident, true, const_index_out);
 }
 
+static u16 find_submodule_in(struct GlobalCtx *globals, const char *ident, u16 module_index, bool search_private)
+{
+    struct Module *mod = get_module(globals->modules, module_index);
+
+    for (u16 i = 0; i < mod->items.len; i++) {
+        struct ModuleItem *item = &mod->items.ptr[i];
+
+        if (!item->is_submodule) {
+            printf("%.*s is not a module\n", item->name_len, item->name);
+            continue;
+        }
+        if (item->name == ident) {
+            if (search_private || item->submodule.is_public) {
+                return i;
+            } else {
+                printf("private\n");
+                return -1;
+            }
+        }
+    }
+    return -1;
+}
+
+static u16 resolve_path(struct GlobalCtx *globals, struct GlobalSearch search, bool is_module)
+{
+    u16 module_index = search.origin_module;
+    struct Module *module = get_module(globals->modules, module_index);
+    struct NamespaceAccessNode *searching = search.searching_for;
+    bool in_root = true;
+
+    for (;;) {
+        if (searching->node.kind == AST_IDENTIFIER) {
+            if (is_module) {
+                struct IdentifierNode *ident = (struct IdentifierNode*)searching;
+                printf("searching for %.*s in %d\n", ident->len, ident->src_loc, module_index);
+                u16 submodule = find_submodule_in(globals, ident->src_loc, module_index, in_root);
+
+                if (submodule == (u16)-1)
+                    return -1;
+
+                printf("exists\n");
+
+                struct ModuleItem *item = &module->items.ptr[submodule];
+                if (item->path != null) {
+                    return resolve_path(
+                        globals,
+                        (struct GlobalSearch){
+                            .searching_for = (struct NamespaceAccessNode*)item->path,
+                            .origin_module = module_index,
+                        },
+                        true
+                    );
+                }
+                printf("found it\n");
+                return item->submodule.index;
+            } else {
+                return module_index;
+            }
+        } else {
+            printf("searching for submodule %.*s in %d\n", searching->ident->len, searching->ident->src_loc, module_index);
+            u16 submodule = find_submodule_in(globals, searching->ident->src_loc, module_index, in_root);
+            if (submodule == (u16)-1)
+                return -1;
+
+            struct ModuleItem *item = &module->items.ptr[submodule];
+
+            if (item->path != null) {
+                printf("%d has path, resolving\n", submodule);
+                module_index = resolve_path(
+                    globals,
+                    (struct GlobalSearch){
+                        .searching_for = (struct NamespaceAccessNode*)item->path,
+                        .origin_module = module_index,
+                    },
+                    true
+                );
+                printf("found at module %d\n", module_index);
+            } else {
+                module_index = item->submodule.index;
+            }
+            if (module_index == (u16)-1)
+                return -1;
+
+            searching = (struct NamespaceAccessNode*)searching->rhs;
+
+            module = get_module(globals->modules, module_index);
+            in_root = false;
+        }
+    }
+}
+
 struct IdentifierNode *resolve_global_path(
     struct GlobalCtx *globals,
     struct GlobalSearch search,
     u32 *constant_index_out
 ) {
-    struct Module *module = &globals->modules->modules.ptr[search.origin_module];
+    u16 module_index = resolve_path(globals, search, false);
+    if (module_index == (u16)-1)
+        return search.searching_for->ident;
 
-    struct NamespaceAccessNode *searching = search.searching_for;
-    bool in_original_mod = true;
+    printf("returned module %d\n", module_index);
 
-    for (;;) {
-        bool found_item = false;
+    struct NamespaceAccessNode *namespace = search.searching_for;
+    while (namespace->node.kind != AST_IDENTIFIER)
+        namespace = (struct NamespaceAccessNode*)namespace->rhs;
 
-        for (u16 i = 0; i < module->items.len; i++) {
-            struct ModuleItem *current = &module->items.ptr[i];
-
-            if (current->name == searching->ident->src_loc) {
-                if (!current->is_submodule)
-                    return searching->ident;
-                if (!in_original_mod && !current->submodule.is_public)
-                    return searching->ident;
-
-                if (searching->rhs->kind == AST_IDENTIFIER) {
-                    if (find_global_in(
-                        &globals->globals_per_module[current->submodule.index],
-                        ((struct IdentifierNode*)searching->rhs)->src_loc,
-                        false,
-                        constant_index_out
-                    )) {
-                        return null;
-                    }
-                    return ((struct IdentifierNode*)searching->rhs);
-                } else {
-                    module = &globals->modules->modules.ptr[current->submodule.index];
-                    searching = (struct NamespaceAccessNode*)searching->rhs;
-                    in_original_mod = false;
-                }
-                found_item = true;
-                break;
-            }
-        }
-        if (!found_item) {
-            return searching->ident;
-        }
+    if (find_global_in(
+        &globals->globals_per_module[module_index],
+        ((struct IdentifierNode*)namespace)->src_loc,
+        false,
+        constant_index_out
+    )) {
+        return null;
     }
-
-    return searching->ident;
+    return (struct IdentifierNode*)namespace;
 }
 

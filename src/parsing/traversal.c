@@ -19,10 +19,14 @@ void traverse_node(
             struct ModuleDeclNode *node = (struct ModuleDeclNode*)n;
             traverse_node(AS_NODE(node->name), arg, pre_callback, post_callback);
 
-            struct DeclarationNode *decl = node->declarations;
-            while (decl != null) {
-                traverse_node(AS_NODE(decl), arg, pre_callback, post_callback);
-                decl = decl->next_declaration;
+            if (!node->has_body && node->declarations != null) {
+                traverse_node(AS_NODE(node->declarations), arg, pre_callback, post_callback);
+            } else {
+                struct DeclarationNode *decl = node->declarations;
+                while (decl != null) {
+                    traverse_node(AS_NODE(decl), arg, pre_callback, post_callback);
+                    decl = decl->next_declaration;
+                }
             }
             struct ModuleDeclNode *submodule = node->submodules;
             while (submodule != null) {

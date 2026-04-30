@@ -92,31 +92,44 @@ static bool pop_resolution_queue(struct ModuleCtx *ctx, struct ModuleResolutionW
 static void declare_module_items(struct ModuleCtx *ctx, struct ModuleDeclNode *module, u16 module_index)
 {
     struct Module *mod = get_module(ctx, module_index);
-    struct DeclarationNode *decl = module->declarations;
-    while (decl != null) {
-        declare_item(mod, (struct ModuleItem){
-            .name = decl->name,
-            .name_len = decl->name_len,
-            .decl_node = decl,
-            .is_submodule = false,
-        });
+    if (module->has_body) {
+        struct DeclarationNode *decl = module->declarations;
+        while (decl != null) {
+            declare_item(mod, (struct ModuleItem){
+                .name = decl->name,
+                .name_len = decl->name_len,
+                .decl_node = decl,
+                .is_submodule = false,
+            });
 
-        decl = decl->next_declaration;
+            decl = decl->next_declaration;
+        }
     }
     struct ModuleDeclNode *submodule = module->submodules;
     while (submodule != null) {
         if (submodule->name == null) {
             panic("inline submodules cannot have a self module");
-        } else if (submodule->has_body == false) {
+        } else if (submodule->has_body == false && submodule->declarations == null) {
             panic("inline submodules cannot declare file modules");
         } else {
-            declare_item(mod, (struct ModuleItem){
-                .name = submodule->name->src_loc,
-                .name_len = submodule->name->len,
-                .is_submodule = true,
-                .submodule.is_public = true,
-            });
-            queue_node_resolution(ctx, submodule, module_index);
+            if (submodule->has_body) {
+                declare_item(mod, (struct ModuleItem){
+                    .name = submodule->name->src_loc,
+                    .name_len = submodule->name->len,
+                    .is_submodule = true,
+                    .submodule.is_public = true,
+                });
+                queue_node_resolution(ctx, submodule, module_index);
+            } else {
+                printf("declaring module path with name %.*s in %d\n", submodule->name->len, submodule->name->src_loc, module_index);
+                declare_item(mod, (struct ModuleItem){
+                    .name = submodule->name->src_loc,
+                    .name_len = submodule->name->len,
+                    .path = AS_NODE(submodule->declarations),
+                    .is_submodule = true,
+                    .submodule.is_public = true,
+                });
+            }
         }
         submodule = submodule->next_mod;
     }
@@ -168,13 +181,19 @@ static void resolve_top_level(struct ModuleCtx *ctx, const struct AstTopLevel *a
             continue;
         }
 
+        struct AstNode *path = null;
+        if (!submodule->has_body && submodule->declarations != null)
+            path = AS_NODE(submodule->declarations);
+
+        printf("declaring submodule in %d with name %.*s\n", mod_index, submodule->name->len, submodule->name->src_loc);
         declare_item(mod, (struct ModuleItem){
             .name = submodule->name->src_loc,
             .name_len = submodule->name->len,
             .is_submodule = true,
             .submodule.is_public = false,
+            .path = path,
         });
-        if (!submodule->has_body) {
+        if (!submodule->has_body && submodule->declarations == null) {
             queue_file_resolution(ctx, submodule->name->src_loc, submodule->name->len, mod_index);
         } else {
             queue_node_resolution(ctx, submodule, mod_index);
@@ -186,7 +205,9 @@ static void resolve_top_level(struct ModuleCtx *ctx, const struct AstTopLevel *a
 
 struct ModuleCtx resolve_ast(struct Compiler *compiler, const struct CompiledFile *file)
 {
-    struct ModuleCtx ctx = {};
+    struct ModuleCtx ctx = {
+        .super_ident = ident_table_get(&compiler->identifiers, "super", 5),
+    };
     resolve_top_level(&ctx, &file->ast, 0, "main", (u16)-1);
 
     struct ModuleResolutionWork work = {};
