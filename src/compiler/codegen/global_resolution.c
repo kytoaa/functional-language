@@ -1,7 +1,6 @@
 #include "global_resolution.h"
 #include "../../parsing/nodes.h"
 #include "../module_resolution.h"
-#include <stdio.h>
 #include <string.h>
 
 static void push_global(struct ModuleGlobals *globals, struct Global global)
@@ -83,14 +82,12 @@ static u16 find_submodule_in(struct GlobalCtx *globals, const char *ident, u16 m
         struct ModuleItem *item = &mod->items.ptr[i];
 
         if (!item->is_submodule) {
-            printf("%.*s is not a module\n", item->name_len, item->name);
             continue;
         }
         if (item->name == ident) {
             if (search_private || item->submodule.is_public) {
                 return i;
             } else {
-                printf("private\n");
                 return -1;
             }
         }
@@ -109,13 +106,15 @@ static u16 resolve_path(struct GlobalCtx *globals, struct GlobalSearch search, b
         if (searching->node.kind == AST_IDENTIFIER) {
             if (is_module) {
                 struct IdentifierNode *ident = (struct IdentifierNode*)searching;
-                printf("searching for %.*s in %d\n", ident->len, ident->src_loc, module_index);
+
+                if (ident->src_loc == globals->modules->super_ident) {
+                    return module->parent_index;
+                }
+
                 u16 submodule = find_submodule_in(globals, ident->src_loc, module_index, in_root);
 
                 if (submodule == (u16)-1)
                     return -1;
-
-                printf("exists\n");
 
                 struct ModuleItem *item = &module->items.ptr[submodule];
                 if (item->path != null) {
@@ -128,13 +127,22 @@ static u16 resolve_path(struct GlobalCtx *globals, struct GlobalSearch search, b
                         true
                     );
                 }
-                printf("found it\n");
                 return item->submodule.index;
             } else {
                 return module_index;
             }
         } else {
-            printf("searching for submodule %.*s in %d\n", searching->ident->len, searching->ident->src_loc, module_index);
+            if (searching->ident->src_loc == globals->modules->super_ident) {
+                if (module->parent_index == (u16)-1)
+                    return -1;
+
+                module_index = module->parent_index;
+                module = get_module(globals->modules, module_index);
+
+                searching = (struct NamespaceAccessNode*)searching->rhs;
+                in_root = false;
+                continue;
+            }
             u16 submodule = find_submodule_in(globals, searching->ident->src_loc, module_index, in_root);
             if (submodule == (u16)-1)
                 return -1;
@@ -142,7 +150,6 @@ static u16 resolve_path(struct GlobalCtx *globals, struct GlobalSearch search, b
             struct ModuleItem *item = &module->items.ptr[submodule];
 
             if (item->path != null) {
-                printf("%d has path, resolving\n", submodule);
                 module_index = resolve_path(
                     globals,
                     (struct GlobalSearch){
@@ -151,7 +158,6 @@ static u16 resolve_path(struct GlobalCtx *globals, struct GlobalSearch search, b
                     },
                     true
                 );
-                printf("found at module %d\n", module_index);
             } else {
                 module_index = item->submodule.index;
             }
@@ -175,16 +181,16 @@ struct IdentifierNode *resolve_global_path(
     if (module_index == (u16)-1)
         return search.searching_for->ident;
 
-    printf("returned module %d\n", module_index);
-
     struct NamespaceAccessNode *namespace = search.searching_for;
     while (namespace->node.kind != AST_IDENTIFIER)
         namespace = (struct NamespaceAccessNode*)namespace->rhs;
 
+    u16 origin_parent = get_module(globals->modules, search.origin_module)->parent_index;
+
     if (find_global_in(
         &globals->globals_per_module[module_index],
         ((struct IdentifierNode*)namespace)->src_loc,
-        false,
+        origin_parent == module_index,
         constant_index_out
     )) {
         return null;

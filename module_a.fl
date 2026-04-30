@@ -10,6 +10,7 @@ drop_ n l = case n :: l of
     | otherwise		 -> ();
 
 
+a = 2;
 mod has_a = {
-    a = 2;
+    a = super..a;
 };
