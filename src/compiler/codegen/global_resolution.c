@@ -31,6 +31,7 @@ void declare_global_decl(
     push_global(globals, (struct Global){
         .node = node,
         .constant_index = const_index,
+        .uses = 0,
         .is_public = is_public,
     });
 }
@@ -63,12 +64,25 @@ static enum GlobalResolutionError find_global_in(struct ModuleGlobals *mod, cons
         if (current->node->name == ident) {
             if (search_private || current->is_public) {
                 *const_index_out = current->constant_index;
+                current->uses += 1;
                 return GLOBAL_RES_OK;
             }
             return GLOBAL_RES_ERROR_PRIVATE;
         }
     }
     return GLOBAL_RES_ERROR_DOESNT_EXIST;
+}
+u32 global_uses(struct GlobalCtx *ctx, u16 module, const char *ident)
+{
+    struct ModuleGlobals *mod = &ctx->globals_per_module[module];
+    for (u16 i = 0; i < mod->len; i++) {
+        struct Global *current = &mod->globals[i];
+
+        if (current->node->name == ident) {
+            return current->uses;
+        }
+    }
+    return -1;
 }
 
 enum GlobalResolutionError resolve_global(struct GlobalCtx *ctx, u16 mod, const char *ident, u32 *const_index_out)

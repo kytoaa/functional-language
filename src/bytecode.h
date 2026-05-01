@@ -121,6 +121,8 @@ enum Bytecode {
     /// divides the items at the top of the stack
     /// expects `l` at top and `r` below for `l / r`
     OP_DIVIDE,
+    /// negates the number at the top of the stack
+    OP_NEGATE,
 
     /// checks the item at the top of the stack, pushes a boxed bool
     /// stack: `[val]` -> `[val, result]`

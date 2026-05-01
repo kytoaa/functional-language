@@ -3,7 +3,7 @@ mod module_a;
 mod module_b = module_a..inner;
 
 mod module_c = {
-    a = 6;
+    a = -6;
 };
 
 head l = case l of
@@ -46,5 +46,5 @@ flatten a = case a of
 fibs = 0 :: 1 :: (zipwith add fibs (tail fibs));
 fib n = head : module_a..drop n fibs;
 
-main = module_b..a;
+main = $ true;
 

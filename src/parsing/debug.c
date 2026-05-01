@@ -84,6 +84,9 @@ static void print_unary_op(struct UnaryOpNode *node)
         case AST_UN_OP_NOT:
             printf("not ");
             break;
+        case AST_UN_OP_FORCE:
+            printf("$");
+            break;
     }
     print_node(node->val);
     printf(")");

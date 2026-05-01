@@ -157,6 +157,7 @@ static struct ParseRule rules[] = {
     [TOKEN_SUB]          = { unary, binary, PREC_TERM },
     [TOKEN_MUL]          = { null, binary, PREC_FACTOR },
     [TOKEN_DIV]          = { null, binary, PREC_FACTOR },
+    [TOKEN_FORCE]        = { unary, null, PREC_APPLICATION },
 
     [TOKEN_EQUAL]        = { null, binary, PREC_COMPARISON },
     [TOKEN_GREATER]      = { null, binary, PREC_COMPARISON },
@@ -207,6 +208,9 @@ static struct AstNode *unary()
             break;
         case TOKEN_NOT:
             op = AST_UN_OP_NOT;
+            break;
+        case TOKEN_FORCE:
+            op = AST_UN_OP_FORCE;
             break;
         default:
             error(parser.prev, "unreachable");

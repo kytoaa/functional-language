@@ -68,6 +68,15 @@ const u8 DIV_BYTECODE[] = {
 };
 
 /// expected stack layout
+/// `[..cont arg]`
+const u8 NEG_BYTECODE[] = {
+    OP_EVAL,
+    OP_NEGATE,
+    OP_SWAP,
+    OP_JUMP,
+};
+
+/// expected stack layout
 /// `[..cont r l]`
 const u8 EQUAL_BYTECODE[] = {
     OP_EVAL,  // [..cont r l']
@@ -153,6 +162,22 @@ const u8 AND_BYTECODE[] = {
     OP_SWAP,
     OP_JUMP,
 };
+/// expected stack layout
+/// `[..cont arg]`
+const u8 NOT_BYTECODE[] = {
+    OP_EVAL,
+    OP_NOT,
+    OP_SWAP,
+    OP_JUMP,
+};
+
+/// expected stack layout
+/// `[..cont arg]`
+const u8 FORCE_BYTECODE[] = {
+    OP_EVAL,
+    OP_SWAP,
+    OP_JUMP,
+};
 
 const u8 APPL_CONT_BYTECODE[] = { OP_EVAL, OP_HANDLE_CONTINUATION };
 
@@ -177,6 +202,7 @@ const struct GlobalFunctionData FUNCTIONS[] = {
     [GLOBAL_FUNC_SUB]          = { SUB_BYTECODE,          arr_len(SUB_BYTECODE) },
     [GLOBAL_FUNC_MUL]          = { MUL_BYTECODE,          arr_len(MUL_BYTECODE) },
     [GLOBAL_FUNC_DIV]          = { DIV_BYTECODE,          arr_len(DIV_BYTECODE) },
+    [GLOBAL_FUNC_NEG]          = { NEG_BYTECODE,          arr_len(NEG_BYTECODE) },
     [GLOBAL_FUNC_EQUAL]        = { EQUAL_BYTECODE,        arr_len(EQUAL_BYTECODE) },
     [GLOBAL_FUNC_GREATER]      = { GREATER_BYTECODE,      arr_len(GREATER_BYTECODE) },
     [GLOBAL_FUNC_LESS]         = { LESS_BYTECODE,         arr_len(LESS_BYTECODE) },
@@ -184,6 +210,8 @@ const struct GlobalFunctionData FUNCTIONS[] = {
     [GLOBAL_FUNC_LESS_EQ]      = { LESS_EQ_BYTECODE,      arr_len(LESS_EQ_BYTECODE) },
     [GLOBAL_FUNC_OR]           = { OR_BYTECODE,           arr_len(OR_BYTECODE) },
     [GLOBAL_FUNC_AND]          = { AND_BYTECODE,          arr_len(AND_BYTECODE) },
+    [GLOBAL_FUNC_NOT]          = { NOT_BYTECODE,          arr_len(NOT_BYTECODE) },
+    [GLOBAL_FUNC_FORCE]        = { FORCE_BYTECODE,        arr_len(FORCE_BYTECODE) },
     [GLOBAL_FUNC_APPL_CONT]    = { APPL_CONT_BYTECODE,    arr_len(APPL_CONT_BYTECODE) },
     [GLOBAL_FUNC_UPDATE_THUNK] = { UPDATE_THUNK_BYTECODE, arr_len(UPDATE_THUNK_BYTECODE) },
     [GLOBAL_FUNC_ERROR]        = { ERROR_BYTECODE,        arr_len(ERROR_BYTECODE) },

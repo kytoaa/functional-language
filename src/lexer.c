@@ -242,6 +242,9 @@ struct Token next_token()
         case '/':
             return make_token(TOKEN_DIV);
 
+        case '$':
+            return make_token(TOKEN_FORCE);
+
         case ':':
             return make_token(match(':') ? TOKEN_DOUBLE_COLON : TOKEN_COLON);
 

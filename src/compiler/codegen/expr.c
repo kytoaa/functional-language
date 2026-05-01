@@ -147,6 +147,36 @@ void compile_bin_op(struct Context *ctx, struct BinOpNode *node)
     }
 }
 
+void compile_unary_op(struct Context *ctx, struct UnaryOpNode *node)
+{
+    emit_byte(ctx, OP_PUSH_U64);
+    u32 jump_location = get_last_bytecode_index(ctx) + 1;
+    emit_u64(ctx, 0);
+
+    compile_expr(ctx, node->val);
+
+    emit_byte(ctx, OP_JUMP_GLOBALS);
+    u8 op = GLOBAL_FUNC_ADD;
+    switch (node->op) {
+        case AST_UN_OP_NEG:
+            op = GLOBAL_FUNC_NEG;
+            break;
+        case AST_UN_OP_NOT:
+            op = GLOBAL_FUNC_NOT;
+            break;
+        case AST_UN_OP_FORCE:
+            op = GLOBAL_FUNC_FORCE;
+            break;
+    }
+
+    emit_byte(ctx, op);
+    u64 end_location = get_last_bytecode_index(ctx) + 1;
+    u8 *jump_addr_bytes = get_bytecode_byte(ctx, jump_location);
+    for (u8 i = 0; i < 8; i++) {
+        jump_addr_bytes[i] = ((u8*)&end_location)[i];
+    }
+}
+
 void compile_if_expr(struct Context *ctx, struct IfExprNode *node)
 {
     compile_expr(ctx, node->condition);
@@ -461,6 +491,9 @@ void compile_expr(struct Context *ctx, struct AstNode *node)
             break;
         case AST_BIN_OP:
             compile_bin_op(ctx, (struct BinOpNode*)node);
+            break;
+        case AST_UNARY_OP:
+            compile_unary_op(ctx, (struct UnaryOpNode*)node);
             break;
         case AST_LET_EXPR:
             compile_let_expr(ctx, (struct LetExprNode*)node);

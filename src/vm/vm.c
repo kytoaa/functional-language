@@ -359,6 +359,16 @@ next_instruction:
             NUM_BIN_OP(/);
             break;
         }
+        case OP_NEGATE:{
+            Val arg = pop_val();
+            typecheck(arg, VALUE_INT, "expected a number for '-' arg");
+            struct Box *arg_box = (struct Box*)arg;
+            i32 result = -arg_box->val.as.integer;
+            struct Box *result_box = obj_create_box();
+            result_box->val = INT_VAL(result);
+            push_val(TO_OBJ(result_box));
+            break;
+        }
 
         case OP_LESS:{
             COMPARISON_BIN_OP(<);

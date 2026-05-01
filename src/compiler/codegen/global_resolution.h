@@ -6,6 +6,7 @@
 struct Global {
     struct DeclarationNode *node;
     u32 constant_index;
+    u32 uses;
     bool is_public;
 };
 
@@ -58,6 +59,7 @@ struct GlobalResolutionResult resolve_global_path(
 );
 
 enum GlobalResolutionError resolve_global(struct GlobalCtx *ctx, u16 mod, const char *ident, u32 *const_index_out);
+u32 global_uses(struct GlobalCtx *ctx, u16 module, const char *ident);
 
 
 #endif

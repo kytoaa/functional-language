@@ -108,6 +108,7 @@ static const char *OP_NAMES[] = {
     [OP_SUBTRACT] = "OP_SUBTRACT",
     [OP_MULTIPLY] = "OP_MULTIPLY",
     [OP_DIVIDE] = "OP_DIVIDE",
+    [OP_NEGATE] = "OP_NEGATE",
     [OP_IS_CONS] = "OP_IS_CONS",
     [OP_IS_INT] = "OP_IS_INT",
     [OP_IS_BOOL] = "OP_IS_BOOL",

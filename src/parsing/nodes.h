@@ -65,6 +65,7 @@ struct BinOpNode {
 enum AstUnaryOp {
     AST_UN_OP_NEG,
     AST_UN_OP_NOT,
+    AST_UN_OP_FORCE,
 };
 
 struct UnaryOpNode {
