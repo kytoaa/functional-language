@@ -3,7 +3,6 @@
 #include "global_resolution.h"
 #include "pattern_matching.h"
 #include "../builtins.h"
-#include <stdio.h>
 
 // starts with + to ensure no clashes
 static const char *SELF_IDENT = "+closure_self";
@@ -407,10 +406,18 @@ void namespace_access_expr(struct Context *ctx, struct NamespaceAccessNode *node
 
     if (result.error != GLOBAL_RES_OK) {
         const char *msg = null;
-        if (result.error == GLOBAL_RES_ERROR_PRIVATE) {
-            msg = "identifier is private";
-        } else if (result.error == GLOBAL_RES_ERROR_ROOT_SUPER) {
-            msg = "tried to get 'super' of the root module";
+        switch (result.error) {
+            case GLOBAL_RES_ERROR_PRIVATE:
+                msg = "identifier is private";
+                break;
+            case GLOBAL_RES_ERROR_ROOT_SUPER:
+                msg = "tried to get 'super' of the root module";
+                break;
+            case GLOBAL_RES_ERROR_RECURSION_LIMIT:
+                msg = "reached recursion limit trying to evaluate path";
+                break;
+            default:
+                break;
         }
         non_existent_ident_err(ctx, result.error_finding->node.loc, msg);
         return;

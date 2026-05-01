@@ -11,10 +11,12 @@ void init_context(struct Context *ctx, struct Context *parent)
     ctx->parent = parent;
     ctx->identifier_table = parent->identifier_table;
     ctx->compiling_chunk = parent->compiling_chunk;
+
     ctx->errors = parent->errors;
     ctx->globals = parent->globals;
     ctx->ident_stack_len = 0;
     ctx->capture_stack_len = 0;
+    ctx->module_index = parent->module_index;
 }
 void end_context(struct Context *ctx)
 {

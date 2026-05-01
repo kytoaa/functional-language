@@ -6,6 +6,9 @@
 #include "file_compilation.h"
 #include <stdio.h>
 
+#define ERROR_STR "\x1b[1;91merror\x1b[0m:"
+#define ARROW_STR "\x1b[96m-->\x1b[0m"
+
 struct LineIdentPrintInfo {
     /// index within the file
     u32 line_start;
@@ -54,16 +57,16 @@ static struct LineIdentPrintInfo ident_info(const char *src, struct Location loc
 static void print_ident(FILE *err, const char *src, struct Location loc)
 {
     struct LineIdentPrintInfo ident = ident_info(src, loc);
-    fprintf(err, "    |\n%-4d| ", loc.line);
+    fprintf(err, "\x1b[96m    |\n%-4d|\x1b[0m ", loc.line);
     fprintf(err, "%.*s\n", ident.line_len, &src[ident.line_start]);
-    fprintf(err, "    | ");
+    fprintf(err, "    \x1b[96m|\x1b[0m ");
     for (u32 i = 0; i < ident.ident_start; i++) {
-        fprintf(err, " ");
+        fprintf(err, " \x1b[32m");
     }
     for (u32 i = 0; i < ident.ident_len; i++) {
         fprintf(err, "^");
     }
-    fprintf(err, "\n");
+    fprintf(err, "\x1b[0m\n");
 }
 
 void print_codegen_error(struct Compiler *compiler, struct CodegenError error)
@@ -74,7 +77,7 @@ void print_codegen_error(struct Compiler *compiler, struct CodegenError error)
         case CODEGEN_ERR_NON_EXISTENT_IDENT:{
             fprintf(
                 config->error,
-                "error: non existent identifier\n --> %.*s:%d\n",
+                ERROR_STR " non existent identifier\n "ARROW_STR" %.*s:%d\n",
                 config->file_name_len, config->file_name,
                 error.error.non_existent_identifier.loc.line
             );
@@ -88,7 +91,7 @@ void print_codegen_error(struct Compiler *compiler, struct CodegenError error)
         case CODEGEN_ERR_USED_UNDERSCORE:{
             fprintf(
                 config->error,
-                "error: '_' is not a valid identifier\n --> %.*s:%d\n",
+                ERROR_STR " '_' is not a valid identifier\n "ARROW_STR" %.*s:%d\n",
                 config->file_name_len, config->file_name,
                 error.error.used_underscore.loc.line
             );
@@ -102,7 +105,7 @@ void print_codegen_error(struct Compiler *compiler, struct CodegenError error)
         case CODEGEN_ERR_REDECLARED_GLOBAL:{
             fprintf(
                 config->error,
-                "error: redeclared global\n --> %.*s:%d\n",
+                ERROR_STR " redeclared global\n "ARROW_STR" %.*s:%d\n",
                 config->file_name_len, config->file_name,
                 error.error.redeclared_global.loc.line
             );
@@ -113,7 +116,7 @@ void print_codegen_error(struct Compiler *compiler, struct CodegenError error)
             );
             fprintf(
                 config->error,
-                "previously declared here:\n --> %.*s:%d\n",
+                "previously declared here:\n "ARROW_STR" %.*s:%d\n",
                 config->file_name_len, config->file_name,
                 error.error.redeclared_global.prev_decl_loc.line
             );
@@ -127,7 +130,7 @@ void print_codegen_error(struct Compiler *compiler, struct CodegenError error)
         case CODEGEN_ERR_MULTIPLE_MAIN_DECL:{
             fprintf(
                 config->error,
-                "error: main declared multiple times\n --> %.*s:%d\n",
+                ERROR_STR " main declared multiple times\n "ARROW_STR" %.*s:%d\n",
                 config->file_name_len, config->file_name,
                 error.error.redeclared_global.loc.line
             );
@@ -138,7 +141,7 @@ void print_codegen_error(struct Compiler *compiler, struct CodegenError error)
             );
             fprintf(
                 config->error,
-                "previously declared here:\n --> %.*s:%d\n",
+                "previously declared here:\n "ARROW_STR" %.*s:%d\n",
                 config->file_name_len, config->file_name,
                 error.error.redeclared_global.prev_decl_loc.line
             );
@@ -152,7 +155,7 @@ void print_codegen_error(struct Compiler *compiler, struct CodegenError error)
         case CODEGEN_ERR_MAIN_ARGS:{
             fprintf(
                 config->error,
-                "error: main cannot have arguments\n --> %.*s:%d\n",
+                ERROR_STR " main cannot have arguments\n "ARROW_STR" %.*s:%d\n",
                 config->file_name_len, config->file_name,
                 error.error.main_args.loc.line
             );
@@ -165,7 +168,7 @@ void print_codegen_error(struct Compiler *compiler, struct CodegenError error)
         }
     }
     if (error.additional_msg != null) {
-        fprintf(config->error, "note: %s\n", error.additional_msg);
+        fprintf(config->error, "\x1b[1;37mnote\x1b[0m: %s\n", error.additional_msg);
     }
 }
 
@@ -173,15 +176,15 @@ void print_err(const struct CompilerConfig *config, const struct ParseError *err
 {
     FILE *output = config->error;
 
-    fprintf(output, "error: ");
+    fprintf(output, ERROR_STR " ");
     if (err->token.type == TOKEN_ERROR) {
         fprintf(output, "%.*s\n", err->token.len, err->token.start);
-        fprintf(output, " --> %.*s:%d\n", file.file_name_len, file.file_name, err->token.line);
+        fprintf(output, " "ARROW_STR" %.*s:%d\n", file.file_name_len, file.file_name, err->token.line);
     } else {
         fprintf(output, "%s\n", err->msg);
         fprintf(
             output,
-            " --> %.*s:%d\n",
+            " "ARROW_STR" %.*s:%d\n",
             file.file_name_len,
             file.file_name,
             err->token.line

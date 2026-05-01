@@ -3,6 +3,8 @@
 #include "../module_resolution.h"
 #include <string.h>
 
+#define PATH_RESOLUTION_RECURSION_LIMIT 32
+
 static void push_global(struct ModuleGlobals *globals, struct Global global)
 {
     if (globals->len == globals->cap) {
@@ -107,8 +109,14 @@ static struct FindSubmodule find_submodule_in(struct GlobalCtx *globals, const c
     };
 }
 
-static struct GlobalResolutionResult resolve_path(struct GlobalCtx *globals, struct GlobalSearch search, bool is_module)
+static struct GlobalResolutionResult resolve_path(struct GlobalCtx *globals, struct GlobalSearch search, bool is_module, u16 current_depth)
 {
+    if (current_depth >= PATH_RESOLUTION_RECURSION_LIMIT) {
+        return (struct GlobalResolutionResult){
+            .error_finding = search.searching_for->ident,
+            .error = GLOBAL_RES_ERROR_RECURSION_LIMIT,
+        };
+    }
     u16 module_index = search.origin_module;
     struct Module *module = get_module(globals->modules, module_index);
     struct NamespaceAccessNode *searching = search.searching_for;
@@ -144,7 +152,8 @@ static struct GlobalResolutionResult resolve_path(struct GlobalCtx *globals, str
                             .searching_for = (struct NamespaceAccessNode*)item->path,
                             .origin_module = module_index,
                         },
-                        true
+                        true,
+                        current_depth + 1
                     );
                 }
                 return (struct GlobalResolutionResult){
@@ -190,7 +199,8 @@ static struct GlobalResolutionResult resolve_path(struct GlobalCtx *globals, str
                         .searching_for = (struct NamespaceAccessNode*)item->path,
                         .origin_module = module_index,
                     },
-                    true
+                    true,
+                    current_depth + 1
                 );
                 if (result.error_finding != null) {
                     return result;
@@ -215,7 +225,7 @@ struct GlobalResolutionResult resolve_global_path(
     struct GlobalSearch search,
     u32 *constant_index_out
 ) {
-    struct GlobalResolutionResult result = resolve_path(globals, search, false);
+    struct GlobalResolutionResult result = resolve_path(globals, search, false, 0);
     if (result.error_finding != null)
         return result;
 
@@ -225,14 +235,15 @@ struct GlobalResolutionResult resolve_global_path(
     while (namespace->node.kind != AST_IDENTIFIER)
         namespace = (struct NamespaceAccessNode*)namespace->rhs;
 
-    u16 origin_parent = get_module(globals->modules, search.origin_module)->parent_index;
+    u16 parent_index = get_module(globals->modules, search.origin_module)->parent_index;
 
     enum GlobalResolutionError item_result = find_global_in(
         &globals->globals_per_module[module_index],
         ((struct IdentifierNode*)namespace)->src_loc,
-        origin_parent == module_index || module_index == search.origin_module,
+        module_index == parent_index || module_index == search.origin_module,
         constant_index_out
     );
+
     if (item_result == GLOBAL_RES_OK) {
         return (struct GlobalResolutionResult){
             .error_finding = null,

@@ -43,6 +43,7 @@ enum GlobalResolutionError {
     GLOBAL_RES_ERROR_DOESNT_EXIST,
     GLOBAL_RES_ERROR_PRIVATE,
     GLOBAL_RES_ERROR_ROOT_SUPER,
+    GLOBAL_RES_ERROR_RECURSION_LIMIT,
 };
 
 struct GlobalResolutionResult {

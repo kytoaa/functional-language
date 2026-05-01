@@ -2,7 +2,6 @@
 #include "codegen.h"
 #include "../module_resolution.h"
 #include "../file_compilation.h"
-#include <stdio.h>
 
 static void global_decl(struct ModuleGlobals *globals, struct Chunk *chunk, struct DeclarationNode *node, bool is_public)
 {
