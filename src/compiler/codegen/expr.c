@@ -88,7 +88,8 @@ void compile_literal(struct Context *ctx, struct LiteralNode *node)
 
 void compile_bin_op(struct Context *ctx, struct BinOpNode *node)
 {
-    emit_byte(ctx, OP_PUSH_U64);
+    emit_2_bytes(ctx, OP_PUSH_REG_STACK, INSTRUCTION_PTR);
+    emit_byte(ctx, OP_U64_ADD);
     u32 jump_location = get_last_bytecode_index(ctx) + 1;
     emit_u64(ctx, 0);
 
@@ -142,14 +143,19 @@ void compile_bin_op(struct Context *ctx, struct BinOpNode *node)
     emit_byte(ctx, op);
     u64 end_location = get_last_bytecode_index(ctx) + 1;
     u8 *jump_addr_bytes = get_bytecode_byte(ctx, jump_location);
+
+    // jump distance + size of OP_U64_ADD
+    i64 jump_diff = end_location - jump_location + 1;
+    u8 *jump_diff_bytes = (u8*)&jump_diff;
     for (u8 i = 0; i < 8; i++) {
-        jump_addr_bytes[i] = ((u8*)&end_location)[i];
+        jump_addr_bytes[i] = jump_diff_bytes[i];
     }
 }
 
 void compile_unary_op(struct Context *ctx, struct UnaryOpNode *node)
 {
-    emit_byte(ctx, OP_PUSH_U64);
+    emit_2_bytes(ctx, OP_PUSH_REG_STACK, INSTRUCTION_PTR);
+    emit_byte(ctx, OP_U64_ADD);
     u32 jump_location = get_last_bytecode_index(ctx) + 1;
     emit_u64(ctx, 0);
 
@@ -172,8 +178,12 @@ void compile_unary_op(struct Context *ctx, struct UnaryOpNode *node)
     emit_byte(ctx, op);
     u64 end_location = get_last_bytecode_index(ctx) + 1;
     u8 *jump_addr_bytes = get_bytecode_byte(ctx, jump_location);
+
+    // jump distance + size of OP_U64_ADD
+    i64 jump_diff = end_location - jump_location + 1;
+    u8 *jump_diff_bytes = (u8*)&jump_diff;
     for (u8 i = 0; i < 8; i++) {
-        jump_addr_bytes[i] = ((u8*)&end_location)[i];
+        jump_addr_bytes[i] = jump_diff_bytes[i];
     }
 }
 

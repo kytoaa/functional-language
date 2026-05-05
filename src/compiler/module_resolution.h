@@ -58,12 +58,6 @@ struct ModuleCtx {
         u32 cap;
     } modules;
 
-    struct {
-        struct ModuleResolutionWork *ptr;
-        u32 len;
-        u32 cap;
-    } worklist;
-
     const char *super_ident;
 };
 
