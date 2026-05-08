@@ -14,6 +14,7 @@ void init_context(struct Context *ctx, struct Context *parent)
 
     ctx->errors = parent->errors;
     ctx->globals = parent->globals;
+    ctx->remapping_queue = parent->remapping_queue;
     ctx->ident_stack_len = 0;
     ctx->capture_stack_len = 0;
     ctx->module_index = parent->module_index;
@@ -258,4 +259,21 @@ void used_underscore_err(struct Context *ctx, struct Location loc, const char *m
         .error = { .main_args = { .loc = loc } }
     });
 }
-
+void namespace_access_error(struct Context *ctx, struct GlobalResolutionResult error)
+{
+    const char *msg = null;
+    switch (error.error) {
+        case GLOBAL_RES_ERROR_PRIVATE:
+            msg = "identifier is private";
+            break;
+        case GLOBAL_RES_ERROR_ROOT_SUPER:
+            msg = "tried to get 'super' of the root module";
+            break;
+        case GLOBAL_RES_ERROR_RECURSION_LIMIT:
+            msg = "reached recursion limit trying to evaluate path";
+            break;
+        default:
+            break;
+    }
+    non_existent_ident_err(ctx, error.error_finding->node.loc, msg);
+}

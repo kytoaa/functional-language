@@ -3,12 +3,11 @@
 #include "../../vm/extern_functions.h"
 #include "global_pass.h"
 #include "global_resolution.h"
+#include "remapping.h"
 
-static void compile_top_level_decl(struct Context *ctx, struct DeclarationNode *node)
+static u32 compile_top_level_decl(struct Context *ctx, struct DeclarationNode *node)
 {
-    u32 global_const_index = 0;
-    resolve_global(ctx->globals, ctx->module_index, node->name, &global_const_index);
-
+    printf("compiling %.*s in %d\n", node->name_len, node->name, ctx->module_index);
     u32 function_start_index = get_last_bytecode_index(ctx) + 1;
 
     if (node->body->kind == AST_LAMBDA) {
@@ -29,7 +28,8 @@ static void compile_top_level_decl(struct Context *ctx, struct DeclarationNode *
         emit_byte(ctx, OP_SWAP);
         emit_byte(ctx, OP_JUMP);
 
-        struct Closure *const_closure = (struct Closure*)get_constant(ctx, global_const_index);
+        u32 constant_index = create_constant(ctx->compiling_chunk, OBJ_CLOSURE, sizeof(struct Closure));
+        struct Closure *const_closure = (struct Closure*)get_constant(ctx, constant_index);
 
         u16 closure_info = create_closure_info(ctx, (struct ClosureInfo){
             .arity = bindings,
@@ -38,12 +38,21 @@ static void compile_top_level_decl(struct Context *ctx, struct DeclarationNode *
         });
 
         const_closure->info = (struct ClosureInfo*)(u64)closure_info;
+
+        set_global_decl_const_index(
+            get_module_globals(ctx->globals, ctx->module_index),
+            node,
+            constant_index
+        );
+
+        return constant_index;
     } else {
         compile_expr(ctx, node->body);
         emit_byte(ctx, OP_SWAP);
         emit_byte(ctx, OP_JUMP);
 
-        struct Thunk *const_thunk = (struct Thunk*)get_constant(ctx, global_const_index);
+        u32 constant_index = create_constant(ctx->compiling_chunk, OBJ_THUNK, sizeof(struct Thunk));
+        struct Thunk *const_thunk = (struct Thunk*)get_constant(ctx, constant_index);
 
         u16 closure_info = create_closure_info(ctx, (struct ClosureInfo){
             .arity = 0,
@@ -53,7 +62,54 @@ static void compile_top_level_decl(struct Context *ctx, struct DeclarationNode *
 
         const_thunk->evaluated = null;
         const_thunk->info = (struct ClosureInfo*)(u64)closure_info;
+
+        set_global_decl_const_index(
+            get_module_globals(ctx->globals, ctx->module_index),
+            node,
+            constant_index
+        );
+
+        return constant_index;
     }
+}
+
+static bool try_remap_from_globals(struct Context *ctx, struct GlobalCtx *globals, struct RemappingWork remapping)
+{
+    u32 constant_index = 0;
+
+    if (remapping.is_namespace) {
+        struct GlobalResolutionResult result = resolve_global_path(
+            globals,
+            (struct GlobalSearch){
+                .searching_for = remapping.namespace_access,
+                .origin_module = remapping.searching_from_module,
+            },
+            &constant_index
+        );
+        if (result.error != GLOBAL_RES_OK) {
+            namespace_access_error(ctx, result);
+            return false;
+        }
+        if (constant_index == -1) {
+            return false;
+        }
+    } else {
+        enum GlobalResolutionError error = resolve_global(globals, remapping.searching_from_module, remapping.identifier->src_loc, &constant_index);
+        if (error != GLOBAL_RES_OK) {
+            non_existent_ident_err(ctx, remapping.identifier->node.loc, null);
+            return false;
+        }
+        if (constant_index == -1) {
+            return false;
+        }
+    }
+
+    u8 *constant_index_bytes = get_bytecode_byte(ctx, remapping.bytecode_index);
+
+    for (u32 i = 0; i < 4; i++) {
+        constant_index_bytes[i] = ((u8*)&constant_index)[i];
+    }
+    return true;
 }
 
 struct CodegenErrorList generate_code(struct Compiler *compiler, struct ModuleCtx *modules)
@@ -64,45 +120,28 @@ struct CodegenErrorList generate_code(struct Compiler *compiler, struct ModuleCt
 
     struct CodegenErrorList errors = {};
 
+    struct RemappingQueue remapping_queue = {};
+
     struct Context ctx = {
         .parent = null,
         .identifier_table = &compiler->identifiers,
         .compiling_chunk = &compiler->chunk,
         .errors = &errors,
         .globals = &globals,
+        .remapping_queue = &remapping_queue,
         .module_index = 0,
     };
 
-    emit_byte(&ctx, OP_PUSH_U64);
-    u32 main_jump_location = get_last_bytecode_index(&ctx) + 1;
-    emit_u64(&ctx, 0);
-    emit_byte(&ctx, OP_JUMP);
-
-    struct DeclarationNode *main_decl = null;
-
-    for (u16 module = 0; module < globals.len; module++) {
-        ctx.module_index = module;
-        struct ModuleGlobals *mod = get_module_globals(&globals, module);
-
-        for (u32 i = 0; i < mod->len; i++) {
-            struct Global *global = &mod->globals[i];
-            if (module == 0 && global->node->name == main_ident) {
-                main_decl = global->node;
-                continue;
-            }
-            compile_top_level_decl(&ctx, mod->globals[i].node);
+    struct DeclarationNode *main_decl = (struct DeclarationNode*)get_compiled_file(compiler, 0)->ast.declarations;
+    while (main_decl != null) {
+        if (main_decl->name == main_ident) {
+            break;
         }
+        main_decl = main_decl->next_declaration;
     }
 
     if (main_ident != null && main_decl != null) {
         ctx.module_index = 0;
-
-        u64 main_start_addr = get_last_bytecode_index(&ctx) + 1;
-        u8 *main_start_addr_bytes = (u8*)&main_start_addr;
-        u8 *main_jump_location_bytes = get_bytecode_byte(&ctx, main_jump_location);
-        for (u8 i = 0; i < 8; i++) {
-            main_jump_location_bytes[i] = main_start_addr_bytes[i];
-        }
 
         compile_expr(&ctx, main_decl->body);
 
@@ -111,6 +150,39 @@ struct CodegenErrorList generate_code(struct Compiler *compiler, struct ModuleCt
         emit_u64(&ctx, (u64)print_stack_val);
     }
     emit_byte(&ctx, OP_END);
+
+    while (remapping_queue.len > 0) {
+        struct RemappingWork remapping = dequeue_remapping_work(&remapping_queue);
+
+        if (try_remap_from_globals(&ctx, &globals, remapping)) {
+            continue;
+        }
+        if (errors.len > 0) {
+            break;
+        }
+
+        struct DeclarationNode *decl_node = null;
+
+        u16 module_index = 0;
+        struct GlobalResolutionResult result = find_global_decl(
+            &globals,
+            remapping.is_namespace ? AS_NODE(remapping.namespace_access) : AS_NODE(remapping.identifier),
+            remapping.searching_from_module,
+            &decl_node,
+            &module_index
+        );
+        if (result.error != GLOBAL_RES_OK) {
+            namespace_access_error(&ctx, result);
+        }
+
+        ctx.module_index = module_index;
+        u32 constant_index = compile_top_level_decl(&ctx, decl_node);
+
+        u8 *bytecode_ptr = get_bytecode_byte(&ctx, remapping.bytecode_index);
+        for (u32 i = 0; i < 4; i++) {
+            bytecode_ptr[i] = ((u8*)&constant_index)[i];
+        }
+    }
 
     return errors;
 }

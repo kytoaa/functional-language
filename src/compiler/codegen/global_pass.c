@@ -1,18 +1,10 @@
 #include "global_resolution.h"
-#include "codegen.h"
 #include "../module_resolution.h"
 #include "../file_compilation.h"
 
 static void global_decl(struct ModuleGlobals *globals, struct Chunk *chunk, struct DeclarationNode *node, bool is_public)
 {
-    u32 constant_index = 0;
-    if (node->body->kind == AST_LAMBDA) {
-        constant_index = create_constant(chunk, OBJ_CLOSURE, sizeof(struct Closure));
-    } else {
-        constant_index = create_constant(chunk, OBJ_THUNK, sizeof(struct Thunk));
-    }
-
-    declare_global_decl(globals, node, constant_index, is_public);
+    declare_global_decl(globals, node, -1, is_public);
 }
 
 static void run_global_pass_on(

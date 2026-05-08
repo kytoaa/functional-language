@@ -8,6 +8,7 @@
 #include "../../bytecode.h"
 #include "../../object.h"
 #include "global_resolution.h"
+#include "remapping.h"
 
 #define IDENT_STACK_SIZE 128
 
@@ -67,6 +68,7 @@ struct Context {
     struct Capture capture_stack[IDENT_STACK_SIZE];
     struct CodegenErrorList *errors;
     struct GlobalCtx *globals;
+    struct RemappingQueue *remapping_queue;
     u32 ident_stack_len;
     u32 capture_stack_len;
     u16 module_index;
@@ -80,6 +82,8 @@ void redeclared_global_err(struct Context *ctx, struct Location loc, struct Loca
 void main_args_err(struct Context *ctx, struct Location loc, const char *msg);
 void multiple_main_decl_err(struct Context *ctx, struct Location loc, struct Location prev_decl_loc, const char *msg);
 void used_underscore_err(struct Context *ctx, struct Location loc, const char *msg);
+
+void namespace_access_error(struct Context *ctx, struct GlobalResolutionResult error);
 
 struct IdentSearchResult {
     /// ident offset from the top of the binding stack, 0 being top

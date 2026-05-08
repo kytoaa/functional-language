@@ -3,6 +3,7 @@
 #include "global_resolution.h"
 #include "pattern_matching.h"
 #include "../builtins.h"
+#include "remapping.h"
 
 // starts with + to ensure no clashes
 static const char *SELF_IDENT = "+closure_self";
@@ -42,8 +43,16 @@ void compile_identifier(struct Context *ctx, struct IdentifierNode *node)
             &global_index
         );
 
+        emit_byte(ctx, OP_PUSH_CONST);
         if (result == GLOBAL_RES_OK) {
-            emit_byte(ctx, OP_PUSH_CONST);
+            if (global_index == -1) {
+                enqueue_remapping_work(ctx->remapping_queue, (struct RemappingWork){
+                    .identifier = node,
+                    .bytecode_index = get_last_bytecode_index(ctx) + 1,
+                    .searching_from_module = ctx->module_index,
+                    .is_namespace = false,
+                });
+            }
             emit_u32(ctx, global_index);
         } else {
             non_existent_ident_err(ctx, node->node.loc, null);
@@ -445,25 +454,19 @@ void namespace_access_expr(struct Context *ctx, struct NamespaceAccessNode *node
     );
 
     if (result.error != GLOBAL_RES_OK) {
-        const char *msg = null;
-        switch (result.error) {
-            case GLOBAL_RES_ERROR_PRIVATE:
-                msg = "identifier is private";
-                break;
-            case GLOBAL_RES_ERROR_ROOT_SUPER:
-                msg = "tried to get 'super' of the root module";
-                break;
-            case GLOBAL_RES_ERROR_RECURSION_LIMIT:
-                msg = "reached recursion limit trying to evaluate path";
-                break;
-            default:
-                break;
-        }
-        non_existent_ident_err(ctx, result.error_finding->node.loc, msg);
+        namespace_access_error(ctx, result);
         return;
     }
 
     emit_byte(ctx, OP_PUSH_CONST);
+    if (constant_index == -1) {
+        enqueue_remapping_work(ctx->remapping_queue, (struct RemappingWork){
+            .namespace_access = node,
+            .bytecode_index = get_last_bytecode_index(ctx) + 1,
+            .searching_from_module = ctx->module_index,
+            .is_namespace = true,
+        });
+    }
     emit_u32(ctx, constant_index);
 }
 

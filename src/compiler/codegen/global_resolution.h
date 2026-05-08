@@ -38,6 +38,11 @@ void declare_global_decl(
     u32 const_index,
     bool is_public
 );
+void set_global_decl_const_index(
+    struct ModuleGlobals *globals,
+    struct DeclarationNode *node,
+    u32 const_index
+);
 
 enum GlobalResolutionError {
     GLOBAL_RES_OK,
@@ -58,8 +63,17 @@ struct GlobalResolutionResult resolve_global_path(
     u32 *constant_index_out
 );
 
+struct GlobalResolutionResult find_global_decl(
+    struct GlobalCtx *globals,
+    struct AstNode *search_for,
+    u16 search_from_module,
+    struct DeclarationNode **out,
+    u16 *out_mod
+);
+
 enum GlobalResolutionError resolve_global(struct GlobalCtx *ctx, u16 mod, const char *ident, u32 *const_index_out);
 u32 global_uses(struct GlobalCtx *ctx, u16 module, const char *ident);
 
+struct GlobalResolutionResult get_module_index_for(struct GlobalCtx *globals, struct GlobalSearch search);
 
 #endif
