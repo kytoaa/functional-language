@@ -56,7 +56,9 @@ void compile_case_expression(struct Context *ctx, struct CaseExprNode *node)
     emit_byte(ctx, OP_PUSH_U64);
     emit_u64(ctx, (u64)"could not match any pattern\n");
     emit_byte(ctx, OP_CALL_EXTERN);
-    emit_u64(ctx, (u64)print_c_string);
+    emit_byte(ctx, VM_EXTERN_FUNC_STDERR);
+    emit_byte(ctx, OP_CALL_EXTERN);
+    emit_byte(ctx, VM_EXTERN_FUNC_WRITE_C_STRING);
     emit_2_bytes(ctx, OP_JUMP_GLOBALS, GLOBAL_FUNC_ERROR);
     u32 success_end_addr = get_last_bytecode_index(ctx) + 1;
     i16 success_diff = (i32)success_end_addr - (i32)(success_jump_index + 2);

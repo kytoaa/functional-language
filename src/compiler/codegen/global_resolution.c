@@ -60,6 +60,16 @@ void init_global_ctx(struct GlobalCtx *globals, struct ModuleCtx *modules)
         .len = modules->modules.count,
     };
 }
+void free_global_ctx(struct GlobalCtx *globals)
+{
+    for (u32 i = 0; i < globals->len; i++) {
+        free_mem(globals->globals_per_module[i].globals);
+    }
+    free_mem(globals->globals_per_module);
+    globals->len = 0;
+    globals->globals_per_module = null;
+}
+
 struct ModuleGlobals *get_module_globals(struct GlobalCtx *globals, u16 mod)
 {
     if (mod >= globals->len)
@@ -139,6 +149,17 @@ static struct FindSubmodule find_submodule_in(
         .result = GLOBAL_RES_ERROR_DOESNT_EXIST,
     };
 }
+static bool find_library(struct GlobalCtx *globals, const char *name, u16 *out)
+{
+    for (u16 i = 0; i < globals->modules->libraries.count; i++) {
+        struct Library *library = &globals->modules->libraries.ptr[i];
+        if (library->name == name) {
+            *out = library->module_index;
+            return true;
+        }
+    }
+    return false;
+}
 
 static struct GlobalResolutionResult resolve_path(
     struct GlobalCtx *globals,
@@ -172,6 +193,13 @@ static struct GlobalResolutionResult resolve_path(
                 struct FindSubmodule result = find_submodule_in(globals, ident->src_loc, module_index, in_root);
 
                 if (result.result != GLOBAL_RES_OK) {
+                    u16 module_index = 0;
+                    if (find_library(globals, ident->src_loc, &module_index)) {
+                        return (struct GlobalResolutionResult){
+                            .error_finding = null,
+                            .error = module_index,
+                        };
+                    }
                     return (struct GlobalResolutionResult){
                         .error_finding = ident,
                         .error = result.result,
@@ -217,11 +245,18 @@ static struct GlobalResolutionResult resolve_path(
                 continue;
             }
             struct FindSubmodule result = find_submodule_in(globals, searching->ident->src_loc, module_index, in_root);
+
             if (result.result != GLOBAL_RES_OK) {
-                return (struct GlobalResolutionResult){
-                    .error_finding = searching->ident,
-                    .error = result.result,
-                };
+                u16 module = 0;
+                if (find_library(globals, searching->ident->src_loc, &module)) {
+                    module_index = module;
+                    goto found_module;
+                } else {
+                    return (struct GlobalResolutionResult){
+                        .error_finding = searching->ident,
+                        .error = result.result,
+                    };
+                }
             }
             u16 submodule = result.module;
 
@@ -247,6 +282,7 @@ static struct GlobalResolutionResult resolve_path(
             if (module_index == (u16)-1)
                 panic("unreachable");
 
+        found_module:
             searching = (struct NamespaceAccessNode*)searching->rhs;
 
             module = get_module(globals->modules, module_index);

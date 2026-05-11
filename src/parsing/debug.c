@@ -105,12 +105,22 @@ static void print_identifier(struct IdentifierNode *node)
     printf("%.*s", node->len, node->src_loc);
 }
 
+static void print_attribute(struct AttributeNode *node)
+{
+    printf("@");
+    print_identifier(node->ident);
+    if (node->body != null) {
+        printf("(");
+        print_node(node->body);
+        printf(")");
+    }
+}
+
 static void print_namespace_access(struct NamespaceAccessNode *node)
 {
     print_identifier(node->ident);
-    printf("..(");
+    printf("..");
     print_node(node->rhs);
-    printf(")");
 }
 
 static void print_lambda(struct LambdaNode *node)
@@ -221,6 +231,10 @@ static void print_node(struct AstNode *node)
 
         case AST_DECLARATION:
             print_declaration((struct DeclarationNode*)node);
+            break;
+
+        case AST_ATTR:
+            print_attribute((struct AttributeNode*)node);
             break;
 
         case AST_BINDING:

@@ -19,7 +19,6 @@ struct Value {
         i32 integer;
         bool boolean;
         u32 character;
-        struct Obj *object;
     } as;
 };
 
@@ -49,7 +48,7 @@ static inline bool value_equal(struct Value l, struct Value r)
 #define INT_VAL(val)    ((struct Value){ VALUE_INT, { .integer = (val) } })
 #define BOOL_VAL(val)   ((struct Value){ VALUE_BOOL, { .boolean = (val) } })
 #define CHAR_VAL(val)   ((struct Value){ VALUE_CHAR, { .character = (val) } })
-#define UNIT_VAL()      ((struct Value){ VALUE_UNIT, { .object = null } })
+#define UNIT_VAL()      ((struct Value){ VALUE_UNIT, { } })
 
 #define IS_INT(val)     ((val).type == VALUE_INT)
 #define IS_BOOL(val)    ((val).type == VALUE_BOOL)

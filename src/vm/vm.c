@@ -3,6 +3,7 @@
 #include "function_call.h"
 #include "../prelude.h"
 #include "../compiler/builtins.h"
+#include "extern_functions.h"
 #include "../compiler/debug.h"
 #include <string.h>
 
@@ -45,8 +46,7 @@ next_instruction:
 
     //print_stack(vm.config.out);
     //print_instruction(vm.config.out, &vm.code.instructions[instruction_ptr]);
-    u8 current_instruction = read_instruction();
-    switch (current_instruction) {
+    switch (read_instruction()) {
         case OP_NOOP:
             runtime_error("noop");
             break;
@@ -470,8 +470,8 @@ next_instruction:
         }
 
         case OP_CALL_EXTERN:{
-            void (*function)() = (void (*)())read_u64();
-            function();
+            enum VmExternFunction function = read_instruction();
+            call_extern_function(function);
             break;
         }
 

@@ -4,11 +4,20 @@
 #include "../prelude.h"
 #include <stdio.h>
 
+struct LibraryPath {
+    const char *path;
+    const char *name;
+    u32 path_len;
+    u32 name_len;
+};
+
 struct CompilerConfig {
     FILE *output;
     FILE *error;
     const char *file_name;
+    struct LibraryPath *libraries;
     u32 file_name_len;
+    u32 library_count;
 };
 
 struct FileData {

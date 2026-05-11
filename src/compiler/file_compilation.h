@@ -26,14 +26,23 @@ struct Compiler {
     } files;
 };
 
-u32 compile_module(
+u32 compile_file_module(
     struct Compiler *compiler,
     const struct CompiledFile *parent,
     const char *module_name,
     u16 module_name_len
 );
+u32 compile_module(
+    struct Compiler *compiler,
+    const char *module_name,
+    u16 module_name_len,
+    const char *src,
+    u32 src_len
+);
 
 struct CompiledFile *get_compiled_file(struct Compiler *compiler, u32 file);
+
+void free_compiler(struct Compiler *compiler);
 
 #define FILE_EXTENSION ".fl"
 

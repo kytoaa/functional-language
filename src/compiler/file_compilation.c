@@ -10,7 +10,7 @@ static void generate_symbols(struct AstNode *node, void *table);
 static void fill_symbol_table(struct AstTopLevel *ast, struct IdentifierTable *table);
 static void add_compiled_file(struct Compiler *compiler, struct CompiledFile file);
 
-u32 compile_module(
+u32 compile_file_module(
     struct Compiler *compiler,
     const struct CompiledFile *parent,
     const char *module_name,
@@ -64,20 +64,35 @@ u32 compile_module(
     buffer[bytes_read] = '\0';
     fclose(file);
 
+    u32 result = compile_module(compiler, path, file_name_len, buffer, file_size);
+
+    if (result == -1) {
+        free_mem(path);
+        free_mem(buffer);
+        return -1;
+    }
+
+    return result;
+}
+u32 compile_module(
+    struct Compiler *compiler,
+    const char *module_name,
+    u16 module_name_len,
+    const char *src,
+    u32 src_len
+) {
     struct AstTopLevel ast = {};
     struct ParseError parse_err = {};
-    if (!build_ast(buffer, &ast, &parse_err)) {
+    if (!build_ast(src, &ast, &parse_err)) {
         print_err(
             &compiler->config,
             &parse_err,
             (struct FileData){
-                .src = buffer,
-                .file_name = path,
-                .file_name_len = file_name_len,
+                .src = src,
+                .file_name = module_name,
+                .file_name_len = module_name_len,
             }
         );
-        free_mem(path);
-        free_mem(buffer);
         return -1;
     }
 
@@ -87,10 +102,10 @@ u32 compile_module(
 
     add_compiled_file(compiler, (struct CompiledFile){
         .ast = ast,
-        .file_path = path,
-        .src = buffer,
-        .src_len = file_size,
-        .path_len = file_name_len,
+        .file_path = module_name,
+        .src = src,
+        .src_len = src_len,
+        .path_len = module_name_len,
     });
 
     return compiler->files.count - 1;
@@ -153,5 +168,21 @@ static void add_compiled_file(struct Compiler *compiler, struct CompiledFile fil
     }
 
     compiler->files.ptr[compiler->files.count++] = file;
+}
+
+void free_compiler(struct Compiler *compiler)
+{
+    const char *std_ident = ident_table_get(&compiler->identifiers, "std", 3);
+
+    free_ident_table(&compiler->identifiers);
+
+    for (u32 i = 0; i < compiler->files.count; i++) {
+        struct CompiledFile *file = &compiler->files.ptr[i];
+        if (file->file_path != std_ident) {
+            free_mem((void*)file->file_path);
+            free_mem((void*)file->src);
+        }
+    }
+    free_mem(compiler->files.ptr);
 }
 

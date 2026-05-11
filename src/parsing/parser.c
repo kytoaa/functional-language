@@ -90,6 +90,7 @@ static struct AstNode *application(enum Precedence precedence, struct AstNode *l
 static struct AstNode *namespace(enum Precedence precedence, struct AstNode *lhs);
 static struct AstNode *grouping();
 static struct AstNode *unary();
+static struct AstNode *attribute();
 
 static struct AstNode *identifier();
 static struct AstNode *underscore();
@@ -137,6 +138,8 @@ static struct ParseRule rules[] = {
     [TOKEN_WIDE_ARROW]   = { null, null, PREC_NONE },
 
     [TOKEN_TWO_DOT]      = { null, namespace, PREC_NAMESPACE },
+
+    [TOKEN_ATTR]         = { attribute, null, PREC_NONE },
 
     [TOKEN_FUN]          = { lambda, null, PREC_NONE },
 
@@ -349,6 +352,32 @@ static struct AstNode *underscore()
     };
 
     return AS_NODE(underscore);
+}
+
+static struct AstNode *attribute()
+{
+    struct AttributeNode *attribute = ALLOC_NODE(struct AttributeNode);
+
+    struct Location loc = prev_loc();
+
+    consume(TOKEN_IDENT, "expected an identifier");
+    struct IdentifierNode *ident = (struct IdentifierNode*)identifier();
+
+    struct AstNode *body = null;
+
+    if (parser.current.type == TOKEN_L_PAREN) {
+        advance();
+        body = expr(PREC_EXPR);
+        consume(TOKEN_R_PAREN, "expected closing paren");
+    }
+
+    *attribute = (struct AttributeNode){
+        .node = { AST_ATTR, loc },
+        .ident = ident,
+        .body = body,
+    };
+
+    return AS_NODE(attribute);
 }
 
 static struct AstNode *number()

@@ -1,9 +1,8 @@
 #ifndef func_lang_vm_extern_functions_h
 #define func_lang_vm_extern_functions_h
 
-void print_stack_val();
+#include "../bytecode.h"
 
-/// expects a c string at the top of the stack
-void print_c_string();
+void call_extern_function(enum VmExternFunction function);
 
 #endif

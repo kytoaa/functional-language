@@ -32,6 +32,11 @@ struct Module {
 u16 compiled_file_index(const struct Module *module);
 bool is_file_module(const struct Module *module);
 
+struct Library {
+    const char *name;
+    u32 module_index;
+};
+
 enum ModuleWorkKind {
     MODULE_WORK_AST_NODE,
     MODULE_WORK_FILE,
@@ -57,11 +62,18 @@ struct ModuleCtx {
         u32 count;
         u32 cap;
     } modules;
+    struct {
+        struct Library *ptr;
+        u32 count;
+    } libraries;
 
     const char *super_ident;
+    const char *std_ident;
 };
 
 struct ModuleCtx resolve_ast(struct Compiler *compiler, const struct CompiledFile *file);
 struct Module *get_module(struct ModuleCtx *modules, u16 index);
+
+void free_module_ctx(struct ModuleCtx *modules);
 
 #endif

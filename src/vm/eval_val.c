@@ -18,9 +18,7 @@ static void eval_value(Val val)
         case OBJ_APPLICATION:
             return eval_application((struct Application*)val);
         case OBJ_CONS:
-            set_whnf(val);
-            push_val(val);
-            return;
+        case OBJ_FILE_HANDLE:
         case OBJ_CLOSURE:
             set_whnf(val);
             push_val(val);

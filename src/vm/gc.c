@@ -52,6 +52,10 @@ static void process_box(struct Box *box)
 {
     return;
 }
+static void process_file_handle(struct FileHandleObj *box)
+{
+    return;
+}
 static void process_cons(struct Cons *cons)
 {
     mark_obj(cons->l);
@@ -105,6 +109,9 @@ static void process_obj(struct Obj *obj)
             break;
         case OBJ_APPLICATION:
             process_application((struct Application*)obj);
+            break;
+        case OBJ_FILE_HANDLE:
+            process_file_handle((struct FileHandleObj*)obj);
             break;
 
         default:

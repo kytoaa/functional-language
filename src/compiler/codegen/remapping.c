@@ -41,3 +41,9 @@ struct RemappingWork dequeue_remapping_work(struct RemappingQueue *queue)
 
     return *val;
 }
+
+void free_remapping_queue(struct RemappingQueue *queue)
+{
+    free_mem(queue->ptr);
+    *queue = (struct RemappingQueue){};
+}

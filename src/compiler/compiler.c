@@ -1,13 +1,15 @@
 #include "compiler.h"
 #include "../vm/vm.h"
 #include "../parsing/ident_table.h"
-#include "../parsing/debug.h"
 #include "codegen/codegen.h"
 #include "codegen/top_level.h"
 #include "debug.h"
 #include "error_output.h"
 #include "file_compilation.h"
 #include "module_resolution.h"
+#include "../parsing/debug.h"
+
+#include <stdio.h>
 
 static void run_chunk(const struct CompilerConfig *config, struct Chunk chunk)
 {
@@ -39,11 +41,17 @@ void compile_file(const struct CompilerConfig config)
     }
     const u32 file_name_len = config.file_name_len - (sizeof(FILE_EXTENSION) - 1);
 
-    compile_module(&compiler, null, config.file_name, file_name_len);
+    compile_file_module(&compiler, null, config.file_name, file_name_len);
+    print_ast(&compiler.files.ptr[0].ast);
 
     struct ModuleCtx modules = resolve_ast(&compiler, &compiler.files.ptr[0]);
 
     struct CodegenErrorList errors = generate_code(&compiler, &modules);
+
+    free_module_ctx(&modules);
+    free_compiler(&compiler);
+
+    free_ast();
 
     if (errors.len == 0) {
         run_chunk(&config, compiler.chunk);
@@ -53,8 +61,7 @@ void compile_file(const struct CompilerConfig config)
         }
     }
 
-    free_ident_table(&compiler.identifiers);
-    free_mem(compiler.files.ptr);
+    free_chunk(&compiler.chunk);
 
     return;
 }

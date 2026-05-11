@@ -135,8 +135,8 @@ enum Bytecode {
     OP_HEAD,
     OP_TAIL,
 
-    /// calls an external c function with signature `void (*f)()`
-    /// `op u64`
+    /// calls an external c function
+    /// op u8
     OP_CALL_EXTERN,
 
     OP_END,
@@ -148,6 +148,18 @@ enum Register {
     BINDING_PTR,
     REG_1,
     REG_COUNT,
+};
+
+enum VmExternFunction {
+    VM_EXTERN_FUNC_WRITE,
+    VM_EXTERN_FUNC_WRITE_C_STRING,
+    VM_EXTERN_FUNC_READ,
+    VM_EXTERN_FUNC_OPEN_FILE,
+    VM_EXTERN_FUNC_STDIN,
+    VM_EXTERN_FUNC_STDOUT,
+    VM_EXTERN_FUNC_STDERR,
+
+    VM_EXTERN_FUNC_COUNT,
 };
 
 struct ConstantList {

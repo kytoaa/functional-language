@@ -15,6 +15,7 @@ enum TokenType {
     TOKEN_R_BRACKET,
     TOKEN_SEMICOLON,
     TOKEN_PIPE,
+    TOKEN_ATTR,
 
     TOKEN_IDENT,
     TOKEN_UNDERSCORE,
@@ -105,6 +106,8 @@ static const char *token_type_name(enum TokenType type)
             return "TOKEN_SEMICOLON";
         case TOKEN_PIPE:
             return "TOKEN_PIPE";
+        case TOKEN_ATTR:
+            return "TOKEN_ATTR";
         case TOKEN_IDENT:
             return "TOKEN_IDENT";
         case TOKEN_UNDERSCORE:

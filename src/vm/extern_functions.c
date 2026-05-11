@@ -1,79 +1,158 @@
 #include "extern_functions.h"
 #include "utils.h"
 #include <stdio.h>
-#include "vm.h"
 
 #define DEBUG_CHECKS
 
-static void print_val(Val val);
-static void print_cons(struct Cons *cons);
+static void print_val(FILE *out, Val val);
+static void print_cons(FILE *out, struct Cons *cons);
 
-static void print_value(struct Value val)
+static struct FileHandleObj *get_std_stream(enum VmExternFunction function)
+{
+    static bool initialised;
+    static struct FileHandleObj stdin_obj, stdout_obj, stderr_obj;
+
+    if (!initialised) {
+        stdin_obj = (struct FileHandleObj){
+            .obj = {
+                .type = OBJ_FILE_HANDLE,
+                .flags = { .is_whnf = true, .is_static = true, .gc_marked = false },
+            },
+            .file = stdin,
+        };
+        stdout_obj = (struct FileHandleObj){
+            .obj = {
+                .type = OBJ_FILE_HANDLE,
+                .flags = { .is_whnf = true, .is_static = true, .gc_marked = false },
+            },
+            .file = stdout,
+        };
+        stderr_obj = (struct FileHandleObj){
+            .obj = {
+                .type = OBJ_FILE_HANDLE,
+                .flags = { .is_whnf = true, .is_static = true, .gc_marked = false },
+            },
+            .file = stderr,
+        };
+        initialised = true;
+    }
+    switch (function) {
+        case VM_EXTERN_FUNC_STDIN:
+            return &stdin_obj;
+        case VM_EXTERN_FUNC_STDOUT:
+            return &stdout_obj;
+        case VM_EXTERN_FUNC_STDERR:
+            return &stderr_obj;
+        default:
+            return null;
+    }
+}
+
+void call_extern_function(enum VmExternFunction function)
+{
+    switch (function) {
+        case VM_EXTERN_FUNC_WRITE:{
+            Val val = pop_val();
+            switch (val->type) {
+                case OBJ_FILE_HANDLE:
+                    break;
+                case OBJ_THUNK:{
+                    struct Thunk *thunk = (struct Thunk*)val;
+                    val = thunk->evaluated;
+                    if (val != null && val->type == OBJ_FILE_HANDLE)
+                        break;
+                }
+                default:
+                    printf("got a %d\n", ((struct Box*)val)->val.type);
+                    return runtime_error("not a file handle");
+            }
+            struct FileHandleObj *file = (struct FileHandleObj*)val;
+            Val print_arg = pop_val();
+            print_val(file->file, print_arg);
+            break;
+        }
+        case VM_EXTERN_FUNC_WRITE_C_STRING:{
+            Val val = pop_val();
+            switch (val->type) {
+                case OBJ_FILE_HANDLE:
+                    break;
+                case OBJ_THUNK:{
+                    struct Thunk *thunk = (struct Thunk*)val;
+                    val = thunk->evaluated;
+                    if (val != null && val->type == OBJ_FILE_HANDLE)
+                        break;
+                }
+                default:
+                    return runtime_error("not a file handle");
+            }
+            struct FileHandleObj *file = (struct FileHandleObj*)val;
+            Val print_arg = pop_val();
+            fprintf(file->file, "%s", (char*)pop_stack());
+            break;
+        }
+        case VM_EXTERN_FUNC_STDIN:
+        case VM_EXTERN_FUNC_STDOUT:
+        case VM_EXTERN_FUNC_STDERR:{
+            struct FileHandleObj *file_handle = get_std_stream(function);
+            push_val(as_val(file_handle));
+            break;
+        }
+        default:
+            panic("not an extern function");
+    }
+}
+
+static void print_value(FILE *out, struct Value val)
 {
     switch (val.type) {
         case VALUE_UNIT:
-            fprintf(vm.config.out, "()");
+            fprintf(out, "()");
             break;
         case VALUE_INT:
-            fprintf(vm.config.out, "%d", val.as.integer);
+            fprintf(out, "%d", val.as.integer);
             break;
         case VALUE_BOOL:
-            fprintf(vm.config.out, val.as.boolean ? "true" : "false");
+            fprintf(out, val.as.boolean ? "true" : "false");
             break;
         case VALUE_CHAR:
-            fprintf(vm.config.out, "%c", val.as.character);
+            fprintf(out, "%c", val.as.character);
             break;
     }
 }
 
-static void print_cons(struct Cons *cons)
+static void print_cons(FILE *out, struct Cons *cons)
 {
-    fprintf(vm.config.out, "<%p>(", cons);
-    print_val(cons->l);
-    fprintf(vm.config.out, " :: ");
-    print_val(cons->r);
-    fprintf(vm.config.out, ")");
+    fprintf(out, "(");
+    print_val(out, cons->l);
+    fprintf(out, " :: ");
+    print_val(out, cons->r);
+    fprintf(out, ")");
 }
 
-static void print_val(Val val)
+static void print_val(FILE *out, Val val)
 {
     if (val == null)
         panic("null");
 
     switch (val->type) {
         case OBJ_BOX:
-            print_value(((struct Box*)val)->val);
+            print_value(out, ((struct Box*)val)->val);
             break;
         case OBJ_CONS:
-            print_cons((struct Cons*)val);
+            print_cons(out, (struct Cons*)val);
             break;
         case OBJ_APPLICATION:
-            fprintf(vm.config.out, "<app: %d>", ((struct Application*)val)->arg_count);
+            fprintf(out, "<app: %d>", ((struct Application*)val)->arg_count);
             break;
         case OBJ_THUNK:
-            fprintf(vm.config.out, "<thunk %p> -> %p", val, ((struct Thunk*)val)->evaluated);
+            fprintf(out, "<thunk>");
             break;
         case OBJ_CLOSURE:
-            fprintf(vm.config.out, "<closure>");
+            fprintf(out, "<closure>");
             break;
         default:
+            fprintf(out, "%d\n", val->type);
             panic("not printable");
             break;
     }
 }
-
-void print_stack_val()
-{
-#ifdef DEBUG_CHECKS
-    fprintf(vm.config.out, "OUTPUT :: ");
-#endif
-    Val val = pop_val();
-    print_val(val);
-    fprintf(vm.config.out, "\n");
-}
-
-void print_c_string()
-{
-    fprintf(vm.config.error, "%s", (char*)pop_stack());
-}
-

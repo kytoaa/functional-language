@@ -2,6 +2,7 @@
 #define func_lang_object_h
 
 #include "value.h"
+#include <stdio.h>
 
 /// the minumum number of u64s required to store the obj
 #define OBJ_U64_SIZE(obj) ((sizeof(obj) + sizeof(u64) - 1) / sizeof(u64))
@@ -12,6 +13,7 @@ enum ObjType {
     OBJ_CLOSURE,
     OBJ_THUNK,
     OBJ_APPLICATION,
+    OBJ_FILE_HANDLE,
 
     OBJ_TYPE_COUNT,
 };
@@ -46,6 +48,11 @@ struct Cons {
     struct Obj obj;
     Val l;
     Val r;
+};
+
+struct FileHandleObj {
+    struct Obj obj;
+    FILE *file;
 };
 
 struct ClosureInfo {
@@ -86,6 +93,7 @@ struct Application {
 };
 
 struct Box *obj_create_box();
+struct FileHandleObj *obj_create_file_handle();
 struct Cons *obj_create_cons();
 struct Application *obj_create_application(u8 arg_count);
 struct Closure *obj_create_closure(struct ClosureInfo *info);

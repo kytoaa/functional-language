@@ -1,4 +1,5 @@
 #include "expr.h"
+#include "attributes.h"
 #include "codegen.h"
 #include "global_resolution.h"
 #include "pattern_matching.h"
@@ -525,6 +526,9 @@ void compile_expr(struct Context *ctx, struct AstNode *node)
             break;
         case AST_NAMESPACE_ACCESS:
             namespace_access_expr(ctx, (struct NamespaceAccessNode*)node);
+            break;
+        case AST_ATTR:
+            compile_attribute(ctx, (struct AttributeNode*)node);
             break;
         default:
             panic("unknown ast node");

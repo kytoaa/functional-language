@@ -1,7 +1,7 @@
 #include "codegen.h"
 #include "expr.h"
-#include "../../vm/extern_functions.h"
 #include "global_pass.h"
+#include "../builtins.h"
 #include "global_resolution.h"
 #include "remapping.h"
 
@@ -145,9 +145,11 @@ struct CodegenErrorList generate_code(struct Compiler *compiler, struct ModuleCt
 
         compile_expr(&ctx, main_decl->body);
 
-        emit_byte(&ctx, OP_EVAL);
-        emit_byte(&ctx, OP_CALL_EXTERN);
-        emit_u64(&ctx, (u64)print_stack_val);
+        emit_2_bytes(&ctx, OP_PUSH_REG_STACK, INSTRUCTION_PTR);
+        emit_byte(&ctx, OP_U64_ADD);
+        emit_u64(&ctx, 12);
+        emit_byte(&ctx, OP_SWAP);
+        emit_2_bytes(&ctx, OP_JUMP_GLOBALS, GLOBAL_FUNC_FORCE);
     }
     emit_byte(&ctx, OP_END);
 
@@ -183,6 +185,10 @@ struct CodegenErrorList generate_code(struct Compiler *compiler, struct ModuleCt
             bytecode_ptr[i] = ((u8*)&constant_index)[i];
         }
     }
+
+    free_remapping_queue(&remapping_queue);
+
+    free_global_ctx(&globals);
 
     return errors;
 }

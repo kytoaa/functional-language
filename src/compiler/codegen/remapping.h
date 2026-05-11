@@ -29,5 +29,6 @@ struct CompilingChunk {
 
 void enqueue_remapping_work(struct RemappingQueue *queue, struct RemappingWork work);
 struct RemappingWork dequeue_remapping_work(struct RemappingQueue *queue);
+void free_remapping_queue(struct RemappingQueue *queue);
 
 #endif

@@ -147,4 +147,10 @@ struct UseDeclNode {
     struct AstNode *use_expr;
 };
 
+struct AttributeNode {
+    struct AstNode node;
+    struct IdentifierNode *ident;
+    struct AstNode *body;
+};
+
 #endif

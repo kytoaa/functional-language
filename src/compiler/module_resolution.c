@@ -1,6 +1,7 @@
 #include "module_resolution.h"
 #include "../parsing/ast.h"
 #include "file_compilation.h"
+#include "standard_library.h"
 
 struct ModuleCtxWork {
     struct ModuleCtx ctx;
@@ -11,6 +12,15 @@ struct ModuleCtxWork {
     } worklist;
 };
 
+void free_module_ctx(struct ModuleCtx *modules)
+{
+    for (u32 i = 0; i < modules->modules.count; i++) {
+        free_mem(modules->modules.ptr[i].items.ptr);
+    }
+    free_mem(modules->modules.ptr);
+    free_mem(modules->libraries.ptr);
+    *modules = (struct ModuleCtx){};
+}
 
 u16 compiled_file_index(const struct Module *module)
 {
@@ -163,7 +173,7 @@ static void resolve_node(struct ModuleCtxWork *ctx, struct ModuleDeclNode *node,
     declare_module_items(ctx, node, mod_index);
 }
 
-static void resolve_top_level(struct ModuleCtxWork *ctx, const struct AstTopLevel *ast, u16 file_index, const char *mod_name, u16 parent)
+static u16 resolve_top_level(struct ModuleCtxWork *ctx, const struct AstTopLevel *ast, u16 file_index, const char *mod_name, u16 parent)
 {
     u16 mod_index = create_module(ctx, mod_name, parent);
     struct Module *mod = get_module(&ctx->ctx, mod_index);
@@ -209,6 +219,7 @@ static void resolve_top_level(struct ModuleCtxWork *ctx, const struct AstTopLeve
 
         submodule = submodule->next_mod;
     }
+    return mod_index;
 }
 
 struct ModuleCtx resolve_ast(struct Compiler *compiler, const struct CompiledFile *file)
@@ -216,10 +227,35 @@ struct ModuleCtx resolve_ast(struct Compiler *compiler, const struct CompiledFil
     struct ModuleCtxWork ctx = {
         .ctx = {
             .super_ident = ident_table_get(&compiler->identifiers, "super", 5),
+            .std_ident = ident_table_get(&compiler->identifiers, "std", 3),
         },
         .worklist = {},
     };
     resolve_top_level(&ctx, &file->ast, 0, "main", (u16)-1);
+
+    ctx.ctx.libraries.ptr = alloc_mem((compiler->config.library_count + 1) * sizeof(struct Library));
+    ctx.ctx.libraries.count = compiler->config.library_count + 1;
+
+    {
+        const char *lib_name = ctx.ctx.std_ident;
+
+        u32 file_index = compile_module(compiler, lib_name, 3, std_lib_src(), std_lib_src_len());
+        struct CompiledFile *compiled = get_compiled_file(compiler, file_index);
+
+        u16 mod_index = resolve_top_level(&ctx, &compiled->ast, file_index, lib_name, (u16)-1);
+        ctx.ctx.libraries.ptr[0] = (struct Library){ .name = lib_name, .module_index = mod_index, };
+    }
+
+    for (u32 i = 1; i <= compiler->config.library_count; i++) {
+        struct LibraryPath *library = &compiler->config.libraries[i];
+        u32 file_index = compile_file_module(compiler, null, library->path, library->path_len);
+        struct CompiledFile *compiled = get_compiled_file(compiler, file_index);
+
+        const char *lib_name = ident_table_get(&compiler->identifiers, library->name, library->name_len);
+
+        u16 mod_index = resolve_top_level(&ctx, &compiled->ast, file_index, library->name, (u16)-1);
+        ctx.ctx.libraries.ptr[i] = (struct Library){ .name = lib_name, .module_index = mod_index, };
+    }
 
     struct ModuleResolutionWork work = {};
     while (pop_resolution_queue(&ctx, &work)) {
@@ -231,7 +267,7 @@ struct ModuleCtx resolve_ast(struct Compiler *compiler, const struct CompiledFil
             case MODULE_WORK_FILE:{
                 struct CompiledFile *parent = get_compiled_file(compiler, compiled_file_index(get_module(&ctx.ctx, work.parent_module)));
 
-                u32 file_index = compile_module(compiler, parent, work.file.name, work.file.name_len);
+                u32 file_index = compile_file_module(compiler, parent, work.file.name, work.file.name_len);
                 struct CompiledFile *compiled = get_compiled_file(compiler, file_index);
 
                 resolve_top_level(&ctx, &compiled->ast, file_index, work.file.name, work.parent_module);
@@ -239,5 +275,6 @@ struct ModuleCtx resolve_ast(struct Compiler *compiler, const struct CompiledFil
             }
         }
     }
+    free_mem(ctx.worklist.ptr);
     return ctx.ctx;
 }

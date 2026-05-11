@@ -57,6 +57,29 @@ static u32 read_u32(u8 *bytes)
     }.u32;
 }
 
+static const char *extern_function_name(enum VmExternFunction func)
+{
+    switch (func) {
+        case VM_EXTERN_FUNC_WRITE:
+            return "WRITE";
+        case VM_EXTERN_FUNC_WRITE_C_STRING:
+            return "WRITE_C_STRING";
+        case VM_EXTERN_FUNC_READ:
+            return "READ";
+        case VM_EXTERN_FUNC_OPEN_FILE:
+            return "OPEN_FILE";
+        case VM_EXTERN_FUNC_STDIN:
+            return "STDIN";
+        case VM_EXTERN_FUNC_STDOUT:
+            return "STDOUT";
+        case VM_EXTERN_FUNC_STDERR:
+            return "STDERR";
+
+        default:
+            return "unknown extern function";
+    }
+}
+
 u32 print_instruction(FILE *out, u8 *bytes)
 {
     const char *op_name = bytecode_op_name(bytes[0]);
@@ -79,11 +102,12 @@ u32 print_instruction(FILE *out, u8 *bytes)
         case OP_SET_REG:
             print_register(out, bytes[1]);
             consumed += 1;
-        case OP_PUSH_U64:
+        case OP_PUSH_U64:{
             u64 value = read_u64(&bytes[consumed]);
             consumed += 8;
             fprintf(out, " %llu", value);
             break;
+        }
 
         case OP_READ_BINDING:
         case OP_CREATE_CLOSURE:
@@ -120,9 +144,9 @@ u32 print_instruction(FILE *out, u8 *bytes)
             break;
         }
         case OP_CALL_EXTERN:{
-            void *function_addr = (void*)read_u64(&bytes[1]);
-            consumed += 8;
-            fprintf(out, " %p", function_addr);
+            enum VmExternFunction function = bytes[1];
+            consumed += 1;
+            fprintf(out, " %s", extern_function_name(function));
             break;
         }
         case OP_U64_ADD:{
