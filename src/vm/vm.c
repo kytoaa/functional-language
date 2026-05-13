@@ -3,7 +3,7 @@
 #include "function_call.h"
 #include "../prelude.h"
 #include "../compiler/builtins.h"
-#include "extern_functions.h"
+#include "extern_functions/extern_functions.h"
 #include "../compiler/debug.h"
 #include <string.h>
 

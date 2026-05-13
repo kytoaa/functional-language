@@ -64,7 +64,7 @@ static const char *extern_function_name(enum VmExternFunction func)
             return "WRITE";
         case VM_EXTERN_FUNC_WRITE_C_STRING:
             return "WRITE_C_STRING";
-        case VM_EXTERN_FUNC_READ:
+        case VM_EXTERN_FUNC_READ_CONTENTS:
             return "READ";
         case VM_EXTERN_FUNC_OPEN_FILE:
             return "OPEN_FILE";

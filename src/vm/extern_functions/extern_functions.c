@@ -1,5 +1,6 @@
 #include "extern_functions.h"
-#include "utils.h"
+#include "../utils.h"
+#include "slice_functions.h"
 #include <stdio.h>
 
 #define DEBUG_CHECKS
@@ -53,18 +54,8 @@ void call_extern_function(enum VmExternFunction function)
     switch (function) {
         case VM_EXTERN_FUNC_WRITE:{
             Val val = pop_val();
-            switch (val->type) {
-                case OBJ_FILE_HANDLE:
-                    break;
-                case OBJ_THUNK:{
-                    struct Thunk *thunk = (struct Thunk*)val;
-                    val = thunk->evaluated;
-                    if (val != null && val->type == OBJ_FILE_HANDLE)
-                        break;
-                }
-                default:
-                    printf("got a %d\n", ((struct Box*)val)->val.type);
-                    return runtime_error("not a file handle");
+            if (val->type != OBJ_FILE_HANDLE) {
+                return runtime_error("not a file handle");
             }
             struct FileHandleObj *file = (struct FileHandleObj*)val;
             Val print_arg = pop_val();
@@ -73,21 +64,42 @@ void call_extern_function(enum VmExternFunction function)
         }
         case VM_EXTERN_FUNC_WRITE_C_STRING:{
             Val val = pop_val();
-            switch (val->type) {
-                case OBJ_FILE_HANDLE:
-                    break;
-                case OBJ_THUNK:{
-                    struct Thunk *thunk = (struct Thunk*)val;
-                    val = thunk->evaluated;
-                    if (val != null && val->type == OBJ_FILE_HANDLE)
-                        break;
-                }
-                default:
-                    return runtime_error("not a file handle");
+            if (val->type != OBJ_FILE_HANDLE) {
+                return runtime_error("not a file handle");
             }
             struct FileHandleObj *file = (struct FileHandleObj*)val;
             Val print_arg = pop_val();
             fprintf(file->file, "%s", (char*)pop_stack());
+            break;
+        }
+        case VM_EXTERN_FUNC_READ_CONTENTS:{
+            Val val = pop_val();
+            if (val->type != OBJ_FILE_HANDLE) {
+                return runtime_error("not a file handle");
+            }
+            struct FileHandleObj *file = (struct FileHandleObj*)val;
+            fseek(file->file, 0, SEEK_END);
+            usize file_size = ftell(file->file);
+            rewind(file->file);
+
+            struct ArrayObj *array = obj_create_array(file_size, VALUE_CHAR, null);
+            fread(array->ptr, sizeof(char), file_size, file->file);
+
+            push_val(as_val(array));
+            break;
+        }
+        case VM_EXTERN_FUNC_READ_LINE:{
+            Val val = pop_val();
+            if (val->type != OBJ_FILE_HANDLE) {
+                return runtime_error("not a file handle");
+            }
+            struct FileHandleObj *file = (struct FileHandleObj*)val;
+
+            struct ArrayObj *array = obj_create_array(0, VALUE_CHAR, null);
+            usize _cap = 0;
+            array->len = getline((char**)&array->ptr, &_cap, file->file);
+
+            push_val(as_val(array));
             break;
         }
         case VM_EXTERN_FUNC_STDIN:
@@ -95,6 +107,22 @@ void call_extern_function(enum VmExternFunction function)
         case VM_EXTERN_FUNC_STDERR:{
             struct FileHandleObj *file_handle = get_std_stream(function);
             push_val(as_val(file_handle));
+            break;
+        }
+        case VM_EXTERN_FUNC_SLICE_LEN:{
+            extern_func_slice_len();
+            break;
+        }
+        case VM_EXTERN_FUNC_READ_SLICE_INDEX:{
+            extern_func_slice_index();
+            break;
+        }
+        case VM_EXTERN_FUNC_SLICE_DROP:{
+            extern_func_slice_drop();
+            break;
+        }
+        case VM_EXTERN_FUNC_SLICE_TAKE:{
+            extern_func_slice_take();
             break;
         }
         default:
@@ -128,6 +156,24 @@ static void print_cons(FILE *out, struct Cons *cons)
     print_val(out, cons->r);
     fprintf(out, ")");
 }
+static void print_array_elements(FILE *out, struct ArrayObj *val, u32 start, u32 count)
+{
+    if (val->val_type == VALUE_CHAR) {
+        fprintf(out, "%.*s", count, val->ptr + start);
+    } else {
+        for (u32 i = start; i < start + count; i++) {
+            fprintf(out, "%d", (val->val_type == VALUE_BOOL) ? ((u32*)val->ptr)[i] : val->ptr[i]);
+        }
+    }
+}
+static void print_array(FILE *out, struct ArrayObj *val)
+{
+    print_array_elements(out, val, 0, val->len);
+}
+static void print_slice(FILE *out, struct SliceObj *slice)
+{
+    print_array_elements(out, slice->array, slice->start, slice->len);
+}
 
 static void print_val(FILE *out, Val val)
 {
@@ -149,6 +195,12 @@ static void print_val(FILE *out, Val val)
             break;
         case OBJ_CLOSURE:
             fprintf(out, "<closure>");
+            break;
+        case OBJ_ARRAY:
+            print_array(out, (struct ArrayObj*)val);
+            break;
+        case OBJ_SLICE:
+            print_slice(out, (struct SliceObj*)val);
             break;
         default:
             fprintf(out, "%d\n", val->type);

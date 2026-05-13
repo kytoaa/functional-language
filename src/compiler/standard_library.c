@@ -57,12 +57,21 @@ mod = {\n\
     uncurry f pair = case pair of\n\
         | a :: b -> f a b;\n\
 \n\
+    mod slice = {\n\
+        index n s = @std_builtin(slice_index);\n\
+        len s = @std_builtin(slice_len);\n\
+        drop n s = @std_builtin(slice_drop);\n\
+        take n s = @std_builtin(slice_take);\n\
+    };\n\
     mod io = {\n\
         stdin = @std_builtin(stdin);\n\
         stdout = @std_builtin(stdout);\n\
         stderr = @std_builtin(stderr);\n\
 \n\
         seq a b = case $ a of | _ -> b;\n\
+\n\
+        read_file_contents file = @std_builtin(read_file_contents);\n\
+        read_line file = @std_builtin(read_file_line);\n\
 \n\
         write file val = @std_builtin(write);\n\
         writeln file val = seq (write file val) (write file '\n');\n\

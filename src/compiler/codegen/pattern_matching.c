@@ -1,7 +1,6 @@
 #include "codegen.h"
 #include "expr.h"
 #include "../builtins.h"
-#include "../../vm/extern_functions.h"
 
 struct CaseBranchResult {
     u32 failure_index;

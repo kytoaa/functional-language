@@ -14,6 +14,8 @@ enum ObjType {
     OBJ_THUNK,
     OBJ_APPLICATION,
     OBJ_FILE_HANDLE,
+    OBJ_ARRAY,
+    OBJ_SLICE,
 
     OBJ_TYPE_COUNT,
 };
@@ -55,6 +57,19 @@ struct FileHandleObj {
     FILE *file;
 };
 
+struct ArrayObj {
+    struct Obj obj;
+    u8 *ptr;
+    u32 len;
+    enum ValueType val_type;
+};
+struct SliceObj {
+    struct Obj obj;
+    struct ArrayObj *array;
+    u32 len;
+    u32 start;
+};
+
 struct ClosureInfo {
     u32 arity;
     u32 address;
@@ -94,6 +109,8 @@ struct Application {
 
 struct Box *obj_create_box();
 struct FileHandleObj *obj_create_file_handle();
+struct ArrayObj *obj_create_array(u32 len, enum ValueType type, u8 *ptr);
+struct SliceObj *obj_create_slice(struct ArrayObj *array, u32 start, u32 len);
 struct Cons *obj_create_cons();
 struct Application *obj_create_application(u8 arg_count);
 struct Closure *obj_create_closure(struct ClosureInfo *info);
@@ -101,6 +118,8 @@ struct Thunk *obj_create_thunk(struct ClosureInfo *info);
 
 void obj_init_box(struct Box *box);
 void obj_init_cons(struct Cons *cons);
+void obj_init_array(struct ArrayObj *slice, u32 len, enum ValueType type, u8 *ptr);
+void obj_init_slice(struct SliceObj *slice, struct ArrayObj *array, u32 start, u32 len);
 
 struct Box **obj_dyn_fields(struct Obj *obj);
 

@@ -39,6 +39,14 @@ static void compile_builtin(struct Context *ctx, struct AstNode *body)
     const char *stdout_ident = ident_table_get(ctx->identifier_table, "stdout", 6);
     const char *stderr_ident = ident_table_get(ctx->identifier_table, "stderr", 6);
 
+    const char *read_file_contents_ident = ident_table_get(ctx->identifier_table, "read_file_contents", 18);
+    const char *read_file_line_ident = ident_table_get(ctx->identifier_table, "read_file_line", 14);
+
+    const char *slice_len_ident = ident_table_get(ctx->identifier_table, "slice_len", 9);
+    const char *slice_index_ident = ident_table_get(ctx->identifier_table, "slice_index", 11);
+    const char *slice_drop_ident = ident_table_get(ctx->identifier_table, "slice_drop", 10);
+    const char *slice_take_ident = ident_table_get(ctx->identifier_table, "slice_take", 10);
+
     switch (body->kind) {
         case AST_IDENTIFIER:{
             struct IdentifierNode *node = (struct IdentifierNode*)body;
@@ -64,6 +72,56 @@ static void compile_builtin(struct Context *ctx, struct AstNode *body)
             } else if (node->src_loc == stderr_ident) {
                 emit_byte(ctx, OP_CALL_EXTERN);
                 emit_byte(ctx, VM_EXTERN_FUNC_STDERR);
+            } else if (node->src_loc == read_file_contents_ident) {
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, 0);
+                emit_byte(ctx, OP_EVAL);
+
+                emit_byte(ctx, OP_CALL_EXTERN);
+                emit_byte(ctx, VM_EXTERN_FUNC_READ_CONTENTS);
+            } else if (node->src_loc == read_file_line_ident) {
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, 0);
+                emit_byte(ctx, OP_EVAL);
+
+                emit_byte(ctx, OP_CALL_EXTERN);
+                emit_byte(ctx, VM_EXTERN_FUNC_READ_LINE);
+            } else if (node->src_loc == slice_len_ident) {
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, 0);
+                emit_byte(ctx, OP_EVAL);
+
+                emit_byte(ctx, OP_CALL_EXTERN);
+                emit_byte(ctx, VM_EXTERN_FUNC_SLICE_LEN);
+            } else if (node->src_loc == slice_index_ident) {
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, 0);
+                emit_byte(ctx, OP_EVAL);
+
+                emit_byte(ctx, OP_CALL_EXTERN);
+                emit_byte(ctx, VM_EXTERN_FUNC_READ_SLICE_INDEX);
+            } else if (node->src_loc == slice_drop_ident) {
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, 0);
+                emit_byte(ctx, OP_EVAL);
+
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, 1);
+                emit_byte(ctx, OP_EVAL);
+
+                emit_byte(ctx, OP_CALL_EXTERN);
+                emit_byte(ctx, VM_EXTERN_FUNC_SLICE_DROP);
+            } else if (node->src_loc == slice_take_ident) {
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, 0);
+                emit_byte(ctx, OP_EVAL);
+
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, 1);
+                emit_byte(ctx, OP_EVAL);
+
+                emit_byte(ctx, OP_CALL_EXTERN);
+                emit_byte(ctx, VM_EXTERN_FUNC_SLICE_TAKE);
             } else {
                 panic("not a builtin function");
             }

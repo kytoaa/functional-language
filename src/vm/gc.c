@@ -52,7 +52,16 @@ static void process_box(struct Box *box)
 {
     return;
 }
-static void process_file_handle(struct FileHandleObj *box)
+static void process_file_handle(struct FileHandleObj *file_handle)
+{
+    return;
+}
+static void process_slice_obj(struct SliceObj *slice)
+{
+    mark_obj(TO_OBJ(slice->array));
+    return;
+}
+static void process_array_obj(struct ArrayObj *array)
 {
     return;
 }
@@ -112,6 +121,12 @@ static void process_obj(struct Obj *obj)
             break;
         case OBJ_FILE_HANDLE:
             process_file_handle((struct FileHandleObj*)obj);
+            break;
+        case OBJ_SLICE:
+            process_slice_obj((struct SliceObj*)obj);
+            break;
+        case OBJ_ARRAY:
+            process_array_obj((struct ArrayObj*)obj);
             break;
 
         default:

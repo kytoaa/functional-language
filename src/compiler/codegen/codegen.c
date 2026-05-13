@@ -277,3 +277,9 @@ void namespace_access_error(struct Context *ctx, struct GlobalResolutionResult e
     }
     non_existent_ident_err(ctx, error.error_finding->node.loc, msg);
 }
+void free_codegen_errors(struct CodegenErrorList *errors)
+{
+    free_mem(errors->ptr);
+    errors->ptr = null;
+}
+

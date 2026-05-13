@@ -85,6 +85,8 @@ void used_underscore_err(struct Context *ctx, struct Location loc, const char *m
 
 void namespace_access_error(struct Context *ctx, struct GlobalResolutionResult error);
 
+void free_codegen_errors(struct CodegenErrorList *errors);
+
 struct IdentSearchResult {
     /// ident offset from the top of the binding stack, 0 being top
     u16 offset;

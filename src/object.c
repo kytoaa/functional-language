@@ -1,6 +1,7 @@
 #include "object.h"
 #include "prelude.h"
 #include "vm/gc.h"
+#include <string.h>
 
 static struct Obj *most_recent_alloc = null;
 
@@ -61,6 +62,68 @@ void obj_init_box(struct Box *box)
 {
     box->obj.type = OBJ_BOX;
     box->obj.flags.is_whnf = true;
+}
+
+struct ArrayObj *obj_create_array(u32 len, enum ValueType type, u8 *ptr)
+{
+    const u32 size = sizeof(struct ArrayObj);
+    struct ArrayObj *array = (struct ArrayObj*)alloc_obj(size);
+
+    obj_init_array(array, len, type, ptr);
+
+    return array;
+}
+void obj_init_array(struct ArrayObj *array, u32 len, enum ValueType type, u8 *ptr)
+{
+    array->obj.type = OBJ_ARRAY;
+    array->obj.flags.is_whnf = true;
+
+    u32 val_size = 0;
+    switch (type) {
+        case VALUE_INT:
+            val_size = sizeof(i32);
+            break;
+        case VALUE_CHAR:
+            val_size = sizeof(char);
+            break;
+        case VALUE_BOOL:
+            val_size = sizeof(bool);
+            break;
+        default:
+            panic("not valid for a byte array");
+            break;
+    }
+
+    u32 cap = val_size * len;
+    u8 *memory = null;
+    if (cap > 0)
+        memory = alloc_mem(cap);
+
+    if (ptr != null)
+        memcpy(memory, ptr, cap);
+
+    array->ptr = memory;
+    array->len = len;
+    array->val_type = type;
+}
+
+struct SliceObj *obj_create_slice(struct ArrayObj *array, u32 start, u32 len)
+{
+    const u32 size = sizeof(struct SliceObj);
+    struct SliceObj *slice = (struct SliceObj*)alloc_obj(size);
+
+    obj_init_slice(slice, array, start, len);
+
+    return slice;
+}
+void obj_init_slice(struct SliceObj *slice, struct ArrayObj *array, u32 start, u32 len)
+{
+    slice->obj.type = OBJ_SLICE;
+    slice->obj.flags.is_whnf = true;
+
+    slice->array = array;
+    slice->start = start;
+    slice->len = len;
 }
 
 struct Cons *obj_create_cons()

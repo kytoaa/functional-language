@@ -48,6 +48,13 @@ void compile_file(const struct CompilerConfig config)
 
     struct CodegenErrorList errors = generate_code(&compiler, &modules);
 
+    if (errors.len > 0) {
+        for (u32 i = 0; i < errors.len; i++) {
+            print_codegen_error(&compiler, errors.ptr[i]);
+        }
+        free_codegen_errors(&errors);
+    }
+
     free_module_ctx(&modules);
     free_compiler(&compiler);
 
@@ -55,10 +62,6 @@ void compile_file(const struct CompilerConfig config)
 
     if (errors.len == 0) {
         run_chunk(&config, compiler.chunk);
-    } else {
-        for (u32 i = 0; i < errors.len; i++) {
-            print_codegen_error(&compiler, errors.ptr[i]);
-        }
     }
 
     free_chunk(&compiler.chunk);

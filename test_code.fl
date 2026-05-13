@@ -1,6 +1,12 @@
 mod list = std..list;
+mod io = std..io;
+mod slice = std..slice;
 
 other = @my_attr(woah);
 
-main = std..io..println (1 :: 2 :: 3 :: ());
+stdin_contents = slice..take 2 (io..read_line io..stdin);
+
+seq a b = case $a of | _ -> b;
+
+main = seq (io..println stdin_contents) (io..println (slice..len stdin_contents));
 
