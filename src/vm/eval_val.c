@@ -21,6 +21,7 @@ static void eval_value(Val val)
         case OBJ_CLOSURE:
         case OBJ_FILE_HANDLE:
         case OBJ_SLICE:
+        case OBJ_ARRAY:
             set_whnf(val);
             push_val(val);
             return;

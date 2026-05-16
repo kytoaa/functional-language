@@ -46,6 +46,9 @@ static void compile_builtin(struct Context *ctx, struct AstNode *body)
     const char *slice_index_ident = ident_table_get(ctx->identifier_table, "slice_index", 11);
     const char *slice_drop_ident = ident_table_get(ctx->identifier_table, "slice_drop", 10);
     const char *slice_take_ident = ident_table_get(ctx->identifier_table, "slice_take", 10);
+    const char *slice_join_ident = ident_table_get(ctx->identifier_table, "slice_join", 10);
+    const char *slice_cons_ident = ident_table_get(ctx->identifier_table, "slice_cons", 10);
+    const char *slice_push_ident = ident_table_get(ctx->identifier_table, "slice_push", 10);
 
     switch (body->kind) {
         case AST_IDENTIFIER:{
@@ -98,6 +101,10 @@ static void compile_builtin(struct Context *ctx, struct AstNode *body)
                 emit_u16(ctx, 0);
                 emit_byte(ctx, OP_EVAL);
 
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, 1);
+                emit_byte(ctx, OP_EVAL);
+
                 emit_byte(ctx, OP_CALL_EXTERN);
                 emit_byte(ctx, VM_EXTERN_FUNC_READ_SLICE_INDEX);
             } else if (node->src_loc == slice_drop_ident) {
@@ -122,6 +129,39 @@ static void compile_builtin(struct Context *ctx, struct AstNode *body)
 
                 emit_byte(ctx, OP_CALL_EXTERN);
                 emit_byte(ctx, VM_EXTERN_FUNC_SLICE_TAKE);
+            } else if (node->src_loc == slice_join_ident) {
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, 0);
+                emit_byte(ctx, OP_EVAL);
+
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, 1);
+                emit_byte(ctx, OP_EVAL);
+
+                emit_byte(ctx, OP_CALL_EXTERN);
+                emit_byte(ctx, VM_EXTERN_FUNC_SLICE_JOIN);
+            } else if (node->src_loc == slice_cons_ident) {
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, 0);
+                emit_byte(ctx, OP_EVAL);
+
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, 1);
+                emit_byte(ctx, OP_EVAL);
+
+                emit_byte(ctx, OP_CALL_EXTERN);
+                emit_byte(ctx, VM_EXTERN_FUNC_SLICE_CONS);
+            } else if (node->src_loc == slice_push_ident) {
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, 0);
+                emit_byte(ctx, OP_EVAL);
+
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, 1);
+                emit_byte(ctx, OP_EVAL);
+
+                emit_byte(ctx, OP_CALL_EXTERN);
+                emit_byte(ctx, VM_EXTERN_FUNC_SLICE_PUSH);
             } else {
                 panic("not a builtin function");
             }

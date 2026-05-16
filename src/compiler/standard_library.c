@@ -62,6 +62,13 @@ mod = {\n\
         len s = @std_builtin(slice_len);\n\
         drop n s = @std_builtin(slice_drop);\n\
         take n s = @std_builtin(slice_take);\n\
+        join a b = @std_builtin(slice_join);\n\
+\n\
+        cons c s = @std_builtin(slice_cons);\n\
+        push s c = @std_builtin(slice_push);\n\
+        unpack s = if len s == 0\n\
+                      then ()\n\
+                      else (index 0 s) :: unpack (drop 1 s);\n\
     };\n\
     mod io = {\n\
         stdin = @std_builtin(stdin);\n\

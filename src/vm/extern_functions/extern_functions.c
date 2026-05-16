@@ -125,6 +125,18 @@ void call_extern_function(enum VmExternFunction function)
             extern_func_slice_take();
             break;
         }
+        case VM_EXTERN_FUNC_SLICE_JOIN:{
+            extern_func_slice_join();
+            break;
+        }
+        case VM_EXTERN_FUNC_SLICE_CONS:{
+            extern_func_slice_cons();
+            break;
+        }
+        case VM_EXTERN_FUNC_SLICE_PUSH:{
+            extern_func_slice_push();
+            break;
+        }
         default:
             panic("not an extern function");
     }

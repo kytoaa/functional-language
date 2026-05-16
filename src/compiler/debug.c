@@ -66,6 +66,8 @@ static const char *extern_function_name(enum VmExternFunction func)
             return "WRITE_C_STRING";
         case VM_EXTERN_FUNC_READ_CONTENTS:
             return "READ";
+        case VM_EXTERN_FUNC_READ_LINE:
+            return "READ_LINE";
         case VM_EXTERN_FUNC_OPEN_FILE:
             return "OPEN_FILE";
         case VM_EXTERN_FUNC_STDIN:
@@ -74,6 +76,24 @@ static const char *extern_function_name(enum VmExternFunction func)
             return "STDOUT";
         case VM_EXTERN_FUNC_STDERR:
             return "STDERR";
+
+        case VM_EXTERN_FUNC_SLICE_LEN:
+            return "SLICE_LEN";
+        case VM_EXTERN_FUNC_READ_SLICE_INDEX:
+            return "READ_SLICE_INDEX";
+        case VM_EXTERN_FUNC_SLICE_DROP:
+            return "SLICE_DROP";
+        case VM_EXTERN_FUNC_SLICE_TAKE:
+            return "SLICE_TAKE";
+        case VM_EXTERN_FUNC_SLICE_JOIN:
+            return "SLICE_JOIN";
+        case VM_EXTERN_FUNC_SLICE_CONS:
+            return "SLICE_CONS";
+        case VM_EXTERN_FUNC_SLICE_PUSH:
+            return "SLICE_PUSH";
+
+        case VM_EXTERN_FUNC_COUNT:
+            return "COUNT";
 
         default:
             return "unknown extern function";

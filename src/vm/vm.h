@@ -33,6 +33,7 @@ struct VM {
         struct Thunk **ptr;
         u32 len;
     } static_thunks;
+    bool had_error;
 };
 
 enum InterpretResult {

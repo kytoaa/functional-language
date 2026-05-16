@@ -484,6 +484,8 @@ next_instruction:
     }
 
     try_gc();
+    if (vm.had_error)
+        return INTERPRET_RUNTIME_ERROR;
 
     goto next_instruction;
 
@@ -574,6 +576,7 @@ void run_vm(struct Chunk *chunk, struct VmConfig config)
             .global_function_start = chunk->bytecode.len,
         },
         .config = config,
+        .had_error = false,
     };
 
     u32 thunk_count = remap_constants(vm.code.constants, chunk->constants.len, vm.code.functions);

@@ -2,11 +2,20 @@ mod list = std..list;
 mod io = std..io;
 mod slice = std..slice;
 
-other = @my_attr(woah);
+stdin_contents = io..read_line io..stdin;
 
-stdin_contents = slice..take 2 (io..read_line io..stdin);
+is_whitespace c = case c of
+    | ' '  -> true
+    | '\n' -> true
+    | '\t' -> true
+    | '\r' -> true
+    | _    -> false;
 
-seq a b = case $a of | _ -> b;
+trim s = let
+    length = slice..len s;
+    count_start n = if is_whitespace (slice..index n s) then count_start (n + 1) else n;
+    count_end n = if is_whitespace (slice..index n s) then count_start (n - 1) else n;
+    in slice..drop (count_start 0) (slice..take (count_end (length - 1) + 1) s);
 
-main = seq (io..println stdin_contents) (io..println (slice..len stdin_contents));
+main = (io..println (trim stdin_contents));
 

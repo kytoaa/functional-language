@@ -24,6 +24,7 @@ void runtime_error(const char *msg)
     fprintf(vm.config.error, "\tip: [%llu], sp: [%llu], r1: [%llu]\n", instruction_ptr, stack_ptr, vm.registers[REG_1]);
     print_stack(vm.config.error);
 #endif
+    vm.had_error = true;
 }
 
 u8 read_instruction()

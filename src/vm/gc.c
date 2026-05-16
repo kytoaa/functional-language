@@ -165,6 +165,20 @@ static void trace_objects()
     }
 }
 
+static void free_obj(struct Obj *object)
+{
+    switch (object->type) {
+        case OBJ_ARRAY:{
+            struct ArrayObj *array = (struct ArrayObj*)object;
+            free_mem(array->ptr);
+            break;
+        }
+        default:
+            break;
+    }
+    free_mem(object);
+}
+
 static void sweep()
 {
     struct Obj *prev = null;
@@ -190,7 +204,7 @@ static void sweep()
                 *get_most_recent_alloc() = current;
             }
 
-            free_mem(unreferenced);
+            free_obj(unreferenced);
             #ifdef LOG_GC
                 freed_objects += 1;
             #endif

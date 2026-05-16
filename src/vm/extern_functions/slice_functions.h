@@ -5,5 +5,8 @@ void extern_func_slice_drop();
 void extern_func_slice_take();
 void extern_func_slice_index();
 void extern_func_slice_len();
+void extern_func_slice_join();
+void extern_func_slice_cons();
+void extern_func_slice_push();
 
 #endif
