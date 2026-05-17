@@ -109,6 +109,10 @@ void call_extern_function(enum VmExternFunction function)
             push_val(as_val(file_handle));
             break;
         }
+        case VM_EXTERN_FUNC_SLICE_EMPTY:{
+            extern_func_slice_empty();
+            break;
+        }
         case VM_EXTERN_FUNC_SLICE_LEN:{
             extern_func_slice_len();
             break;

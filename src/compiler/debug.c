@@ -77,6 +77,8 @@ static const char *extern_function_name(enum VmExternFunction func)
         case VM_EXTERN_FUNC_STDERR:
             return "STDERR";
 
+        case VM_EXTERN_FUNC_SLICE_EMPTY:
+            return "SLICE_EMPTY";
         case VM_EXTERN_FUNC_SLICE_LEN:
             return "SLICE_LEN";
         case VM_EXTERN_FUNC_READ_SLICE_INDEX:

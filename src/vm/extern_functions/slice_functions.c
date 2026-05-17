@@ -17,6 +17,12 @@ static usize val_type_size(enum ValueType type)
     }
 }
 
+void extern_func_slice_empty()
+{
+    struct ArrayObj *array = obj_create_array(0, VALUE_INT, null);
+    push_val(as_val(array));
+}
+
 void extern_func_slice_drop()
 {
     Val index_val = pop_val();
@@ -257,95 +263,33 @@ void extern_func_slice_cons()
 
     Val slice_val = pop_val();
 
-    switch (slice_val->type) {
-        case OBJ_SLICE:{
-            struct SliceObj *slice = (struct SliceObj*)slice_val;
-            if (slice->array->val_type != push->val.type)
-                return runtime_error("incompatible types");
+    struct SliceInfo slice = get_slice_info(slice_val);
+    if (slice.array == null)
+        return runtime_error("slice cons is not a slice");
 
-            if (slice->start > 0) {
-                switch (slice->array->val_type) {
-                    case VALUE_INT:{
-                        i32 value = ((i32*)slice->array->ptr)[slice->start - 1];
-                        if (value == push->val.as.integer) {
-                            struct SliceObj *new_slice = obj_create_slice(slice->array, slice->start - 1, slice->len + 1);
-                            push_val(as_val(new_slice));
-                            return;
-                        }
-                        break;
-                    }
-                    case VALUE_BOOL:{
-                        bool value = ((bool*)slice->array->ptr)[slice->start - 1];
-                        if (value == push->val.as.boolean) {
-                            struct SliceObj *new_slice = obj_create_slice(slice->array, slice->start - 1, slice->len + 1);
-                            push_val(as_val(new_slice));
-                            return;
-                        }
-                        break;
-                    }
-                    case VALUE_CHAR:{
-                        char value = ((char*)slice->array->ptr)[slice->start - 1];
-                        if (value == push->val.as.character) {
-                            struct SliceObj *new_slice = obj_create_slice(slice->array, slice->start - 1, slice->len + 1);
-                            push_val(as_val(new_slice));
-                            return;
-                        }
-                        break;
-                    }
-                    default:
-                        return runtime_error("not a valid slice");
-                }
-            }
-            struct ArrayObj *new_array = obj_create_array(slice->len + 1, slice->array->val_type, null);
+    if (slice.len > 0 && slice.array->val_type != push->val.type)
+        return runtime_error("incompatible types");
 
-            switch (slice->array->val_type) {
-                case VALUE_INT:
-                    *(i32*)new_array->ptr = push->val.as.integer;
-                    break;
-                case VALUE_BOOL:
-                    *(bool*)new_array->ptr = push->val.as.boolean;
-                    break;
-                case VALUE_CHAR:
-                    *(char*)new_array->ptr = push->val.as.character;
-                    break;
-                default:
-                    return runtime_error("not a valid slice");
-            }
-            const u32 val_size = val_type_size(slice->array->val_type);
-            memcpy(new_array->ptr + 1, slice->array->ptr + slice->start * val_size, slice->len * val_size);
+    struct ArrayObj *new_array = obj_create_array(slice.len + 1, push->val.type, null);
 
-            push_val(as_val(new_array));
+    switch (push->val.type) {
+        case VALUE_INT:
+            *(i32*)new_array->ptr = push->val.as.integer;
             break;
-        }
-        case OBJ_ARRAY:{
-            struct ArrayObj *array = (struct ArrayObj*)slice_val;
-            if (array->val_type != push->val.type)
-                return runtime_error("incompatible types");
-
-            struct ArrayObj *new_array = obj_create_array(array->len + 1, array->val_type, null);
-
-            switch (array->val_type) {
-                case VALUE_INT:
-                    *(i32*)new_array->ptr = push->val.as.integer;
-                    break;
-                case VALUE_BOOL:
-                    *(bool*)new_array->ptr = push->val.as.boolean;
-                    break;
-                case VALUE_CHAR:
-                    *(char*)new_array->ptr = push->val.as.character;
-                    break;
-                default:
-                    return runtime_error("not a valid slice");
-            }
-            const u32 val_size = val_type_size(array->val_type);
-            memcpy(new_array->ptr + 1, array->ptr, array->len * val_size);
-
-            push_val(as_val(new_array));
+        case VALUE_BOOL:
+            *(bool*)new_array->ptr = push->val.as.boolean;
             break;
-        }
+        case VALUE_CHAR:
+            *(char*)new_array->ptr = push->val.as.character;
+            break;
         default:
-            return runtime_error("not a slice");
+            return runtime_error("not a valid slice");
     }
+
+    const u32 val_size = val_type_size(push->val.type);
+    memcpy(new_array->ptr + 1, slice.array->ptr + slice.start * val_size, slice.len * val_size);
+
+    push_val(as_val(new_array));
 }
 
 void extern_func_slice_push()
@@ -358,94 +302,32 @@ void extern_func_slice_push()
     }
     struct Box *push = (struct Box*)push_value;
 
-    switch (slice_val->type) {
-        case OBJ_SLICE:{
-            struct SliceObj *slice = (struct SliceObj*)slice_val;
-            if (slice->array->val_type != push->val.type)
-                return runtime_error("incompatible types");
+    struct SliceInfo slice = get_slice_info(slice_val);
+    if (slice.array == null)
+        return runtime_error("slice cons is not a slice");
 
-            if (slice->start + slice->len < slice->array->len) {
-                switch (slice->array->val_type) {
-                    case VALUE_INT:{
-                        i32 value = ((i32*)slice->array->ptr)[slice->start + slice->len];
-                        if (value == push->val.as.integer) {
-                            struct SliceObj *new_slice = obj_create_slice(slice->array, slice->start, slice->len + 1);
-                            push_val(as_val(new_slice));
-                            return;
-                        }
-                        break;
-                    }
-                    case VALUE_BOOL:{
-                        bool value = ((bool*)slice->array->ptr)[slice->start + slice->len];
-                        if (value == push->val.as.boolean) {
-                            struct SliceObj *new_slice = obj_create_slice(slice->array, slice->start, slice->len + 1);
-                            push_val(as_val(new_slice));
-                            return;
-                        }
-                        break;
-                    }
-                    case VALUE_CHAR:{
-                        char value = ((char*)slice->array->ptr)[slice->start + slice->len];
-                        if (value == push->val.as.character) {
-                            struct SliceObj *new_slice = obj_create_slice(slice->array, slice->start, slice->len + 1);
-                            push_val(as_val(new_slice));
-                            return;
-                        }
-                        break;
-                    }
-                    default:
-                        return runtime_error("not a valid slice");
-                }
-            }
+    if (slice.len > 0 && slice.array->val_type != push->val.type)
+        return runtime_error("incompatible types");
 
-            struct ArrayObj *new_array = obj_create_array(slice->len + 1, slice->array->val_type, null);
-            const u32 val_size = val_type_size(slice->array->val_type);
-            memcpy(new_array->ptr, slice->array->ptr, slice->len * val_size);
+    struct ArrayObj *new_array = obj_create_array(slice.len + 1, push->val.type, null);
 
-            switch (slice->array->val_type) {
-                case VALUE_INT:
-                    ((i32*)new_array->ptr)[slice->len] = push->val.as.integer;
-                    break;
-                case VALUE_BOOL:
-                    ((bool*)new_array->ptr)[slice->len] = push->val.as.boolean;
-                    break;
-                case VALUE_CHAR:
-                    ((char*)new_array->ptr)[slice->len] = push->val.as.character;
-                    break;
-                default:
-                    return runtime_error("not a valid slice");
-            }
-            push_val(as_val(new_array));
+    switch (push->val.type) {
+        case VALUE_INT:
+            ((i32*)new_array->ptr)[slice.len] = push->val.as.integer;
             break;
-        }
-        case OBJ_ARRAY:{
-            struct ArrayObj *array = (struct ArrayObj*)slice_val;
-            if (array->val_type != push->val.type)
-                return runtime_error("incompatible types");
-
-            struct ArrayObj *new_array = obj_create_array(array->len + 1, array->val_type, null);
-            const u32 val_size = val_type_size(array->val_type);
-            memcpy(new_array->ptr, array->ptr, array->len * val_size);
-
-            switch (array->val_type) {
-                case VALUE_INT:
-                    ((i32*)new_array->ptr)[array->len] = push->val.as.integer;
-                    break;
-                case VALUE_BOOL:
-                    ((bool*)new_array->ptr)[array->len] = push->val.as.boolean;
-                    break;
-                case VALUE_CHAR:
-                    ((char*)new_array->ptr)[array->len] = push->val.as.character;
-                    break;
-                default:
-                    return runtime_error("not a valid slice");
-            }
-
-            push_val(as_val(new_array));
+        case VALUE_BOOL:
+            ((bool*)new_array->ptr)[slice.len] = push->val.as.boolean;
             break;
-        }
+        case VALUE_CHAR:
+            ((char*)new_array->ptr)[slice.len] = push->val.as.character;
+            break;
         default:
-            return runtime_error("not a slice");
+            return runtime_error("not a valid slice");
     }
+
+    const u32 val_size = val_type_size(push->val.type);
+    memcpy(new_array->ptr, slice.array->ptr + slice.start * val_size, slice.len * val_size);
+
+    push_val(as_val(new_array));
 }
 

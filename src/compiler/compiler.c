@@ -13,11 +13,11 @@
 
 static void run_chunk(const struct CompilerConfig *config, struct Chunk chunk)
 {
-    for (u32 i = 0; i < chunk.closures.len; i++) {
+    /*for (u32 i = 0; i < chunk.closures.len; i++) {
         struct ClosureInfo closure = chunk.closures.ptr[i];
         printf("{ addr: %d, arity: %d, captures: %d }\n", closure.address, closure.arity, closure.capture_count);
     }
-    print_instructions(config->output, &chunk);
+    print_instructions(config->output, &chunk);*/
 
     run_vm(&chunk, (struct VmConfig){ .out = config->output, .error = config->error });
 }
@@ -42,7 +42,7 @@ void compile_file(const struct CompilerConfig config)
     const u32 file_name_len = config.file_name_len - (sizeof(FILE_EXTENSION) - 1);
 
     compile_file_module(&compiler, null, config.file_name, file_name_len);
-    print_ast(&compiler.files.ptr[0].ast);
+    //print_ast(&compiler.files.ptr[0].ast);
 
     struct ModuleCtx modules = resolve_ast(&compiler, &compiler.files.ptr[0]);
 

@@ -17,5 +17,5 @@ trim s = let
     count_end n = if is_whitespace (slice..index n s) then count_start (n - 1) else n;
     in slice..drop (count_start 0) (slice..take (count_end (length - 1) + 1) s);
 
-main = (io..println (trim stdin_contents));
+main = io..println : slice..push (slice..cons 'a' (trim stdin_contents)) 'b';
 

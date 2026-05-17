@@ -58,6 +58,8 @@ mod = {\n\
         | a :: b -> f a b;\n\
 \n\
     mod slice = {\n\
+        empty = @std_builtin(slice_empty);\n\
+\n\
         index n s = @std_builtin(slice_index);\n\
         len s = @std_builtin(slice_len);\n\
         drop n s = @std_builtin(slice_drop);\n\

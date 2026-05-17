@@ -1,5 +1,3 @@
-#define LOG_GC
-
 #include "gc.h"
 #include "../object.h"
 #include "../prelude.h"

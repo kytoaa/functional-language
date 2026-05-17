@@ -7,7 +7,6 @@
 
 static u32 compile_top_level_decl(struct Context *ctx, struct DeclarationNode *node)
 {
-    printf("compiling %.*s in %d\n", node->name_len, node->name, ctx->module_index);
     u32 function_start_index = get_last_bytecode_index(ctx) + 1;
 
     if (node->body->kind == AST_LAMBDA) {
