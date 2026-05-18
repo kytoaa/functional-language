@@ -109,7 +109,7 @@ static bool pop_resolution_queue(struct ModuleCtxWork *ctx, struct ModuleResolut
     return true;
 }
 
-static void declare_module_items(struct ModuleCtxWork *ctx, struct ModuleDeclNode *module, u16 module_index)
+static struct ModuleResult declare_module_items(struct ModuleCtxWork *ctx, struct ModuleDeclNode *module, u16 module_index)
 {
     struct Module *mod = get_module(&ctx->ctx, module_index);
     if (module->has_body) {
@@ -128,9 +128,19 @@ static void declare_module_items(struct ModuleCtxWork *ctx, struct ModuleDeclNod
     struct ModuleDeclNode *submodule = module->submodules;
     while (submodule != null) {
         if (submodule->name == null) {
-            panic("inline submodules cannot have a self module");
+            return (struct ModuleResult){
+                .successful = false,
+                .msg = "inline submodules cannot have a self module",
+                .file_index = compiled_file_index(mod),
+                .location = submodule->node.loc,
+            };
         } else if (submodule->has_body == false && submodule->declarations == null) {
-            panic("inline submodules cannot declare file modules");
+            return (struct ModuleResult){
+                .successful = false,
+                .msg = "inline submodules cannot declare file modules",
+                .file_index = compiled_file_index(mod),
+                .location = submodule->node.loc,
+            };
         } else {
             if (submodule->has_body) {
                 declare_item(mod, (struct ModuleItem){
@@ -152,9 +162,10 @@ static void declare_module_items(struct ModuleCtxWork *ctx, struct ModuleDeclNod
         }
         submodule = submodule->next_mod;
     }
+    return (struct ModuleResult){ .successful = true };
 }
 
-static void resolve_node(struct ModuleCtxWork *ctx, struct ModuleDeclNode *node, u16 parent)
+static struct ModuleResult resolve_node(struct ModuleCtxWork *ctx, struct ModuleDeclNode *node, u16 parent)
 {
     u16 mod_index = create_module(ctx, node->name->src_loc, parent);
     struct Module *mod = get_module(&ctx->ctx, mod_index);
@@ -170,11 +181,16 @@ static void resolve_node(struct ModuleCtxWork *ctx, struct ModuleDeclNode *node,
 
     set_compiled_file_index(mod, compiled_file_index(parent_mod), false);
 
-    declare_module_items(ctx, node, mod_index);
+    return declare_module_items(ctx, node, mod_index);
 }
 
-static u16 resolve_top_level(struct ModuleCtxWork *ctx, const struct AstTopLevel *ast, u16 file_index, const char *mod_name, u16 parent)
-{
+static struct ModuleResult resolve_top_level(
+    struct ModuleCtxWork *ctx,
+    const struct AstTopLevel *ast,
+    u16 file_index,
+    const char *mod_name,
+    u16 parent
+) {
     u16 mod_index = create_module(ctx, mod_name, parent);
     struct Module *mod = get_module(&ctx->ctx, mod_index);
 
@@ -195,7 +211,10 @@ static u16 resolve_top_level(struct ModuleCtxWork *ctx, const struct AstTopLevel
     struct ModuleDeclNode *submodule = (struct ModuleDeclNode*)ast->modules;
     while (submodule != null) {
         if (submodule->name == null) {
-            declare_module_items(ctx, submodule, mod_index);
+            struct ModuleResult result = declare_module_items(ctx, submodule, mod_index);
+            if (!result.successful)
+                return result;
+
             submodule = submodule->next_mod;
             continue;
         }
@@ -219,10 +238,13 @@ static u16 resolve_top_level(struct ModuleCtxWork *ctx, const struct AstTopLevel
 
         submodule = submodule->next_mod;
     }
-    return mod_index;
+    return (struct ModuleResult){
+        .successful = true,
+        .msg = (const char*)(usize)mod_index,
+    };
 }
 
-struct ModuleCtx resolve_ast(struct Compiler *compiler, const struct CompiledFile *file)
+struct ModuleResult resolve_ast(struct Compiler *compiler, const struct CompiledFile *file, struct ModuleCtx *out)
 {
     struct ModuleCtxWork ctx = {
         .ctx = {
@@ -242,7 +264,14 @@ struct ModuleCtx resolve_ast(struct Compiler *compiler, const struct CompiledFil
         u32 file_index = compile_module(compiler, lib_name, 3, std_lib_src(), std_lib_src_len());
         struct CompiledFile *compiled = get_compiled_file(compiler, file_index);
 
-        u16 mod_index = resolve_top_level(&ctx, &compiled->ast, file_index, lib_name, (u16)-1);
+        struct ModuleResult result = resolve_top_level(&ctx, &compiled->ast, file_index, lib_name, (u16)-1);
+        if (!result.successful) {
+            free_mem(ctx.worklist.ptr);
+            free_mem(ctx.ctx.libraries.ptr);
+            return result;
+        }
+
+        u16 mod_index = (u16)(usize)result.msg;
         ctx.ctx.libraries.ptr[0] = (struct Library){ .name = lib_name, .module_index = mod_index, };
     }
 
@@ -253,7 +282,14 @@ struct ModuleCtx resolve_ast(struct Compiler *compiler, const struct CompiledFil
 
         const char *lib_name = ident_table_get(&compiler->identifiers, library->name, library->name_len);
 
-        u16 mod_index = resolve_top_level(&ctx, &compiled->ast, file_index, library->name, (u16)-1);
+        struct ModuleResult result = resolve_top_level(&ctx, &compiled->ast, file_index, library->name, (u16)-1);
+        if (!result.successful) {
+            free_mem(ctx.worklist.ptr);
+            free_mem(ctx.ctx.libraries.ptr);
+            return result;
+        }
+
+        u16 mod_index = (u16)(usize)result.msg;
         ctx.ctx.libraries.ptr[i] = (struct Library){ .name = lib_name, .module_index = mod_index, };
     }
 
@@ -268,6 +304,14 @@ struct ModuleCtx resolve_ast(struct Compiler *compiler, const struct CompiledFil
                 struct CompiledFile *parent = get_compiled_file(compiler, compiled_file_index(get_module(&ctx.ctx, work.parent_module)));
 
                 u32 file_index = compile_file_module(compiler, parent, work.file.name, work.file.name_len);
+                if (file_index == (u32)-1) {
+                    free_mem(ctx.worklist.ptr);
+                    free_mem(ctx.ctx.libraries.ptr);
+                    return (struct ModuleResult){
+                        .msg = null,
+                        .successful = false,
+                    };
+                }
                 struct CompiledFile *compiled = get_compiled_file(compiler, file_index);
 
                 resolve_top_level(&ctx, &compiled->ast, file_index, work.file.name, work.parent_module);
@@ -276,5 +320,6 @@ struct ModuleCtx resolve_ast(struct Compiler *compiler, const struct CompiledFil
         }
     }
     free_mem(ctx.worklist.ptr);
-    return ctx.ctx;
+    *out = ctx.ctx;
+    return (struct ModuleResult){ .successful = true };
 }

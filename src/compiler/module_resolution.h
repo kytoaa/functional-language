@@ -37,6 +37,13 @@ struct Library {
     u32 module_index;
 };
 
+struct ModuleResult {
+    const char *msg;
+    struct Location location;
+    u16 file_index;
+    bool successful;
+};
+
 enum ModuleWorkKind {
     MODULE_WORK_AST_NODE,
     MODULE_WORK_FILE,
@@ -71,7 +78,7 @@ struct ModuleCtx {
     const char *std_ident;
 };
 
-struct ModuleCtx resolve_ast(struct Compiler *compiler, const struct CompiledFile *file);
+struct ModuleResult resolve_ast(struct Compiler *compiler, const struct CompiledFile *file, struct ModuleCtx *out);
 struct Module *get_module(struct ModuleCtx *modules, u16 index);
 
 void free_module_ctx(struct ModuleCtx *modules);

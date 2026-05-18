@@ -177,9 +177,11 @@ static void print_array_elements(FILE *out, struct ArrayObj *val, u32 start, u32
     if (val->val_type == VALUE_CHAR) {
         fprintf(out, "%.*s", count, val->ptr + start);
     } else {
-        for (u32 i = start; i < start + count; i++) {
-            fprintf(out, "%d", (val->val_type == VALUE_BOOL) ? ((u32*)val->ptr)[i] : val->ptr[i]);
+        fprintf(out, "[%d", (val->val_type == VALUE_INT) ? ((i32*)val->ptr)[0] : val->ptr[0]);
+        for (u32 i = start + 1; i < start + count; i++) {
+            fprintf(out, ", %d", (val->val_type == VALUE_INT) ? ((i32*)val->ptr)[i] : val->ptr[i]);
         }
+        fprintf(out, "]");
     }
 }
 static void print_array(FILE *out, struct ArrayObj *val)

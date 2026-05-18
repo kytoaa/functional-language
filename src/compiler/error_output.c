@@ -166,6 +166,21 @@ void print_codegen_error(struct Compiler *compiler, struct CodegenError error)
             );
             break;
         }
+        case CODEGEN_ERR_MSG:{
+            fprintf(
+                config->error,
+                ERROR_STR " %s\n "ARROW_STR" %.*s:%d\n",
+                error.error.with_message.msg,
+                config->file_name_len, config->file_name,
+                error.error.main_args.loc.line
+            );
+            print_ident(
+                config->error,
+                src,
+                error.error.main_args.loc
+            );
+            break;
+        }
     }
     if (error.additional_msg != null) {
         fprintf(config->error, "\x1b[1;37mnote\x1b[0m: %s\n", error.additional_msg);

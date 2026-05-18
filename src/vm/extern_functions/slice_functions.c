@@ -9,9 +9,9 @@ static usize val_type_size(enum ValueType type)
         case VALUE_CHAR:
             return sizeof(char);
         case VALUE_BOOL:
-            return sizeof(char);
+            return sizeof(bool);
         case VALUE_INT:
-            return sizeof(char);
+            return sizeof(i32);
         case VALUE_UNIT:
             return 0;
     }

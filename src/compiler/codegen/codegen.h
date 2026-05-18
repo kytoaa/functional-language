@@ -18,6 +18,7 @@ enum CodegenErrorType {
     CODEGEN_ERR_MAIN_ARGS,
     CODEGEN_ERR_MULTIPLE_MAIN_DECL,
     CODEGEN_ERR_USED_UNDERSCORE,
+    CODEGEN_ERR_MSG,
 };
 
 struct CodegenError {
@@ -38,6 +39,10 @@ struct CodegenError {
         struct {
             struct Location loc;
         } used_underscore;
+        struct {
+            const char *msg;
+            struct Location loc;
+        } with_message;
     } error;
 };
 
@@ -82,6 +87,7 @@ void redeclared_global_err(struct Context *ctx, struct Location loc, struct Loca
 void main_args_err(struct Context *ctx, struct Location loc, const char *msg);
 void multiple_main_decl_err(struct Context *ctx, struct Location loc, struct Location prev_decl_loc, const char *msg);
 void used_underscore_err(struct Context *ctx, struct Location loc, const char *msg);
+struct CodegenError make_message_error(struct Location loc, const char *msg, u16 file_index);
 
 void namespace_access_error(struct Context *ctx, struct GlobalResolutionResult error);
 

@@ -3,13 +3,9 @@
 #include "../parsing/ident_table.h"
 #include "codegen/codegen.h"
 #include "codegen/top_level.h"
-#include "debug.h"
 #include "error_output.h"
 #include "file_compilation.h"
 #include "module_resolution.h"
-#include "../parsing/debug.h"
-
-#include <stdio.h>
 
 static void run_chunk(const struct CompilerConfig *config, struct Chunk chunk)
 {
@@ -41,10 +37,25 @@ void compile_file(const struct CompilerConfig config)
     }
     const u32 file_name_len = config.file_name_len - (sizeof(FILE_EXTENSION) - 1);
 
-    compile_file_module(&compiler, null, config.file_name, file_name_len);
+    u32 result = compile_file_module(&compiler, null, config.file_name, file_name_len);
     //print_ast(&compiler.files.ptr[0].ast);
+    if (result == (u32)-1) {
+        free_compiler(&compiler);
+        free_chunk(&compiler.chunk);
+        return;
+    }
 
-    struct ModuleCtx modules = resolve_ast(&compiler, &compiler.files.ptr[0]);
+    struct ModuleCtx modules = {};
+    struct ModuleResult mod_result = resolve_ast(&compiler, &compiler.files.ptr[0], &modules);
+    if (!mod_result.successful && mod_result.msg != null) {
+        print_codegen_error(
+            &compiler,
+            make_message_error(mod_result.location, mod_result.msg, mod_result.file_index)
+        );
+        free_compiler(&compiler);
+        free_chunk(&compiler.chunk);
+        return;
+    }
 
     struct CodegenErrorList errors = generate_code(&compiler, &modules);
 
