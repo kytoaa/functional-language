@@ -16,6 +16,7 @@ enum ObjType {
     OBJ_FILE_HANDLE,
     OBJ_ARRAY,
     OBJ_SLICE,
+    OBJ_RUNTIME_TYPE,
 
     OBJ_TYPE_COUNT,
 };
@@ -70,6 +71,12 @@ struct SliceObj {
     u32 start;
 };
 
+struct RuntimeType {
+    struct Obj obj;
+    const char *name;
+    u32 name_len;
+};
+
 struct ClosureInfo {
     u32 arity;
     u32 address;
@@ -120,6 +127,7 @@ void obj_init_box(struct Box *box);
 void obj_init_cons(struct Cons *cons);
 void obj_init_array(struct ArrayObj *slice, u32 len, enum ValueType type, u8 *ptr);
 void obj_init_slice(struct SliceObj *slice, struct ArrayObj *array, u32 start, u32 len);
+void obj_init_type(struct RuntimeType *type, const char *name, u32 name_len);
 
 struct Box **obj_dyn_fields(struct Obj *obj);
 

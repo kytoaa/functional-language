@@ -54,6 +54,10 @@ static void process_file_handle(struct FileHandleObj *file_handle)
 {
     return;
 }
+static void process_runtime_type(struct RuntimeType *runtime_type)
+{
+    return;
+}
 static void process_slice_obj(struct SliceObj *slice)
 {
     mark_obj(TO_OBJ(slice->array));
@@ -126,6 +130,9 @@ static void process_obj(struct Obj *obj)
         case OBJ_ARRAY:
             process_array_obj((struct ArrayObj*)obj);
             break;
+        case OBJ_RUNTIME_TYPE:
+            process_runtime_type((struct RuntimeType*)obj);
+            break;
 
         default:
             return panic("not an object");
@@ -169,6 +176,11 @@ static void free_obj(struct Obj *object)
         case OBJ_ARRAY:{
             struct ArrayObj *array = (struct ArrayObj*)object;
             free_mem(array->ptr);
+            break;
+        }
+        case OBJ_RUNTIME_TYPE:{
+            struct RuntimeType *type = (struct RuntimeType*)object;
+            free_mem((void*)type->name);
             break;
         }
         default:

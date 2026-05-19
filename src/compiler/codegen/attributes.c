@@ -1,4 +1,6 @@
 #include "attributes.h"
+#include "codegen.h"
+#include <string.h>
 
 static bool try_compile_std_attribute(struct Context *ctx, struct AttributeNode *node);
 static void compile_builtin(struct Context *ctx, struct AstNode *body);
@@ -14,6 +16,31 @@ void compile_attribute(struct Context *ctx, struct AttributeNode *node)
     {
         if (try_compile_std_attribute(ctx, node))
             return;
+    }
+
+    const char *type_ident = ident_table_get(ctx->identifier_table, "type", 4);
+    if (node->ident->src_loc == type_ident) {
+        u32 constant = create_constant(ctx->compiling_chunk, OBJ_RUNTIME_TYPE, sizeof(struct RuntimeType));
+        struct RuntimeType *type_constant = (struct RuntimeType*)get_constant(ctx, constant);
+
+        char *name = null;
+        u32 name_len = 0;
+
+        if (node->body != null) {
+            if (node->body->kind != AST_IDENTIFIER) {
+                panic("not a valid attribute argument, `@type(..)` expects an identifier");
+            }
+            struct IdentifierNode *ident = (struct IdentifierNode*)node->body;
+            name = alloc_mem(ident->len);
+            memcpy(name, ident->src_loc, ident->len);
+            name_len = ident->len;
+        }
+
+        obj_init_type(type_constant, name, name_len);
+
+        emit_byte(ctx, OP_PUSH_CONST);
+        emit_u32(ctx, constant);
+        return;
     }
 }
 

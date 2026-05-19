@@ -143,6 +143,14 @@ void obj_init_cons(struct Cons *cons)
     cons->r = null;
 }
 
+void obj_init_type(struct RuntimeType *type, const char *name, u32 name_len)
+{
+    type->obj.type = OBJ_RUNTIME_TYPE;
+    type->obj.flags.is_whnf = true;
+    type->name = name;
+    type->name_len = name_len;
+}
+
 struct Application *obj_create_application(u8 arg_count)
 {
     const u32 size = sizeof(struct Application) + sizeof(void*) * arg_count;

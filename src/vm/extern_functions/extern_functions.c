@@ -220,6 +220,11 @@ static void print_val(FILE *out, Val val)
         case OBJ_SLICE:
             print_slice(out, (struct SliceObj*)val);
             break;
+        case OBJ_RUNTIME_TYPE:{
+            struct RuntimeType *type = (struct RuntimeType*)val;
+            fprintf(out, "<type %.*s>", type->name_len, type->name);
+            break;
+        }
         default:
             fprintf(out, "%d\n", val->type);
             panic("not printable");

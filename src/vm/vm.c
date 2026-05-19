@@ -447,6 +447,11 @@ next_instruction:
             //if (l->type != OBJ_BOX)
             Val r = pop_val();
 
+            if (l->type == OBJ_RUNTIME_TYPE && r->type == OBJ_RUNTIME_TYPE) {
+                push_val(l == r ? (Val)TRUE_BOX_CONST : (Val)FALSE_BOX_CONST);
+                break;
+            }
+
             if (l->type != OBJ_BOX) {
                 runtime_error("left argument of `==` is not an equatable value");
                 return INTERPRET_RUNTIME_ERROR;
@@ -514,6 +519,9 @@ static u32 remap_constants(u64 *constants, u32 cap, struct ClosureInfo *closures
             case OBJ_CLOSURE:
                 current_ptr += OBJ_U64_SIZE(struct Closure);
                 break;
+            case OBJ_RUNTIME_TYPE:
+                current_ptr += OBJ_U64_SIZE(struct RuntimeType);
+                break;
             case OBJ_THUNK:
                 current_ptr += OBJ_U64_SIZE(struct Thunk);
                 thunk_count += 1;
@@ -536,6 +544,9 @@ static void populate_static_thunks(struct Thunk **mem, u64 *constants, u32 total
                 break;
             case OBJ_CLOSURE:
                 current_ptr += OBJ_U64_SIZE(struct Closure);
+                break;
+            case OBJ_RUNTIME_TYPE:
+                current_ptr += OBJ_U64_SIZE(struct RuntimeType);
                 break;
             case OBJ_THUNK:
                 mem[thunk_count] = (struct Thunk*)current_ptr;
