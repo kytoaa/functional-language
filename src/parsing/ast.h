@@ -25,6 +25,7 @@ enum NodeKind {
     AST_MODULE_DECL,
     AST_USE_DECL,
     AST_NAMESPACE_ACCESS,
+    AST_CONSTRUCTOR,
     AST_ATTR,
 };
 

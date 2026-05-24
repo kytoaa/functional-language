@@ -170,7 +170,7 @@ struct Application *obj_create_application(u8 arg_count)
 
 struct Closure *obj_create_closure(struct ClosureInfo *info)
 {
-    const u32 size = sizeof(struct Closure) + (info->capture_count * sizeof(struct Object*));
+    const u32 size = sizeof(struct Closure) + (info->capture_count * sizeof(struct Obj*));
     struct Closure *closure = (struct Closure*)alloc_obj(size);
 
     for (u32 i = 0; i < info->capture_count; i++) {
@@ -185,7 +185,7 @@ struct Closure *obj_create_closure(struct ClosureInfo *info)
 }
 struct Thunk *obj_create_thunk(struct ClosureInfo *info)
 {
-    const u32 size = sizeof(struct Thunk) + (info->capture_count * sizeof(struct Object*));
+    const u32 size = sizeof(struct Thunk) + (info->capture_count * sizeof(struct Obj*));
     struct Thunk *thunk = (struct Thunk*)alloc_obj(size);
 
     for (u32 i = 0; i < info->capture_count; i++) {
@@ -200,6 +200,24 @@ struct Thunk *obj_create_thunk(struct ClosureInfo *info)
     return thunk;
 }
 
+struct Object *obj_create_object(u16 type_info, u16 variant, u16 arg_count)
+{
+    const u32 size = sizeof(struct Object) + arg_count * sizeof(struct Obj*);
+    struct Object *object = (struct Object*)alloc_obj(size);
+
+    obj_init_object(object, type_info, variant, arg_count);
+
+    return object;
+}
+void obj_init_object(struct Object *object, u16 type_info, u16 variant, u16 arg_count)
+{
+    object->obj.type = OBJ_OBJECT;
+    object->obj.flags.is_whnf = true;
+    object->type_info = type_info;
+    object->variant = variant;
+    object->arg_count = arg_count;
+}
+
 struct Box **obj_dyn_fields(struct Obj *obj)
 {
     switch (obj->type) {
@@ -209,6 +227,8 @@ struct Box **obj_dyn_fields(struct Obj *obj)
             return (struct Box**)(((struct Thunk*)obj) + 1);
         case OBJ_APPLICATION:
             return (struct Box**)(((struct Application*)obj) + 1);
+        case OBJ_OBJECT:
+            return (struct Box**)(((struct Object*)obj) + 1);
         default:
 #ifdef DEBUG_CHECKS
             panic("object does not have dynamic fields");

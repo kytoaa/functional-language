@@ -19,5 +19,14 @@ trim s = let
 
 MyType = @type(MyType);
 
-main = io..println : MyType;
+mod Option = {
+    with Some a;
+    with None;
+};
+
+unwrap_or option default = case option of
+    | Option..Some a -> a
+    | Option..None   -> default;
+
+main = io..println : unwrap_or (Option..Some 3) 0;
 

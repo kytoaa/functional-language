@@ -6,7 +6,7 @@
 struct Global {
     struct DeclarationNode *node;
     u32 constant_index;
-    u32 uses;
+    u16 closure_info_index;
     bool is_public;
 };
 
@@ -51,18 +51,21 @@ void declare_global_decl(
     struct ModuleGlobals *globals,
     struct DeclarationNode *node,
     u32 const_index,
+    u16 closure_info_index,
     bool is_public
 );
 void set_global_decl_const_index(
     struct ModuleGlobals *globals,
     struct DeclarationNode *node,
-    u32 const_index
+    u32 const_index,
+    u16 closure_info_index
 );
 
 struct GlobalResolutionResult resolve_global_path(
     struct GlobalCtx *globals,
     struct GlobalSearch search,
-    u32 *constant_index_out
+    u32 *constant_index_out,
+    u16 *closure_index_out
 );
 struct GlobalResolutionResult find_global_decl(
     struct GlobalCtx *globals,
@@ -72,8 +75,7 @@ struct GlobalResolutionResult find_global_decl(
     u16 *out_mod
 );
 
-enum GlobalResolutionError resolve_global(struct GlobalCtx *ctx, u16 mod, const char *ident, u32 *const_index_out);
-u32 global_uses(struct GlobalCtx *ctx, u16 module, const char *ident);
+enum GlobalResolutionError resolve_global(struct GlobalCtx *ctx, u16 mod, const char *ident, u32 *const_index_out, u16 *closure_index_out);
 
 struct GlobalResolutionResult get_module_index_for(struct GlobalCtx *globals, struct GlobalSearch search);
 

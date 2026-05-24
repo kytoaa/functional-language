@@ -131,6 +131,7 @@ u32 print_instruction(FILE *out, u8 *bytes)
             break;
         }
 
+        case OP_IS_VARIANT:
         case OP_READ_BINDING:
         case OP_CREATE_CLOSURE:
         case OP_CREATE_THUNK:{
@@ -139,6 +140,7 @@ u32 print_instruction(FILE *out, u8 *bytes)
             fprintf(out, " %d", u16);
             break;
         }
+        case OP_OBJECT_READ:
         case OP_REMOVE_BINDINGS:{
             u8 u8 = bytes[1];
             consumed += 1;
@@ -181,6 +183,14 @@ u32 print_instruction(FILE *out, u8 *bytes)
             u32 val = read_u32(&bytes[1]);
             consumed += 4;
             fprintf(out, " %u", val);
+            break;
+        }
+        case OP_CREATE_OBJECT:{
+            u16 type_info = read_u16(&bytes[1]);
+            u16 variant = read_u16(&bytes[3]);
+            u16 arg_count = read_u16(&bytes[5]);
+            consumed += 6;
+            fprintf(out, " %d %d %d", type_info, variant, arg_count);
             break;
         }
     }

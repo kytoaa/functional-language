@@ -33,6 +33,8 @@ enum TokenType {
     TOKEN_OF,
     TOKEN_USE,
     TOKEN_MOD,
+    TOKEN_TYPE,
+    TOKEN_WITH,
 
     TOKEN_ADD,
     TOKEN_SUB,
@@ -83,7 +85,6 @@ static inline bool is_digit(char c)
 {
     return '0' <= c && c <= '9';
 }
-
 
 static const char *token_type_name(enum TokenType type)
 {
@@ -138,6 +139,10 @@ static const char *token_type_name(enum TokenType type)
             return "TOKEN_USE";
         case TOKEN_MOD:
             return "TOKEN_MOD";
+        case TOKEN_TYPE:
+            return "TOKEN_TYPE";
+        case TOKEN_WITH:
+            return "TOKEN_WITH";
         case TOKEN_ADD:
             return "TOKEN_ADD";
         case TOKEN_SUB:

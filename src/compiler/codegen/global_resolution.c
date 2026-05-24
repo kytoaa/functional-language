@@ -26,24 +26,27 @@ void declare_global_decl(
     struct ModuleGlobals *globals,
     struct DeclarationNode *node,
     u32 const_index,
+    u16 closure_info_index,
     bool is_public
 ) {
     push_global(globals, (struct Global){
         .node = node,
         .constant_index = const_index,
-        .uses = 0,
+        .closure_info_index = closure_info_index,
         .is_public = is_public,
     });
 }
 void set_global_decl_const_index(
     struct ModuleGlobals *globals,
     struct DeclarationNode *node,
-    u32 const_index
+    u32 const_index,
+    u16 closure_info_index
 ) {
     for (u32 i = 0; i < globals->len; i++) {
         struct Global *global = &globals->globals[i];
         if (global->node == node) {
             global->constant_index = const_index;
+            global->closure_info_index = closure_info_index;
             return;
         }
     }
@@ -79,15 +82,22 @@ struct ModuleGlobals *get_module_globals(struct GlobalCtx *globals, u16 mod)
 }
 
 
-static enum GlobalResolutionError find_global_in(struct ModuleGlobals *mod, const char *ident, bool search_private, u32 *const_index_out)
-{
+static enum GlobalResolutionError find_global_in(
+    struct ModuleGlobals *mod,
+    const char *ident,
+    bool search_private,
+    u32 *const_index_out,
+    u16 *closure_index_out
+) {
     for (u16 i = 0; i < mod->len; i++) {
         struct Global *current = &mod->globals[i];
 
         if (current->node->name == ident) {
             if (search_private || current->is_public) {
-                *const_index_out = current->constant_index;
-                current->uses += 1;
+                if (const_index_out != null)
+                    *const_index_out = current->constant_index;
+                if (closure_index_out != null)
+                    *closure_index_out = current->closure_info_index;
                 return GLOBAL_RES_OK;
             }
             return GLOBAL_RES_ERROR_PRIVATE;
@@ -95,22 +105,10 @@ static enum GlobalResolutionError find_global_in(struct ModuleGlobals *mod, cons
     }
     return GLOBAL_RES_ERROR_DOESNT_EXIST;
 }
-u32 global_uses(struct GlobalCtx *ctx, u16 module, const char *ident)
-{
-    struct ModuleGlobals *mod = &ctx->globals_per_module[module];
-    for (u16 i = 0; i < mod->len; i++) {
-        struct Global *current = &mod->globals[i];
 
-        if (current->node->name == ident) {
-            return current->uses;
-        }
-    }
-    return -1;
-}
-
-enum GlobalResolutionError resolve_global(struct GlobalCtx *ctx, u16 mod, const char *ident, u32 *const_index_out)
+enum GlobalResolutionError resolve_global(struct GlobalCtx *ctx, u16 mod, const char *ident, u32 *const_index_out, u16 *closure_index_out)
 {
-    return find_global_in(&ctx->globals_per_module[mod], ident, true, const_index_out);
+    return find_global_in(&ctx->globals_per_module[mod], ident, true, const_index_out, closure_index_out);
 }
 
 struct FindSubmodule {
@@ -299,7 +297,8 @@ struct GlobalResolutionResult get_module_index_for(struct GlobalCtx *globals, st
 struct GlobalResolutionResult resolve_global_path(
     struct GlobalCtx *globals,
     struct GlobalSearch search,
-    u32 *constant_index_out
+    u32 *constant_index_out,
+    u16 *closure_index_out
 ) {
     struct GlobalResolutionResult result = resolve_path(globals, search, false, 0);
     if (result.error_finding != null)
@@ -317,7 +316,8 @@ struct GlobalResolutionResult resolve_global_path(
         &globals->globals_per_module[module_index],
         ((struct IdentifierNode*)namespace)->src_loc,
         module_index == parent_index || module_index == search.origin_module,
-        constant_index_out
+        constant_index_out,
+        closure_index_out
     );
 
     if (item_result == GLOBAL_RES_OK) {

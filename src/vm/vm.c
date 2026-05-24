@@ -4,7 +4,6 @@
 #include "../prelude.h"
 #include "../compiler/builtins.h"
 #include "extern_functions/extern_functions.h"
-#include "../compiler/debug.h"
 #include <string.h>
 
 #define DEBUG_CHECKS
@@ -225,6 +224,19 @@ next_instruction:
             push_val(TO_OBJ(payload[capture]));
             break;
         }
+        case OP_OBJECT_READ:{
+            u8 object_arg = read_instruction();
+            Val val = pop_val();
+            if (val->type != OBJ_OBJECT)
+                panic("not an object");
+            struct Object *object = (struct Object*)val;
+            if (object->arg_count <= object_arg)
+                panic("reading from object with less args");
+            push_val(val);
+            struct Box **arguments = obj_dyn_fields(TO_OBJ(object));
+            push_val(TO_OBJ(arguments[object_arg]));
+            break;
+        }
         case OP_UPDATE_THUNK:{
             Val evaluated = pop_val();
             if (!evaluated->flags.is_whnf)
@@ -298,6 +310,25 @@ next_instruction:
             cons->l = l;
             cons->r = r;
             push_val(TO_OBJ(cons));
+            break;
+        }
+
+        case OP_CREATE_OBJECT:{
+            u16 type_info = read_u16();
+            u16 variant = read_u16();
+            u16 arg_count = read_u16();
+
+            struct Object *object = obj_create_object(type_info, variant, arg_count);
+            struct Box **args = obj_dyn_fields(TO_OBJ(object));
+
+        #ifdef DEBUG_CHECKS
+            if (arg_count > vm.registers[BINDING_PTR])
+                panic("reading binding at invalid offset");
+        #endif
+            for (u32 i = 1; i <= arg_count; i++) {
+                args[arg_count - i] = (struct Box*)val_ptr(vm.bindings[vm.registers[BINDING_PTR] - i]);
+            }
+            push_val(TO_OBJ(object));
             break;
         }
 
@@ -393,6 +424,12 @@ next_instruction:
             push_val(val->type == OBJ_CONS ? (Val)TRUE_BOX_CONST : (Val)FALSE_BOX_CONST);
             break;
         }
+        case OP_IS_OBJ:{
+            Val val = pop_val();
+            push_val(val);
+            push_val(val->type == OBJ_OBJECT ? (Val)TRUE_BOX_CONST : (Val)FALSE_BOX_CONST);
+            break;
+        }
         #define IS_VAL_OP(val_type) do {\
             Val val = pop_val();\
             push_val(val);\
@@ -418,6 +455,19 @@ next_instruction:
         }
         case OP_IS_UNIT:{
             IS_VAL_OP(VALUE_UNIT);
+            break;
+        }
+
+        case OP_IS_VARIANT:{
+            u16 variant = read_u16();
+            Val val = pop_val();
+            if (val->type != OBJ_OBJECT) {
+                runtime_error("expected an object");
+                return INTERPRET_RUNTIME_ERROR;
+            }
+            struct Object *object = (struct Object*)val;
+            push_val(val);
+            push_val(object->variant == variant ? (Val)TRUE_BOX_CONST : (Val)FALSE_BOX_CONST);
             break;
         }
 

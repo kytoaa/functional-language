@@ -8,9 +8,11 @@ struct RemappingWork {
         struct IdentifierNode *identifier;
         struct NamespaceAccessNode *namespace_access;
     };
+    u16 arg_count;
     u32 bytecode_index;
     u16 searching_from_module;
     bool is_namespace;
+    bool is_pattern_constructor;
 };
 struct RemappingQueue {
     struct RemappingWork *ptr;

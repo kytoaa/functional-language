@@ -23,6 +23,7 @@ static void eval_value(Val val)
         case OBJ_SLICE:
         case OBJ_ARRAY:
         case OBJ_RUNTIME_TYPE:
+        case OBJ_OBJECT:
             set_whnf(val);
             push_val(val);
             return;

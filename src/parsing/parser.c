@@ -81,6 +81,8 @@ enum Precedence {
 };
 
 static struct AstNode *declaration();
+static struct AstNode *function_declaration();
+static struct AstNode *constructor_declaration();
 static struct AstNode *expr(enum Precedence precedence);
 
 static struct AstNode *module();
@@ -360,7 +362,8 @@ static struct AstNode *attribute()
 
     struct Location loc = prev_loc();
 
-    consume(TOKEN_IDENT, "expected an identifier");
+    if (is_alpha(*parser.current.start))
+        advance();
     struct IdentifierNode *ident = (struct IdentifierNode*)identifier();
 
     struct AstNode *body = null;
@@ -542,7 +545,7 @@ static struct AstNode *let_expr()
     struct DeclarationNode *current_decl = null;
 
     while (parser.current.type != TOKEN_IN) {
-        struct DeclarationNode *decl = (struct DeclarationNode*)declaration();
+        struct DeclarationNode *decl = (struct DeclarationNode*)function_declaration();
         if (decl != null) {
             decl->next_declaration = current_decl;
         }
@@ -572,6 +575,15 @@ static void check_valid_pattern(struct AstNode *pat)
         if (pat == null)
             return;
         switch (pat->kind) {
+            case AST_APPLICATION:{
+                struct ApplicationNode *appl_node = (struct ApplicationNode*)pat;
+                check_valid_pattern(appl_node->function);
+                pat = appl_node->argument;
+                if (pat == null) {
+                    searching = false;
+                }
+                break;
+            }
             case AST_BIN_OP:{
                 struct BinOpNode *bin_op = (struct BinOpNode*)pat;
                 if (bin_op->op != AST_BIN_OP_CONS) {
@@ -589,6 +601,7 @@ static void check_valid_pattern(struct AstNode *pat)
             case AST_LITERAL:
             case AST_IDENTIFIER:
             case AST_UNDERSCORE:
+            case AST_NAMESPACE_ACCESS:
                 searching = false;
                 break;
             default:
@@ -687,7 +700,7 @@ static struct AstNode *expr(enum Precedence precedence)
     return lhs;
 }
 
-static struct AstNode *declaration()
+static struct AstNode *function_declaration()
 {
     if (parser.current.type != TOKEN_IDENT) {
         error(parser.prev, "expected function declaration");
@@ -718,6 +731,53 @@ static struct AstNode *declaration()
 
     return AS_NODE(declaration);
 }
+static struct AstNode *constructor_declaration()
+{
+    if (parser.current.type != TOKEN_WITH) {
+        error(parser.prev, "expected constructor declaration");
+        return null;
+    }
+    advance();
+
+    if (parser.current.type != TOKEN_IDENT) {
+        error(parser.prev, "expected constructor name");
+        return null;
+    }
+    advance();
+
+    const char *name = parser.prev.start;
+    u32 name_len = parser.prev.len;
+
+    struct DeclarationNode *declaration = ALLOC_NODE(struct DeclarationNode);
+    struct Location loc = prev_loc();
+
+    struct ConstructorNode *constructor = ALLOC_NODE(struct ConstructorNode);
+
+    *constructor = (struct ConstructorNode){ .node = { AST_CONSTRUCTOR, loc } };
+
+    struct FunctionBindingNode *binding = bindings(TOKEN_SEMICOLON);
+
+    *declaration = (struct DeclarationNode){
+        .node = { AST_DECLARATION, loc },
+        .name = name,
+        .name_len = name_len,
+        .is_global = false,
+        .bindings = binding,
+        .body = AS_NODE(constructor),
+    };
+
+    consume(TOKEN_SEMICOLON, "expected `;` after declaration");
+
+    return AS_NODE(declaration);
+}
+static struct AstNode *declaration()
+{
+    if (parser.current.type == TOKEN_WITH) {
+        return constructor_declaration();
+    } else {
+        return function_declaration();
+    }
+}
 
 static void **module_get_next(void *mod)
 {
@@ -736,6 +796,8 @@ static struct AstNode *module()
     struct DeclarationNode *current_decl = null;
     struct ModuleDeclNode *current_submodule = null;
     bool has_body = false;
+    bool is_type = false;
+
     if (parser.current.type == TOKEN_EQ) {
         advance();
         if (parser.current.type == TOKEN_IDENT) {
@@ -747,6 +809,10 @@ static struct AstNode *module()
             current_decl = (struct DeclarationNode*)path;
         } else {
             has_body = true;
+            if (parser.current.type == TOKEN_TYPE) {
+                is_type = true;
+                advance();
+            }
             consume(TOKEN_L_BRACE, "expected `{` after module");
 
             while (parser.current.type != TOKEN_R_BRACE) {
@@ -789,6 +855,7 @@ static struct AstNode *module()
         .submodules = current_submodule,
         .next_mod = null,
         .has_body = has_body,
+        .is_type = is_type,
     };
 
     return AS_NODE(node);

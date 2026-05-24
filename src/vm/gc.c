@@ -58,6 +58,15 @@ static void process_runtime_type(struct RuntimeType *runtime_type)
 {
     return;
 }
+static void process_object(struct Object *object)
+{
+    struct Box **dyn_fields = obj_dyn_fields(TO_OBJ(object));
+
+    for (u32 i = 0; i < object->arg_count; i++) {
+        mark_obj(TO_OBJ(dyn_fields[i]));
+    }
+    return;
+}
 static void process_slice_obj(struct SliceObj *slice)
 {
     mark_obj(TO_OBJ(slice->array));
@@ -110,6 +119,9 @@ static void process_obj(struct Obj *obj)
             process_box((struct Box*)obj);
             break;
         case OBJ_CONS:
+            process_cons((struct Cons*)obj);
+            break;
+        case OBJ_OBJECT:
             process_cons((struct Cons*)obj);
             break;
         case OBJ_CLOSURE:

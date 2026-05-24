@@ -17,6 +17,7 @@ enum ObjType {
     OBJ_ARRAY,
     OBJ_SLICE,
     OBJ_RUNTIME_TYPE,
+    OBJ_OBJECT,
 
     OBJ_TYPE_COUNT,
 };
@@ -114,6 +115,19 @@ struct Application {
     /// struct Box *arguments[]
 };
 
+struct TypeInfo {
+    char *name;
+    u16 name_len;
+};
+
+struct Object {
+    struct Obj obj;
+    u16 type_info;
+    u16 variant;
+    u16 arg_count;
+    /// struct Obj *arguments[]
+};
+
 struct Box *obj_create_box();
 struct FileHandleObj *obj_create_file_handle();
 struct ArrayObj *obj_create_array(u32 len, enum ValueType type, u8 *ptr);
@@ -122,12 +136,14 @@ struct Cons *obj_create_cons();
 struct Application *obj_create_application(u8 arg_count);
 struct Closure *obj_create_closure(struct ClosureInfo *info);
 struct Thunk *obj_create_thunk(struct ClosureInfo *info);
+struct Object *obj_create_object(u16 type_info, u16 variant, u16 arg_count);
 
 void obj_init_box(struct Box *box);
 void obj_init_cons(struct Cons *cons);
 void obj_init_array(struct ArrayObj *slice, u32 len, enum ValueType type, u8 *ptr);
 void obj_init_slice(struct SliceObj *slice, struct ArrayObj *array, u32 start, u32 len);
 void obj_init_type(struct RuntimeType *type, const char *name, u32 name_len);
+void obj_init_object(struct Object *object, u16 type_info, u16 variant, u16 arg_count);
 
 struct Box **obj_dyn_fields(struct Obj *obj);
 

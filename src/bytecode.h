@@ -74,6 +74,11 @@ enum Bytecode {
     /// `op u16 u8`
     OP_CAPTURE_READ,
 
+    /// reads the objects argument and pushes it to the stack
+    /// `op u8`
+    /// stack: `[obj]` -> `[obj, arg]`
+    OP_OBJECT_READ,
+
     /// writes a value into a thunk, leaves the evaluated value on the stack
     /// stack: `[thunk, evaluated]` -> `[evaluated]`
     OP_UPDATE_THUNK,
@@ -87,6 +92,10 @@ enum Bytecode {
     /// writes the payload into the closure
     /// stack: `[..payload, closure]`
     OP_WRITE_CLOSURE,
+
+    /// creates an object
+    /// `op u16 u16 u16` type_info, variant, arg_count
+    OP_CREATE_OBJECT,
 
     /// creates a thunk object with capacity given by the closure info
     /// `op u16` closure info index
@@ -127,11 +136,19 @@ enum Bytecode {
     /// checks the item at the top of the stack, pushes a boxed bool
     /// stack: `[val]` -> `[val, result]`
     OP_IS_CONS,
+    OP_IS_OBJ,
     OP_IS_INT,
     OP_IS_BOOL,
     OP_IS_CHAR,
     OP_IS_UNIT,
 
+    /// checks if the item at the top of the stack is a specific variant, pushes a boxed bool
+    /// op `u16`
+    /// stack: `[obj]` -> `[obj, result]`
+    OP_IS_VARIANT,
+
+    /// pushes the head of a cons to the top of the stack
+    /// stack: `[cons]` -> `[head]`
     OP_HEAD,
     OP_TAIL,
 

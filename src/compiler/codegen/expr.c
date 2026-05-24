@@ -41,7 +41,8 @@ void compile_identifier(struct Context *ctx, struct IdentifierNode *node)
             ctx->globals,
             ctx->module_index,
             node->src_loc,
-            &global_index
+            &global_index,
+            null
         );
 
         emit_byte(ctx, OP_PUSH_CONST);
@@ -451,7 +452,8 @@ void namespace_access_expr(struct Context *ctx, struct NamespaceAccessNode *node
             .origin_module = ctx->module_index,
             .searching_for = node,
         },
-        &constant_index
+        &constant_index,
+        null
     );
 
     if (result.error != GLOBAL_RES_OK) {

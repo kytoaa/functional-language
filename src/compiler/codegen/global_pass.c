@@ -4,7 +4,7 @@
 
 static void global_decl(struct ModuleGlobals *globals, struct Chunk *chunk, struct DeclarationNode *node, bool is_public)
 {
-    declare_global_decl(globals, node, -1, is_public);
+    declare_global_decl(globals, node, -1, -1, is_public);
 }
 
 static void run_global_pass_on(

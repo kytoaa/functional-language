@@ -24,15 +24,19 @@ void free_module_ctx(struct ModuleCtx *modules)
 
 u16 compiled_file_index(const struct Module *module)
 {
-    return module->compiled_file_index & 0x7fff;
+    return module->_compiled_file_index & 0x3fff;
 }
 bool is_file_module(const struct Module *module)
 {
-    return (module->compiled_file_index & 0x8000) != 0;
+    return (module->_compiled_file_index & 0x8000) != 0;
 }
-inline static void set_compiled_file_index(struct Module *mod, u16 index, bool is_file_mod)
+bool is_type_module(const struct Module *module)
 {
-    mod->compiled_file_index = index | (is_file_mod ? 0x8000 : 0);
+    return (module->_compiled_file_index & 0xb000) != 0;
+}
+inline static void set_compiled_file_index(struct Module *mod, u16 index, bool is_file_mod, bool is_type_mod)
+{
+    mod->_compiled_file_index = index | (is_file_mod ? 0x8000 : 0) | (is_type_mod ? 0x4000 : 0);
 }
 
 static u16 create_module(struct ModuleCtxWork *ctx, const char *name, u16 parent)
@@ -179,7 +183,7 @@ static struct ModuleResult resolve_node(struct ModuleCtxWork *ctx, struct Module
         }
     }
 
-    set_compiled_file_index(mod, compiled_file_index(parent_mod), false);
+    set_compiled_file_index(mod, compiled_file_index(parent_mod), false, node->is_type);
 
     return declare_module_items(ctx, node, mod_index);
 }
@@ -206,7 +210,7 @@ static struct ModuleResult resolve_top_level(
         }
     }
 
-    set_compiled_file_index(mod, file_index, true);
+    set_compiled_file_index(mod, file_index, true, false);
 
     struct ModuleDeclNode *submodule = (struct ModuleDeclNode*)ast->modules;
     while (submodule != null) {

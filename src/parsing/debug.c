@@ -237,6 +237,10 @@ static void print_node(struct AstNode *node)
             print_attribute((struct AttributeNode*)node);
             break;
 
+        case AST_CONSTRUCTOR:
+            printf("<constructor>");
+            break;
+
         case AST_BINDING:
         case AST_CASE_PATTERN:
         case AST_FUNCTION_BINDING:

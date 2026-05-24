@@ -68,7 +68,6 @@ void call_extern_function(enum VmExternFunction function)
                 return runtime_error("not a file handle");
             }
             struct FileHandleObj *file = (struct FileHandleObj*)val;
-            Val print_arg = pop_val();
             fprintf(file->file, "%s", (char*)pop_stack());
             break;
         }
@@ -223,6 +222,17 @@ static void print_val(FILE *out, Val val)
         case OBJ_RUNTIME_TYPE:{
             struct RuntimeType *type = (struct RuntimeType*)val;
             fprintf(out, "<type %.*s>", type->name_len, type->name);
+            break;
+        }
+        case OBJ_OBJECT:{
+            struct Object *object = (struct Object*)val;
+            fprintf(out, "<object");
+            struct Box **dyn_fields = obj_dyn_fields(TO_OBJ(object));
+            for (u32 i = 0; i < object->arg_count; i++) {
+                fprintf(out, " ");
+                print_val(out, TO_OBJ(dyn_fields[i]));
+            }
+            fprintf(out, ">");
             break;
         }
         default:

@@ -26,11 +26,12 @@ struct Module {
         u32 len;
         u32 cap;
     } items;
-    u16 compiled_file_index;
+    u16 _compiled_file_index;
     u16 parent_index;
 };
 u16 compiled_file_index(const struct Module *module);
 bool is_file_module(const struct Module *module);
+bool is_type_module(const struct Module *module);
 
 struct Library {
     const char *name;

@@ -134,6 +134,7 @@ struct ModuleDeclNode {
     struct ModuleDeclNode *submodules;
     struct ModuleDeclNode *next_mod;
     bool has_body;
+    bool is_type;
 };
 
 struct NamespaceAccessNode {
@@ -151,6 +152,10 @@ struct AttributeNode {
     struct AstNode node;
     struct IdentifierNode *ident;
     struct AstNode *body;
+};
+
+struct ConstructorNode {
+    struct AstNode node;
 };
 
 #endif

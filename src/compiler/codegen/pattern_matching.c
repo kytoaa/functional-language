@@ -1,6 +1,7 @@
 #include "codegen.h"
 #include "expr.h"
 #include "../builtins.h"
+#include "global_resolution.h"
 
 struct CaseBranchResult {
     u32 failure_index;
@@ -131,6 +132,124 @@ static u32 compile_pattern_node(struct Context *ctx, struct AstNode *node)
                 r_failure_bytes[1] = r_jump_bytes[1];
             }
             return cons_check_index;
+        }
+        case AST_NAMESPACE_ACCESS:
+        case AST_APPLICATION:{
+            struct ApplicationNode *appl = (struct ApplicationNode*)node;
+            emit_byte(ctx, OP_EVAL);
+            emit_byte(ctx, OP_IS_OBJ);
+            emit_byte(ctx, OP_JUMP_REL_CONDITIONAL);
+            emit_u16(ctx, 4);
+            emit_byte(ctx, OP_POP_U64);
+            emit_byte(ctx, OP_JUMP_REL);
+            u32 failure_index = get_last_bytecode_index(ctx) + 1;
+            emit_u16(ctx, 0);
+
+            u16 arg_count = 0;
+            struct AstNode *constructor_ident = node;
+            if (node->kind == AST_APPLICATION) {
+                struct ApplicationNode *appl_node = appl;
+                while (appl_node != null) {
+                    arg_count += 1;
+
+                    if (appl_node->function->kind != AST_APPLICATION)
+                        break;
+
+                    appl_node = (struct ApplicationNode*)appl_node->function;
+                }
+                constructor_ident = appl_node->function;
+            }
+
+            u16 variant = 0;
+
+            if (constructor_ident->kind == AST_IDENTIFIER) {
+                enum GlobalResolutionError error = resolve_global(
+                    ctx->globals,
+                    ctx->module_index,
+                    ((struct IdentifierNode*)constructor_ident)->src_loc,
+                    null,
+                    &variant
+                );
+                if (error != GLOBAL_RES_OK) {
+                    non_existent_ident_err(ctx, constructor_ident->loc, null);
+                }
+            } else if (constructor_ident->kind == AST_NAMESPACE_ACCESS) {
+                struct GlobalResolutionResult result = resolve_global_path(
+                    ctx->globals,
+                    (struct GlobalSearch){
+                        .origin_module = ctx->module_index,
+                        .searching_for = (struct NamespaceAccessNode*)constructor_ident,
+                    },
+                    null,
+                    &variant
+                );
+                if (result.error != GLOBAL_RES_OK) {
+                    namespace_access_error(ctx, result);
+                    panic("error");
+                }
+            } else {
+                panic("not a constructor");
+            }
+
+            emit_byte(ctx, OP_IS_VARIANT);
+            u32 variant_index = get_last_bytecode_index(ctx) + 1;
+            emit_u16(ctx, variant);
+
+            emit_byte(ctx, OP_JUMP_REL_CONDITIONAL);
+            emit_u16(ctx, 3);
+            emit_byte(ctx, OP_JUMP_REL);
+            u32 current_index = get_last_bytecode_index(ctx) + 1;
+            i16 jump = (i32)(failure_index - 2) - (i32)(current_index + 2);
+            emit_u16(ctx, jump);
+
+            if (variant == (u16)-1) {
+                if (constructor_ident->kind == AST_IDENTIFIER) {
+                    enqueue_remapping_work(ctx->remapping_queue, (struct RemappingWork){
+                        .identifier = (struct IdentifierNode*)constructor_ident,
+                        .arg_count = arg_count,
+                        .bytecode_index = variant_index,
+                        .searching_from_module = ctx->module_index,
+                        .is_namespace = false,
+                        .is_pattern_constructor = true,
+                    });
+                } else {
+                    enqueue_remapping_work(ctx->remapping_queue, (struct RemappingWork){
+                        .namespace_access = (struct NamespaceAccessNode*)constructor_ident,
+                        .arg_count = arg_count,
+                        .bytecode_index = variant_index,
+                        .searching_from_module = ctx->module_index,
+                        .is_namespace = true,
+                        .is_pattern_constructor = true,
+                    });
+                }
+            }
+
+            if (arg_count > 0) {
+                struct ApplicationNode *current_appl = appl;
+                u8 argument = arg_count - 1;
+                while (current_appl != null) {
+                    emit_2_bytes(ctx, OP_OBJECT_READ, argument);
+                    u32 failure = compile_pattern_node(ctx, current_appl->argument);
+
+                    if (failure != 0) {
+                        // should jump to `POP_U64` as the object is still below on the stack
+                        i16 jump = (i32)(failure_index - 2) - (i32)(failure + 2);
+                        u8 *failure_bytes = get_bytecode_byte(ctx, failure);
+                        u8 *jump_bytes = (u8*)&jump;
+                        failure_bytes[0] = jump_bytes[0];
+                        failure_bytes[1] = jump_bytes[1];
+                    }
+                    argument -= 1;
+                    if (current_appl->function->kind != AST_APPLICATION)
+                        break;
+
+                    current_appl = (struct ApplicationNode*)current_appl->function;
+                }
+            }
+
+            emit_byte(ctx, OP_POP_U64);
+
+            return failure_index;
         }
         case AST_LITERAL:{
             struct LiteralNode *literal = (struct LiteralNode*)node;

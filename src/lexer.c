@@ -119,6 +119,7 @@ static enum TokenType identifier_type()
         case 't':
             return check_keyword("then", 4) ? TOKEN_THEN
                  : check_keyword("true", 4) ? TOKEN_TRUE
+                 : check_keyword("type", 4) ? TOKEN_TYPE
                  : TOKEN_IDENT;
         case 'e':
             return check_keyword("else", 4) ? TOKEN_ELSE : TOKEN_IDENT;
@@ -144,6 +145,9 @@ static enum TokenType identifier_type()
 
         case 'u':
             return check_keyword("use", 3) ? TOKEN_USE : TOKEN_IDENT;
+
+        case 'w':
+            return check_keyword("with", 4) ? TOKEN_WITH : TOKEN_IDENT;
 
         case '_':
             return check_keyword("_", 1) ? TOKEN_UNDERSCORE : TOKEN_IDENT;

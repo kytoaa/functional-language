@@ -5,7 +5,12 @@
 #include "global_resolution.h"
 #include "remapping.h"
 
-static u32 compile_top_level_decl(struct Context *ctx, struct DeclarationNode *node)
+struct TopLevelDeclInfo {
+    u32 constant_index;
+    u16 closure_index;
+};
+
+static struct TopLevelDeclInfo compile_top_level_decl(struct Context *ctx, struct DeclarationNode *node)
 {
     u32 function_start_index = get_last_bytecode_index(ctx) + 1;
 
@@ -20,7 +25,16 @@ static u32 compile_top_level_decl(struct Context *ctx, struct DeclarationNode *n
             binding = binding->next_binding;
             emit_byte(ctx, OP_CREATE_BINDING);
         }
-        compile_expr(ctx, lambda->body);
+        u32 constructor_variant = 0;
+        if (lambda->body->kind == AST_CONSTRUCTOR) {
+            emit_byte(ctx, OP_CREATE_OBJECT);
+            emit_u16(ctx, 0);
+            constructor_variant = get_last_bytecode_index(ctx) + 1;
+            emit_u16(ctx, 0);
+            emit_u16(ctx, bindings);
+        } else {
+            compile_expr(ctx, lambda->body);
+        }
 
         drop_ident(ctx, bindings);
         emit_2_bytes(ctx, OP_REMOVE_BINDINGS, bindings);
@@ -35,18 +49,34 @@ static u32 compile_top_level_decl(struct Context *ctx, struct DeclarationNode *n
             .address = function_start_index,
             .capture_count = 0,
         });
+        if (constructor_variant != 0) {
+            u8 *constructor_variant_index = get_bytecode_byte(ctx, constructor_variant);
+            for (u8 i = 0; i < sizeof(u16); i++) {
+                constructor_variant_index[i] = ((u8*)&closure_info)[i];
+            }
+        }
 
         const_closure->info = (struct ClosureInfo*)(u64)closure_info;
 
         set_global_decl_const_index(
             get_module_globals(ctx->globals, ctx->module_index),
             node,
-            constant_index
+            constant_index,
+            closure_info
         );
 
-        return constant_index;
+        return (struct TopLevelDeclInfo){ constant_index, closure_info };
     } else {
-        compile_expr(ctx, node->body);
+        u32 constructor_variant = 0;
+        if (node->body->kind == AST_CONSTRUCTOR) {
+            emit_byte(ctx, OP_CREATE_OBJECT);
+            emit_u16(ctx, 0);
+            constructor_variant = get_last_bytecode_index(ctx) + 1;
+            emit_u16(ctx, 0);
+            emit_u16(ctx, 0);
+        } else {
+            compile_expr(ctx, node->body);
+        }
         emit_byte(ctx, OP_SWAP);
         emit_byte(ctx, OP_JUMP);
 
@@ -58,6 +88,12 @@ static u32 compile_top_level_decl(struct Context *ctx, struct DeclarationNode *n
             .address = function_start_index,
             .capture_count = 0,
         });
+        if (constructor_variant != 0) {
+            u8 *constructor_variant_index = get_bytecode_byte(ctx, constructor_variant);
+            for (u8 i = 0; i < sizeof(u16); i++) {
+                constructor_variant_index[i] = ((u8*)&closure_info)[i];
+            }
+        }
 
         const_thunk->evaluated = null;
         const_thunk->info = (struct ClosureInfo*)(u64)closure_info;
@@ -65,16 +101,18 @@ static u32 compile_top_level_decl(struct Context *ctx, struct DeclarationNode *n
         set_global_decl_const_index(
             get_module_globals(ctx->globals, ctx->module_index),
             node,
-            constant_index
+            constant_index,
+            closure_info
         );
 
-        return constant_index;
+        return (struct TopLevelDeclInfo){ constant_index, closure_info };
     }
 }
 
 static bool try_remap_from_globals(struct Context *ctx, struct GlobalCtx *globals, struct RemappingWork remapping)
 {
     u32 constant_index = 0;
+    u16 closure_info_index = 0;
 
     if (remapping.is_namespace) {
         struct GlobalResolutionResult result = resolve_global_path(
@@ -83,7 +121,8 @@ static bool try_remap_from_globals(struct Context *ctx, struct GlobalCtx *global
                 .searching_for = remapping.namespace_access,
                 .origin_module = remapping.searching_from_module,
             },
-            &constant_index
+            &constant_index,
+            &closure_info_index
         );
         if (result.error != GLOBAL_RES_OK) {
             namespace_access_error(ctx, result);
@@ -93,7 +132,13 @@ static bool try_remap_from_globals(struct Context *ctx, struct GlobalCtx *global
             return false;
         }
     } else {
-        enum GlobalResolutionError error = resolve_global(globals, remapping.searching_from_module, remapping.identifier->src_loc, &constant_index);
+        enum GlobalResolutionError error = resolve_global(
+            globals,
+            remapping.searching_from_module,
+            remapping.identifier->src_loc,
+            &constant_index,
+            &closure_info_index
+        );
         if (error != GLOBAL_RES_OK) {
             non_existent_ident_err(ctx, remapping.identifier->node.loc, null);
             return false;
@@ -105,8 +150,23 @@ static bool try_remap_from_globals(struct Context *ctx, struct GlobalCtx *global
 
     u8 *constant_index_bytes = get_bytecode_byte(ctx, remapping.bytecode_index);
 
-    for (u32 i = 0; i < 4; i++) {
-        constant_index_bytes[i] = ((u8*)&constant_index)[i];
+    if (remapping.is_pattern_constructor) {
+        if (closure_info_index == (u16)-1) {
+            return false;
+        }
+        u16 expected_args = ctx->compiling_chunk->closures.ptr[closure_info_index].arity;
+
+        if (expected_args != remapping.arg_count) {
+            panic("wrong arg count");
+        }
+
+        for (u32 i = 0; i < sizeof(u16); i++) {
+            constant_index_bytes[i] = ((u8*)&closure_info_index)[i];
+        }
+    } else {
+        for (u32 i = 0; i < sizeof(u32); i++) {
+            constant_index_bytes[i] = ((u8*)&constant_index)[i];
+        }
     }
     return true;
 }
@@ -177,11 +237,18 @@ struct CodegenErrorList generate_code(struct Compiler *compiler, struct ModuleCt
         }
 
         ctx.module_index = module_index;
-        u32 constant_index = compile_top_level_decl(&ctx, decl_node);
+        struct TopLevelDeclInfo decl_info = compile_top_level_decl(&ctx, decl_node);
 
         u8 *bytecode_ptr = get_bytecode_byte(&ctx, remapping.bytecode_index);
-        for (u32 i = 0; i < 4; i++) {
-            bytecode_ptr[i] = ((u8*)&constant_index)[i];
+
+        if (remapping.is_pattern_constructor) {
+            for (u32 i = 0; i < sizeof(u16); i++) {
+                bytecode_ptr[i] = ((u8*)&decl_info.closure_index)[i];
+            }
+        } else {
+            for (u32 i = 0; i < sizeof(u32); i++) {
+                bytecode_ptr[i] = ((u8*)&decl_info.constant_index)[i];
+            }
         }
     }
 
