@@ -240,6 +240,7 @@ struct CodegenErrorList generate_code(struct Compiler *compiler, struct ModuleCt
             struct ConstructorNode *constructor = (struct ConstructorNode*)decl_node->body;
 
             if (constructor->body != null) {
+                remapping.searching_from_module = module_index;
                 if (constructor->body->kind == AST_NAMESPACE_ACCESS) {
                     remapping.is_namespace = true;
                     remapping.namespace_access = (struct NamespaceAccessNode*)constructor->body;

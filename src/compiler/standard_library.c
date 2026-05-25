@@ -2,25 +2,27 @@
 
 const char STD_LIB_SRC[] = "\n\
 mod = {\n\
-    mod option = {\n\
-        Some x = true :: x;\n\
-        None x = false :: ();\n\
+    mod Option = type {\n\
+        with Some a;\n\
+        with None;\n\
 \n\
         map f x = case x of\n\
-            | true :: x -> Some (f x)\n\
-            | false :: _ -> None;\n\
+            | Some -> Some (f x)\n\
+            | None -> None;\n\
 \n\
         join x = case x of\n\
-            | true :: (true :: x) -> Some x\n\
-            | false :: ()           -> None\n\
-            | false :: (false::_) -> None;\n\
+            | Some (Some x) -> Some x\n\
+            | Some None     -> None\n\
+            | None          -> None;\n\
 \n\
         bind f x = join (map f x);\n\
 \n\
         unwrap_or a x = case x of\n\
-            | true :: x   -> x\n\
-            | false :: () -> a;\n\
+            | Some x -> x\n\
+            | None   -> a;\n\
     };\n\
+    with Some = Option..Some;\n\
+    with None = Option..None;\n\
 \n\
     mod list = {\n\
         map f l = case l of\n\
