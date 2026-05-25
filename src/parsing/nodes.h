@@ -145,7 +145,8 @@ struct NamespaceAccessNode {
 
 struct UseDeclNode {
     struct AstNode node;
-    struct AstNode *use_expr;
+    struct NamespaceAccessNode *use_expr;
+    struct UseDeclNode *next_use;
 };
 
 struct AttributeNode {
@@ -156,6 +157,7 @@ struct AttributeNode {
 
 struct ConstructorNode {
     struct AstNode node;
+    struct AstNode *body;
 };
 
 #endif

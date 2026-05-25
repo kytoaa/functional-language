@@ -378,8 +378,10 @@ struct GlobalResolutionResult find_global_decl(
     for (u32 i = 0; i < module_globals->len; i++) {
         struct Global *global = &module_globals->globals[i];
         if (global->node->name == ident->src_loc) {
-            *out = global->node;
-            *out_mod = module_index;
+            if (out != null)
+                *out = global->node;
+            if (out_mod != null)
+                *out_mod = module_index;
             return (struct GlobalResolutionResult){
                 .error = GLOBAL_RES_OK,
                 .error_finding = null,

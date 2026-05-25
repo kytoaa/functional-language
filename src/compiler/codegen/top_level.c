@@ -236,12 +236,36 @@ struct CodegenErrorList generate_code(struct Compiler *compiler, struct ModuleCt
             namespace_access_error(&ctx, result);
         }
 
+        if (decl_node->body->kind == AST_CONSTRUCTOR) {
+            struct ConstructorNode *constructor = (struct ConstructorNode*)decl_node->body;
+
+            if (constructor->body != null) {
+                if (constructor->body->kind == AST_NAMESPACE_ACCESS) {
+                    remapping.is_namespace = true;
+                    remapping.namespace_access = (struct NamespaceAccessNode*)constructor->body;
+                } else {
+                    remapping.is_namespace = false;
+                    remapping.identifier = (struct IdentifierNode*)constructor->body;
+                }
+                enqueue_remapping_work(&remapping_queue, remapping);
+                continue;
+            }
+        }
+
         ctx.module_index = module_index;
         struct TopLevelDeclInfo decl_info = compile_top_level_decl(&ctx, decl_node);
 
         u8 *bytecode_ptr = get_bytecode_byte(&ctx, remapping.bytecode_index);
 
         if (remapping.is_pattern_constructor) {
+            if (decl_node->body->kind != AST_CONSTRUCTOR) {
+                if (decl_node->body->kind != AST_LAMBDA) {
+                    panic("not a constructor");
+                }
+                if (((struct LambdaNode*)decl_node->body)->body->kind != AST_CONSTRUCTOR) {
+                    panic("not a constructor");
+                }
+            }
             for (u32 i = 0; i < sizeof(u16); i++) {
                 bytecode_ptr[i] = ((u8*)&decl_info.closure_index)[i];
             }

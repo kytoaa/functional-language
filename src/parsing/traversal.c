@@ -114,6 +114,8 @@ void traverse_node(
             break;
         }
         case AST_CONSTRUCTOR:{
+            struct ConstructorNode *node = (struct ConstructorNode*)n;
+            traverse_node(AS_NODE(node->body), arg, pre_callback, post_callback);
             break;
         }
         case AST_ATTR:{

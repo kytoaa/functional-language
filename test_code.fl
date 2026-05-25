@@ -19,14 +19,21 @@ trim s = let
 
 MyType = @type(MyType);
 
-mod Option = {
+mod Option = type {
     with Some a;
     with None;
+
+    map f a = case a of
+        | Some a -> Some (f a)
+        | other  -> other;
 };
 
-unwrap_or option default = case option of
-    | Option..Some a -> a
-    | Option..None   -> default;
+with Some = Option..Some;
+with None = Option..None;
 
-main = io..println : unwrap_or (Option..Some 3) 0;
+unwrap_or option default = case option of
+    | Some a -> a
+    | None   -> default;
+
+main = io..println : unwrap_or (Some 5) 0;
 

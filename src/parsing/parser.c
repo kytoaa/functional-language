@@ -755,7 +755,21 @@ static struct AstNode *constructor_declaration()
 
     *constructor = (struct ConstructorNode){ .node = { AST_CONSTRUCTOR, loc } };
 
-    struct FunctionBindingNode *binding = bindings(TOKEN_SEMICOLON);
+    struct FunctionBindingNode *binding = null;
+
+    if (parser.current.type == TOKEN_EQ) {
+        advance();
+        struct AstNode *body = expr(PREC_NAMESPACE);
+        if (body == null)
+            return null;
+        if (body->kind != AST_IDENTIFIER && body->kind != AST_NAMESPACE_ACCESS) {
+            error(parser.prev, "expected identifier or namespace access");
+            return null;
+        }
+        constructor->body = body;
+    } else {
+        binding = bindings(TOKEN_SEMICOLON);
+    }
 
     *declaration = (struct DeclarationNode){
         .node = { AST_DECLARATION, loc },
