@@ -266,12 +266,20 @@ struct ModuleResult resolve_ast(struct Compiler *compiler, const struct Compiled
         const char *lib_name = ctx.ctx.std_ident;
 
         u32 file_index = compile_module(compiler, lib_name, 3, std_lib_src(), std_lib_src_len());
+        if (file_index == (u32)-1) {
+            free_mem(ctx.worklist.ptr);
+            free_module_ctx(&ctx.ctx);
+            return (struct ModuleResult){
+                .successful = false,
+                .msg = null,
+            };
+        }
         struct CompiledFile *compiled = get_compiled_file(compiler, file_index);
 
         struct ModuleResult result = resolve_top_level(&ctx, &compiled->ast, file_index, lib_name, (u16)-1);
         if (!result.successful) {
             free_mem(ctx.worklist.ptr);
-            free_mem(ctx.ctx.libraries.ptr);
+            free_module_ctx(&ctx.ctx);
             return result;
         }
 
@@ -289,7 +297,7 @@ struct ModuleResult resolve_ast(struct Compiler *compiler, const struct Compiled
         struct ModuleResult result = resolve_top_level(&ctx, &compiled->ast, file_index, library->name, (u16)-1);
         if (!result.successful) {
             free_mem(ctx.worklist.ptr);
-            free_mem(ctx.ctx.libraries.ptr);
+            free_module_ctx(&ctx.ctx);
             return result;
         }
 
@@ -310,7 +318,7 @@ struct ModuleResult resolve_ast(struct Compiler *compiler, const struct Compiled
                 u32 file_index = compile_file_module(compiler, parent, work.file.name, work.file.name_len);
                 if (file_index == (u32)-1) {
                     free_mem(ctx.worklist.ptr);
-                    free_mem(ctx.ctx.libraries.ptr);
+                    free_module_ctx(&ctx.ctx);
                     return (struct ModuleResult){
                         .msg = null,
                         .successful = false,

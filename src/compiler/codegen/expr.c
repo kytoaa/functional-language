@@ -50,6 +50,7 @@ void compile_identifier(struct Context *ctx, struct IdentifierNode *node)
             if (global_index == -1) {
                 enqueue_remapping_work(ctx->remapping_queue, (struct RemappingWork){
                     .identifier = node,
+                    .loc = node->node.loc,
                     .bytecode_index = get_last_bytecode_index(ctx) + 1,
                     .searching_from_module = ctx->module_index,
                     .is_namespace = false,
@@ -465,6 +466,7 @@ void namespace_access_expr(struct Context *ctx, struct NamespaceAccessNode *node
     if (constant_index == -1) {
         enqueue_remapping_work(ctx->remapping_queue, (struct RemappingWork){
             .namespace_access = node,
+            .loc = node->node.loc,
             .bytecode_index = get_last_bytecode_index(ctx) + 1,
             .searching_from_module = ctx->module_index,
             .is_namespace = true,
@@ -533,7 +535,7 @@ void compile_expr(struct Context *ctx, struct AstNode *node)
             compile_attribute(ctx, (struct AttributeNode*)node);
             break;
         default:
-            panic("unknown ast node");
+            panic("unreachable: unknown ast node");
             break;
     }
 }

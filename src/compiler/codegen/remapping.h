@@ -2,12 +2,14 @@
 #define func_lang_compiler_codegen_remapping_h
 
 #include "../../bytecode.h"
+#include "../../parsing/ast.h"
 
 struct RemappingWork {
     union {
         struct IdentifierNode *identifier;
         struct NamespaceAccessNode *namespace_access;
     };
+    struct Location loc;
     u16 arg_count;
     u32 bytecode_index;
     u16 searching_from_module;

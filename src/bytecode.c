@@ -46,6 +46,8 @@ void init_chunk(struct Chunk *chunk)
 
 void chunk_write_byte(struct Chunk *chunk, u8 byte)
 {
+    if (chunk == null)
+        return;
     if (chunk->bytecode.len == chunk->bytecode.cap) {
         u32 new_cap = chunk->bytecode.cap == 0 ? 4 : chunk->bytecode.cap * 2;
 

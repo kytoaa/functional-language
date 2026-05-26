@@ -19,5 +19,8 @@ trim s = let
 
 MyType = @type(MyType);
 
-main = io..println : std..Option..unwrap_or 0 (std..Option..join (std..Some (std..Some 5)));
+main = let
+    test = case 1 of
+        | std..Some  -> 1;
+    in io..println : test 1;
 

@@ -172,6 +172,7 @@ static u32 compile_pattern_node(struct Context *ctx, struct AstNode *node)
                 );
                 if (error != GLOBAL_RES_OK) {
                     non_existent_ident_err(ctx, constructor_ident->loc, null);
+                    return 0;
                 }
             } else if (constructor_ident->kind == AST_NAMESPACE_ACCESS) {
                 struct GlobalResolutionResult result = resolve_global_path(
@@ -185,10 +186,11 @@ static u32 compile_pattern_node(struct Context *ctx, struct AstNode *node)
                 );
                 if (result.error != GLOBAL_RES_OK) {
                     namespace_access_error(ctx, result);
-                    panic("error");
+                    return 0;
                 }
             } else {
-                panic("not a constructor");
+                invalid_pattern_err(ctx, constructor_ident->loc, "not a constructor");
+                return 0;
             }
 
             emit_byte(ctx, OP_IS_VARIANT);
@@ -206,6 +208,7 @@ static u32 compile_pattern_node(struct Context *ctx, struct AstNode *node)
                 if (constructor_ident->kind == AST_IDENTIFIER) {
                     enqueue_remapping_work(ctx->remapping_queue, (struct RemappingWork){
                         .identifier = (struct IdentifierNode*)constructor_ident,
+                        .loc = constructor_ident->loc,
                         .arg_count = arg_count,
                         .bytecode_index = variant_index,
                         .searching_from_module = ctx->module_index,
@@ -213,8 +216,13 @@ static u32 compile_pattern_node(struct Context *ctx, struct AstNode *node)
                         .is_pattern_constructor = true,
                     });
                 } else {
+                    struct AstNode *namespace = constructor_ident;
+                    while (namespace->kind == AST_NAMESPACE_ACCESS) {
+                        namespace = ((struct NamespaceAccessNode*)namespace)->rhs;
+                    }
                     enqueue_remapping_work(ctx->remapping_queue, (struct RemappingWork){
                         .namespace_access = (struct NamespaceAccessNode*)constructor_ident,
+                        .loc = namespace->loc,
                         .arg_count = arg_count,
                         .bytecode_index = variant_index,
                         .searching_from_module = ctx->module_index,
@@ -277,7 +285,7 @@ static u32 compile_pattern_node(struct Context *ctx, struct AstNode *node)
             return failure_index;
         }
         default:
-            panic("unreachable: not a valid pattern");
+            invalid_pattern_err(ctx, node->loc, null);
             return 0;
     }
 }

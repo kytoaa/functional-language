@@ -152,6 +152,9 @@ u8 *get_bytecode_byte(struct Context *ctx, u32 index)
 
 u32 create_constant(struct Chunk *chunk, enum ObjType type, u32 size)
 {
+    if (chunk == null)
+        return -1;
+
     size = (size + sizeof(u64) - 1) / sizeof(u64);
     struct ConstantList *constants = &chunk->constants;
     if (constants->len + size >= constants->cap) {
@@ -186,6 +189,9 @@ u64 *get_constant(struct Context *ctx, u32 index)
 }
 u16 create_closure_info(struct Context *ctx, struct ClosureInfo info)
 {
+    if (ctx->compiling_chunk == null)
+        return -1;
+
     struct ClosureInfoList *closures = &ctx->compiling_chunk->closures;
 
     if (closures->len == closures->cap) {
@@ -276,6 +282,14 @@ void namespace_access_error(struct Context *ctx, struct GlobalResolutionResult e
             break;
     }
     non_existent_ident_err(ctx, error.error_finding->node.loc, msg);
+}
+void invalid_pattern_err(struct Context *ctx, struct Location loc, const char *msg)
+{
+    codegen_error(ctx, (struct CodegenError){
+        .additional_msg = msg,
+        .type = CODEGEN_ERR_INVALID_PATTERN,
+        .error = { .invalid_pattern = { .loc = loc } }
+    });
 }
 struct CodegenError make_message_error(struct Location loc, const char *msg, u16 file_index)
 {

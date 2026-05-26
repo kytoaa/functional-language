@@ -6,8 +6,8 @@
 #include "file_compilation.h"
 #include <stdio.h>
 
-#define ERROR_STR "\x1b[1;91merror\x1b[0m:"
-#define ARROW_STR "\x1b[96m-->\x1b[0m"
+#define ERROR_STR "\x1b[1;31merror\x1b[0m:"
+#define ARROW_STR "\x1b[1;34m-->\x1b[0m"
 
 struct LineIdentPrintInfo {
     /// index within the file
@@ -41,6 +41,9 @@ static struct LineIdentPrintInfo ident_info(const char *src, struct Location loc
         line_end_index += 1;
         ident_len += 1;
     }
+    if (ident_len == 0)
+        ident_len = 1;
+
     while (!eol_char(src[line_end_index])) {
         line_end_index += 1;
     }
@@ -57,12 +60,22 @@ static struct LineIdentPrintInfo ident_info(const char *src, struct Location loc
 static void print_ident(FILE *err, const char *src, struct Location loc)
 {
     struct LineIdentPrintInfo ident = ident_info(src, loc);
-    fprintf(err, "\x1b[96m    |\n%-4d|\x1b[0m ", loc.line);
-    fprintf(err, "%.*s\n", ident.line_len, &src[ident.line_start]);
-    fprintf(err, "    \x1b[96m|\x1b[0m ");
+    fprintf(err, "\x1b[1;34m    |\n%-4d|\x1b[0m ", loc.line);
+    fprintf(
+        err,
+        "%.*s\x1b[32m%.*s\x1b[0m%.*s\n",
+        ident.ident_start,
+        &src[ident.line_start],
+        ident.ident_len,
+        &src[ident.line_start + ident.ident_start],
+        ident.line_len - (ident.ident_start + ident.ident_len),
+        &src[ident.line_start + ident.ident_start + ident.ident_len]
+    );
+    fprintf(err, "    \x1b[1;34m|\x1b[0m ");
     for (u32 i = 0; i < ident.ident_start; i++) {
-        fprintf(err, " \x1b[32m");
+        fprintf(err, " ");
     }
+    fprintf(err, "\x1b[32m");
     for (u32 i = 0; i < ident.ident_len; i++) {
         fprintf(err, "^");
     }
@@ -166,6 +179,20 @@ void print_codegen_error(struct Compiler *compiler, struct CodegenError error)
             );
             break;
         }
+        case CODEGEN_ERR_INVALID_PATTERN:{
+            fprintf(
+                config->error,
+                ERROR_STR " not a valid pattern\n "ARROW_STR" %.*s:%d\n",
+                config->file_name_len, config->file_name,
+                error.error.invalid_pattern.loc.line
+            );
+            print_ident(
+                config->error,
+                src,
+                error.error.invalid_pattern.loc
+            );
+            break;
+        }
         case CODEGEN_ERR_MSG:{
             fprintf(
                 config->error,
@@ -185,53 +212,40 @@ void print_codegen_error(struct Compiler *compiler, struct CodegenError error)
     if (error.additional_msg != null) {
         fprintf(config->error, "\x1b[1;37mnote\x1b[0m: %s\n", error.additional_msg);
     }
+    fflush(config->error);
 }
 
 void print_err(const struct CompilerConfig *config, const struct ParseError *err, struct FileData file)
 {
-    FILE *output = config->error;
-
-    fprintf(output, ERROR_STR " ");
     if (err->token.type == TOKEN_ERROR) {
-        fprintf(output, "%.*s\n", err->token.len, err->token.start);
-        fprintf(output, " "ARROW_STR" %.*s:%d\n", file.file_name_len, file.file_name, err->token.line);
-    } else {
-        fprintf(output, "%s\n", err->msg);
         fprintf(
-            output,
-            " "ARROW_STR" %.*s:%d\n",
+            config->error,
+            ERROR_STR " %.*s\n "ARROW_STR" %.*s:%d\n",
+            err->token.len,
+            err->token.start,
             file.file_name_len,
             file.file_name,
             err->token.line
         );
-        if (err->token.start == null || file.src == null)
-            return;
-        fprintf(output, "  |\n");
+    } else {
         fprintf(
-            output,
-            err->token.line > 9 ? "%d| " : "%d | ",
+            config->error,
+            ERROR_STR " %s\n "ARROW_STR" %.*s:%d\n",
+            err->msg,
+            file.file_name_len,
+            file.file_name,
             err->token.line
         );
-
-        u32 line_start_pos = err->token.start - file.src;
-        u32 line_end_pos = line_start_pos;
-        while (line_start_pos > 1 && file.src[line_start_pos - 1] != '\n') {
-            line_start_pos -= 1;
-        }
-        while (file.src[line_end_pos] != '\n' && file.src[line_end_pos] != '\0') {
-            line_end_pos += 1;
-        }
-        fprintf(output, "%.*s\n  | ", line_end_pos - line_start_pos, file.src + line_start_pos);
-
-        for (const char *i = file.src + line_start_pos; i < err->token.start; i++) {
-            fprintf(output, " ");
-        }
-        for (u32 i = 0; i < err->token.len; i++) {
-            fprintf(output, "^");
-        }
-        fprintf(output, "\n");
+        print_ident(
+            config->error,
+            file.src,
+            (struct Location){
+                .line = err->token.line,
+                .file_pos = err->token.start - file.src
+            }
+        );
     }
-    fflush(output);
+    fflush(config->error);
 }
 
 void print_module_resolution_error(const struct CompilerConfig *config, const char *module_name)

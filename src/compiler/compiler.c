@@ -47,11 +47,14 @@ void compile_file(const struct CompilerConfig config)
 
     struct ModuleCtx modules = {};
     struct ModuleResult mod_result = resolve_ast(&compiler, &compiler.files.ptr[0], &modules);
-    if (!mod_result.successful && mod_result.msg != null) {
-        print_codegen_error(
-            &compiler,
-            make_message_error(mod_result.location, mod_result.msg, mod_result.file_index)
-        );
+    if (!mod_result.successful) {
+        if (mod_result.msg != null) {
+            print_codegen_error(
+                &compiler,
+                make_message_error(mod_result.location, mod_result.msg, mod_result.file_index)
+            );
+        }
+        free_module_ctx(&modules);
         free_compiler(&compiler);
         free_chunk(&compiler.chunk);
         return;

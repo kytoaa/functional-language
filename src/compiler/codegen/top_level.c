@@ -157,7 +157,14 @@ static bool try_remap_from_globals(struct Context *ctx, struct GlobalCtx *global
         u16 expected_args = ctx->compiling_chunk->closures.ptr[closure_info_index].arity;
 
         if (expected_args != remapping.arg_count) {
-            panic("wrong arg count");
+            invalid_pattern_err(
+                ctx,
+                remapping.is_namespace
+                    ? remapping.namespace_access->node.loc
+                    : remapping.identifier->node.loc,
+                "wrong arg count"
+            );
+            return true;
         }
 
         for (u32 i = 0; i < sizeof(u16); i++) {
@@ -260,13 +267,26 @@ struct CodegenErrorList generate_code(struct Compiler *compiler, struct ModuleCt
 
         if (remapping.is_pattern_constructor) {
             if (decl_node->body->kind != AST_CONSTRUCTOR) {
-                if (decl_node->body->kind != AST_LAMBDA) {
-                    panic("not a constructor");
-                }
-                if (((struct LambdaNode*)decl_node->body)->body->kind != AST_CONSTRUCTOR) {
-                    panic("not a constructor");
+                if (decl_node->body->kind != AST_LAMBDA
+                    || ((struct LambdaNode*)decl_node->body)->body->kind != AST_CONSTRUCTOR
+                ) {
+                    invalid_pattern_err(
+                        &ctx,
+                        remapping.loc,
+                        "not a constructor"
+                    );
                 }
             }
+            u16 expected_args = ctx.compiling_chunk->closures.ptr[decl_info.closure_index].arity;
+
+            if (expected_args != remapping.arg_count) {
+                invalid_pattern_err(
+                    &ctx,
+                    remapping.loc,
+                    "wrong arg count"
+                );
+            }
+
             for (u32 i = 0; i < sizeof(u16); i++) {
                 bytecode_ptr[i] = ((u8*)&decl_info.closure_index)[i];
             }

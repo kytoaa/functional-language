@@ -74,22 +74,51 @@ mod = {\n\
                       then ()\n\
                       else (index 0 s) :: unpack (drop 1 s);\n\
     };\n\
-    mod io = {\n\
-        stdin = @std_builtin(stdin);\n\
-        stdout = @std_builtin(stdout);\n\
-        stderr = @std_builtin(stderr);\n\
 \n\
-        seq a b = case $ a of | _ -> b;\n\
+    mod io = _io..io;\n\
+};\n\
 \n\
-        read_file_contents file = @std_builtin(read_file_contents);\n\
-        read_line file = @std_builtin(read_file_line);\n\
-\n\
-        write file val = @std_builtin(write);\n\
-        writeln file val = seq (write file val) (write file '\n');\n\
-        print = write stdout;\n\
-        println = writeln stdout;\n\
+mod _io = {\n\
+    mod IO = type {\n\
+        with New a;\n\
     };\n\
-};";
+\n\
+    stdin = @std_builtin(stdin);\n\
+    stdout = @std_builtin(stdout);\n\
+    stderr = @std_builtin(stderr);\n\
+\n\
+    seq a b = case $ a of | _ -> b;\n\
+\n\
+    read_file_contents file = @std_builtin(read_file_contents);\n\
+    read_line file = @std_builtin(read_file_line);\n\
+\n\
+    write file val = @std_builtin(write);\n\
+    writeln file val = seq (write file val) (write file '\n');\n\
+    print = write stdout;\n\
+    println = writeln stdout;\n\
+\n\
+    mod io = {\n\
+        stdin = super..stdin;\n\
+        stdout = super..stdout;\n\
+        stderr = super..stderr;\n\
+\n\
+        seq = super..seq;\n\
+        read_file_contents file = super..IO..New (super..read_file_contents file);\n\
+        read_line file = super..IO..New (super..read_line file);\n\
+\n\
+        write file val = super..IO..New (super..write file val);\n\
+        writeln = super..writeln;\n\
+        print = super..print;\n\
+        println = super..println;\n\
+\n\
+        map f a = case a of\n\
+            | super..IO..New a -> super..IO..New (f a);\n\
+        join a = case a of\n\
+            | super..IO..New (super..IO..New a) -> super..IO..New a;\n\
+    };\n\
+};\n\
+\n\
+";
 
 const char *std_lib_src()
 {
