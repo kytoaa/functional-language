@@ -17,10 +17,14 @@ trim s = let
     count_end n = if is_whitespace (slice..index n s) then count_start (n - 1) else n;
     in slice..drop (count_start 0) (slice..take (count_end (length - 1) + 1) s);
 
-MyType = @type(MyType);
+mod MyType = type {
+    with A;
+    with B;
 
-main = let
-    test = case 1 of
-        | std..Some  -> 1;
-    in io..println : test 1;
+    get_either x = case x of
+        | A -> true
+        | B -> false;
+};
+
+main = io..println : MyType..get_either MyType..B;
 

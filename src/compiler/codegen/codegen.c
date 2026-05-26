@@ -37,7 +37,7 @@ void declare_ident(struct Context *ctx, const char *ident)
 void drop_ident(struct Context *ctx, u32 count)
 {
     if (ctx->ident_stack_len < count) {
-        panic("dropping too many identifiers");
+        panic("unreachable: dropping too many identifiers");
     }
     ctx->ident_stack_len -= count;
 }
@@ -66,7 +66,7 @@ static u8 add_capture(struct Context *ctx, u8 parent_index, bool is_local)
         }
     }
     if (ctx->capture_stack_len == IDENT_STACK_SIZE) {
-        panic("too many captures");
+        panic("unreachable: too many captures");
     }
     u8 index = ctx->capture_stack_len++;
     ctx->capture_stack[index] = (struct Capture){
@@ -140,12 +140,15 @@ void emit_u64(struct Context *ctx, u64 value)
 }
 u32 get_last_bytecode_index(struct Context *ctx)
 {
-    return ctx->compiling_chunk->bytecode.len - 1;
+    return (ctx->compiling_chunk == null) ? -1 : ctx->compiling_chunk->bytecode.len - 1;
 }
 u8 *get_bytecode_byte(struct Context *ctx, u32 index)
 {
+    if (ctx->compiling_chunk == null)
+        return null;
+
     if (index > ctx->compiling_chunk->bytecode.len)
-        panic("out of bounds byte index");
+        panic("unreachable: out of bounds byte index");
 
     return &ctx->compiling_chunk->bytecode.ptr[index];
 }
@@ -181,6 +184,9 @@ u32 create_constant(struct Chunk *chunk, enum ObjType type, u32 size)
 }
 u64 *get_constant(struct Context *ctx, u32 index)
 {
+    if (ctx->compiling_chunk == null)
+        return null;
+
     struct ConstantList *constants = &ctx->compiling_chunk->constants;
     if (index > constants->len)
         return null;
@@ -207,14 +213,19 @@ u16 create_closure_info(struct Context *ctx, struct ClosureInfo info)
 
 static void codegen_error(struct Context *ctx, struct CodegenError error)
 {
-    if (ctx->errors->cap == ctx->errors->len) {
-        u32 new_cap = (ctx->errors->cap == 0) ? 1 : ctx->errors->cap * 2;
-        struct CodegenError *new_ptr = realloc_mem(ctx->errors->ptr, new_cap * sizeof(struct CodegenError));
-        ctx->errors->ptr = new_ptr;
-        ctx->errors->cap = new_cap;
-    }
-    ctx->errors->ptr[ctx->errors->len++] = error;
+    push_codegen_err(ctx->errors, error);
 }
+void push_codegen_err(struct CodegenErrorList *error_list, struct CodegenError error)
+{
+    if (error_list->cap == error_list->len) {
+        u32 new_cap = (error_list->cap == 0) ? 1 : error_list->cap * 2;
+        struct CodegenError *new_ptr = realloc_mem(error_list->ptr, new_cap * sizeof(struct CodegenError));
+        error_list->ptr = new_ptr;
+        error_list->cap = new_cap;
+    }
+    error_list->ptr[error_list->len++] = error;
+}
+
 void non_existent_ident_err(struct Context *ctx, struct Location loc, const char *msg)
 {
     codegen_error(ctx, (struct CodegenError){

@@ -94,6 +94,8 @@ void used_underscore_err(struct Context *ctx, struct Location loc, const char *m
 void invalid_pattern_err(struct Context *ctx, struct Location loc, const char *msg);
 struct CodegenError make_message_error(struct Location loc, const char *msg, u16 file_index);
 
+void push_codegen_err(struct CodegenErrorList *error_list, struct CodegenError error);
+
 void namespace_access_error(struct Context *ctx, struct GlobalResolutionResult error);
 
 void free_codegen_errors(struct CodegenErrorList *errors);

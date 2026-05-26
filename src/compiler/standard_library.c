@@ -7,7 +7,7 @@ mod = {\n\
         with None;\n\
 \n\
         map f x = case x of\n\
-            | Some -> Some (f x)\n\
+            | Some x -> Some (f x)\n\
             | None -> None;\n\
 \n\
         join x = case x of\n\

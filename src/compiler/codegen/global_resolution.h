@@ -47,12 +47,13 @@ void free_global_ctx(struct GlobalCtx *globals);
 
 struct ModuleGlobals *get_module_globals(struct GlobalCtx *globals, u16 mod);
 
-void declare_global_decl(
+bool declare_global_decl(
     struct ModuleGlobals *globals,
     struct DeclarationNode *node,
     u32 const_index,
     u16 closure_info_index,
-    bool is_public
+    bool is_public,
+    struct Location *out_err_loc
 );
 void set_global_decl_const_index(
     struct ModuleGlobals *globals,

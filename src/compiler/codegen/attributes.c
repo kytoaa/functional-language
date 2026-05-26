@@ -21,7 +21,11 @@ void compile_attribute(struct Context *ctx, struct AttributeNode *node)
     const char *type_ident = ident_table_get(ctx->identifier_table, "type", 4);
     if (node->ident->src_loc == type_ident) {
         u32 constant = create_constant(ctx->compiling_chunk, OBJ_RUNTIME_TYPE, sizeof(struct RuntimeType));
-        struct RuntimeType *type_constant = (struct RuntimeType*)get_constant(ctx, constant);
+        struct RuntimeType *type_constant = null;
+
+        if (constant != (u32)-1) {
+            type_constant = (struct RuntimeType*)get_constant(ctx, constant);
+        }
 
         char *name = null;
         u32 name_len = 0;
@@ -31,12 +35,16 @@ void compile_attribute(struct Context *ctx, struct AttributeNode *node)
                 panic("not a valid attribute argument, `@type(..)` expects an identifier");
             }
             struct IdentifierNode *ident = (struct IdentifierNode*)node->body;
-            name = alloc_mem(ident->len);
-            memcpy(name, ident->src_loc, ident->len);
-            name_len = ident->len;
+            if (type_constant != null) {
+                name = alloc_mem(ident->len);
+                memcpy(name, ident->src_loc, ident->len);
+                name_len = ident->len;
+            }
         }
 
-        obj_init_type(type_constant, name, name_len);
+        if (type_constant != null) {
+            obj_init_type(type_constant, name, name_len);
+        }
 
         emit_byte(ctx, OP_PUSH_CONST);
         emit_u32(ctx, constant);

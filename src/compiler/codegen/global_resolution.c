@@ -5,7 +5,7 @@
 
 #define PATH_RESOLUTION_RECURSION_LIMIT 32
 
-static void push_global(struct ModuleGlobals *globals, struct Global global)
+static bool push_global(struct ModuleGlobals *globals, struct Global global, struct Location *out_err_loc)
 {
     if (globals->len == globals->cap) {
         u32 new_cap = (globals->cap == 0) ? 2 : globals->cap * 2;
@@ -16,25 +16,32 @@ static void push_global(struct ModuleGlobals *globals, struct Global global)
     for (u16 i = 0; i < globals->len; i++) {
         struct Global *current = &globals->globals[i];
         if (current->node->name == global.node->name) {
-            panic("multiple globals with same name");
+            *out_err_loc = current->node->node.loc;
+            return false;
         }
     }
     globals->globals[globals->len++] = global;
+    return true;
 }
 
-void declare_global_decl(
+bool declare_global_decl(
     struct ModuleGlobals *globals,
     struct DeclarationNode *node,
     u32 const_index,
     u16 closure_info_index,
-    bool is_public
+    bool is_public,
+    struct Location *out_err_loc
 ) {
-    push_global(globals, (struct Global){
-        .node = node,
-        .constant_index = const_index,
-        .closure_info_index = closure_info_index,
-        .is_public = is_public,
-    });
+    return push_global(
+        globals,
+        (struct Global){
+            .node = node,
+            .constant_index = const_index,
+            .closure_info_index = closure_info_index,
+            .is_public = is_public,
+        },
+        out_err_loc
+    );
 }
 void set_global_decl_const_index(
     struct ModuleGlobals *globals,

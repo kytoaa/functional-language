@@ -39,16 +39,20 @@ void compile_case_expression(struct Context *ctx, struct CaseExprNode *node)
         u8 *diff_bytes = (u8*)&diff;
         u8 *success_jump_bytes = get_bytecode_byte(ctx, result.success_index);
         
-        success_jump_bytes[0] = diff_bytes[0];
-        success_jump_bytes[1] = diff_bytes[1];
+        if (success_jump_bytes != null) {
+            success_jump_bytes[0] = diff_bytes[0];
+            success_jump_bytes[1] = diff_bytes[1];
+        }
 
         if (result.failure_index != 0) {
             i16 failure_diff = (i32)(get_last_bytecode_index(ctx) + 1) - (i32)(result.failure_index + 2);
             u8 *failure_diff_bytes = (u8*)&failure_diff;
             u8 *failure_jump_bytes = get_bytecode_byte(ctx, result.failure_index);
 
-            failure_jump_bytes[0] = failure_diff_bytes[0];
-            failure_jump_bytes[1] = failure_diff_bytes[1];
+            if (failure_jump_bytes != null) {
+                failure_jump_bytes[0] = failure_diff_bytes[0];
+                failure_jump_bytes[1] = failure_diff_bytes[1];
+            }
         }
 
         branch = branch->next_pattern;
@@ -65,8 +69,10 @@ void compile_case_expression(struct Context *ctx, struct CaseExprNode *node)
     u8 *success_diff_bytes = (u8*)&success_diff;
     u8 *success_jump_bytes = get_bytecode_byte(ctx, success_jump_index);
 
-    success_jump_bytes[0] = success_diff_bytes[0];
-    success_jump_bytes[1] = success_diff_bytes[1];
+    if (success_jump_bytes != null) {
+        success_jump_bytes[0] = success_diff_bytes[0];
+        success_jump_bytes[1] = success_diff_bytes[1];
+    }
 }
 
 static u8 type_check_op(enum LiteralType lit)
@@ -90,6 +96,18 @@ static u32 compile_pattern_node(struct Context *ctx, struct AstNode *node)
     switch (node->kind) {
         case AST_IDENTIFIER:{
             struct IdentifierNode *ident = (struct IdentifierNode*)node;
+
+            enum GlobalResolutionError error = resolve_global(
+                ctx->globals,
+                ctx->module_index,
+                ident->src_loc,
+                null,
+                null
+            );
+            if (error == GLOBAL_RES_OK) {
+                goto application_pattern;
+            }
+
             declare_ident(ctx, ident->src_loc);
             emit_byte(ctx, OP_CREATE_BINDING);
             return 0;
@@ -121,20 +139,27 @@ static u32 compile_pattern_node(struct Context *ctx, struct AstNode *node)
                 i16 l_jump = (i32)(cons_check_index - 2) - (i32)(l_failure + 2);
                 u8 *l_failure_bytes = get_bytecode_byte(ctx, l_failure);
                 u8 *l_jump_bytes = (u8*)&l_jump;
-                l_failure_bytes[0] = l_jump_bytes[0];
-                l_failure_bytes[1] = l_jump_bytes[1];
+
+                if (l_failure_bytes != null) {
+                    l_failure_bytes[0] = l_jump_bytes[0];
+                    l_failure_bytes[1] = l_jump_bytes[1];
+                }
             }
             if (r_failure != 0) {
                 i16 r_jump = (i32)(cons_check_index - 1) - (i32)(r_failure + 2);
                 u8 *r_failure_bytes = get_bytecode_byte(ctx, r_failure);
                 u8 *r_jump_bytes = (u8*)&r_jump;
-                r_failure_bytes[0] = r_jump_bytes[0];
-                r_failure_bytes[1] = r_jump_bytes[1];
+
+                if (r_failure_bytes != null) {
+                    r_failure_bytes[0] = r_jump_bytes[0];
+                    r_failure_bytes[1] = r_jump_bytes[1];
+                }
             }
             return cons_check_index;
         }
         case AST_NAMESPACE_ACCESS:
-        case AST_APPLICATION:{
+        case AST_APPLICATION:
+        application_pattern:{
             struct ApplicationNode *appl = (struct ApplicationNode*)node;
             emit_byte(ctx, OP_EVAL);
             emit_byte(ctx, OP_IS_OBJ);
@@ -244,8 +269,11 @@ static u32 compile_pattern_node(struct Context *ctx, struct AstNode *node)
                         i16 jump = (i32)(failure_index - 2) - (i32)(failure + 2);
                         u8 *failure_bytes = get_bytecode_byte(ctx, failure);
                         u8 *jump_bytes = (u8*)&jump;
-                        failure_bytes[0] = jump_bytes[0];
-                        failure_bytes[1] = jump_bytes[1];
+
+                        if (failure_bytes != null) {
+                            failure_bytes[0] = jump_bytes[0];
+                            failure_bytes[1] = jump_bytes[1];
+                        }
                     }
                     argument -= 1;
                     if (current_appl->function->kind != AST_APPLICATION)
@@ -311,8 +339,11 @@ struct CaseBranchResult compile_pattern_match_branch(struct Context *ctx, struct
             i16 diff = (i32)(exit_point_index - 1) - (i32)(pattern_failure_index + 2);
             u8 *diff_bytes = (u8*)&diff;
             u8 *pattern_failure_bytes = get_bytecode_byte(ctx, pattern_failure_index);
-            pattern_failure_bytes[0] = diff_bytes[0];
-            pattern_failure_bytes[1] = diff_bytes[1];
+
+            if (pattern_failure_bytes != null) {
+                pattern_failure_bytes[0] = diff_bytes[0];
+                pattern_failure_bytes[1] = diff_bytes[1];
+            }
         }
     }
 

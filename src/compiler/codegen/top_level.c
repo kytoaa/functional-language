@@ -51,12 +51,16 @@ static struct TopLevelDeclInfo compile_top_level_decl(struct Context *ctx, struc
         });
         if (constructor_variant != 0) {
             u8 *constructor_variant_index = get_bytecode_byte(ctx, constructor_variant);
-            for (u8 i = 0; i < sizeof(u16); i++) {
-                constructor_variant_index[i] = ((u8*)&closure_info)[i];
+            if (constructor_variant_index != null) {
+                for (u8 i = 0; i < sizeof(u16); i++) {
+                    constructor_variant_index[i] = ((u8*)&closure_info)[i];
+                }
             }
         }
 
-        const_closure->info = (struct ClosureInfo*)(u64)closure_info;
+        if (const_closure != null) {
+            const_closure->info = (struct ClosureInfo*)(u64)closure_info;
+        }
 
         set_global_decl_const_index(
             get_module_globals(ctx->globals, ctx->module_index),
@@ -90,13 +94,17 @@ static struct TopLevelDeclInfo compile_top_level_decl(struct Context *ctx, struc
         });
         if (constructor_variant != 0) {
             u8 *constructor_variant_index = get_bytecode_byte(ctx, constructor_variant);
-            for (u8 i = 0; i < sizeof(u16); i++) {
-                constructor_variant_index[i] = ((u8*)&closure_info)[i];
+            if (constructor_variant_index != null) {
+                for (u8 i = 0; i < sizeof(u16); i++) {
+                    constructor_variant_index[i] = ((u8*)&closure_info)[i];
+                }
             }
         }
 
-        const_thunk->evaluated = null;
-        const_thunk->info = (struct ClosureInfo*)(u64)closure_info;
+        if (const_thunk != null) {
+            const_thunk->evaluated = null;
+            const_thunk->info = (struct ClosureInfo*)(u64)closure_info;
+        }
 
         set_global_decl_const_index(
             get_module_globals(ctx->globals, ctx->module_index),
@@ -128,7 +136,7 @@ static bool try_remap_from_globals(struct Context *ctx, struct GlobalCtx *global
             namespace_access_error(ctx, result);
             return false;
         }
-        if (constant_index == -1) {
+        if (constant_index == -1 && ctx->compiling_chunk != null) {
             return false;
         }
     } else {
@@ -143,7 +151,7 @@ static bool try_remap_from_globals(struct Context *ctx, struct GlobalCtx *global
             non_existent_ident_err(ctx, remapping.identifier->node.loc, null);
             return false;
         }
-        if (constant_index == -1) {
+        if (constant_index == -1 && ctx->compiling_chunk != null) {
             return false;
         }
     }
@@ -154,6 +162,9 @@ static bool try_remap_from_globals(struct Context *ctx, struct GlobalCtx *global
         if (closure_info_index == (u16)-1) {
             return false;
         }
+        if (ctx->compiling_chunk == null)
+            return true;
+
         u16 expected_args = ctx->compiling_chunk->closures.ptr[closure_info_index].arity;
 
         if (expected_args != remapping.arg_count) {
@@ -171,20 +182,109 @@ static bool try_remap_from_globals(struct Context *ctx, struct GlobalCtx *global
             constant_index_bytes[i] = ((u8*)&closure_info_index)[i];
         }
     } else {
-        for (u32 i = 0; i < sizeof(u32); i++) {
-            constant_index_bytes[i] = ((u8*)&constant_index)[i];
+        if (constant_index_bytes != null) {
+            for (u32 i = 0; i < sizeof(u32); i++) {
+                constant_index_bytes[i] = ((u8*)&constant_index)[i];
+            }
         }
     }
     return true;
+}
+
+static void clear_remapping_queue(struct Context *ctx)
+{
+    while (ctx->remapping_queue->len > 0) {
+        struct RemappingWork remapping = dequeue_remapping_work(ctx->remapping_queue);
+
+        if (try_remap_from_globals(ctx, ctx->globals, remapping)) {
+            continue;
+        }
+        if (ctx->errors->len > 0) {
+            break;
+        }
+
+        struct DeclarationNode *decl_node = null;
+
+        u16 module_index = 0;
+        struct GlobalResolutionResult result = find_global_decl(
+            ctx->globals,
+            remapping.is_namespace ? AS_NODE(remapping.namespace_access) : AS_NODE(remapping.identifier),
+            remapping.searching_from_module,
+            &decl_node,
+            &module_index
+        );
+        if (result.error != GLOBAL_RES_OK) {
+            namespace_access_error(ctx, result);
+        }
+
+        if (decl_node->body->kind == AST_CONSTRUCTOR) {
+            struct ConstructorNode *constructor = (struct ConstructorNode*)decl_node->body;
+
+            if (constructor->body != null) {
+                remapping.searching_from_module = module_index;
+                if (constructor->body->kind == AST_NAMESPACE_ACCESS) {
+                    remapping.is_namespace = true;
+                    remapping.namespace_access = (struct NamespaceAccessNode*)constructor->body;
+                } else {
+                    remapping.is_namespace = false;
+                    remapping.identifier = (struct IdentifierNode*)constructor->body;
+                }
+                enqueue_remapping_work(ctx->remapping_queue, remapping);
+                continue;
+            }
+        }
+
+        ctx->module_index = module_index;
+        struct TopLevelDeclInfo decl_info = compile_top_level_decl(ctx, decl_node);
+
+        u8 *bytecode_ptr = get_bytecode_byte(ctx, remapping.bytecode_index);
+
+        if (remapping.is_pattern_constructor) {
+            if (decl_node->body->kind != AST_CONSTRUCTOR) {
+                if (decl_node->body->kind != AST_LAMBDA
+                    || ((struct LambdaNode*)decl_node->body)->body->kind != AST_CONSTRUCTOR
+                ) {
+                    invalid_pattern_err(
+                        ctx,
+                        remapping.loc,
+                        "not a constructor"
+                    );
+                }
+            }
+            if (ctx->compiling_chunk == null)
+                continue;
+            u16 expected_args = ctx->compiling_chunk->closures.ptr[decl_info.closure_index].arity;
+
+            if (expected_args != remapping.arg_count) {
+                invalid_pattern_err(
+                    ctx,
+                    remapping.loc,
+                    "wrong arg count"
+                );
+            }
+
+            for (u32 i = 0; i < sizeof(u16); i++) {
+                bytecode_ptr[i] = ((u8*)&decl_info.closure_index)[i];
+            }
+        } else {
+            if (bytecode_ptr != null) {
+                for (u32 i = 0; i < sizeof(u32); i++) {
+                    bytecode_ptr[i] = ((u8*)&decl_info.constant_index)[i];
+                }
+            }
+        }
+    }
+
+
 }
 
 struct CodegenErrorList generate_code(struct Compiler *compiler, struct ModuleCtx *modules)
 {
     const char *main_ident = ident_table_get(&compiler->identifiers, "main", 4);
 
-    struct GlobalCtx globals = run_global_pass(compiler, modules);
-
     struct CodegenErrorList errors = {};
+
+    struct GlobalCtx globals = run_global_pass(compiler, modules, &errors);
 
     struct RemappingQueue remapping_queue = {};
 
@@ -219,86 +319,26 @@ struct CodegenErrorList generate_code(struct Compiler *compiler, struct ModuleCt
     }
     emit_byte(&ctx, OP_END);
 
-    while (remapping_queue.len > 0) {
-        struct RemappingWork remapping = dequeue_remapping_work(&remapping_queue);
+    clear_remapping_queue(&ctx);
 
-        if (try_remap_from_globals(&ctx, &globals, remapping)) {
-            continue;
-        }
-        if (errors.len > 0) {
-            break;
-        }
+    ctx.compiling_chunk = null;
+    for (u16 mod = 0; mod < globals.len; mod++) {
+        struct ModuleGlobals *module = get_module_globals(&globals, mod);
+        ctx.module_index = mod;
+        
+        for (u16 i = 0; i < module->len; i++) {
+            struct Global *global = &module->globals[i];
 
-        struct DeclarationNode *decl_node = null;
-
-        u16 module_index = 0;
-        struct GlobalResolutionResult result = find_global_decl(
-            &globals,
-            remapping.is_namespace ? AS_NODE(remapping.namespace_access) : AS_NODE(remapping.identifier),
-            remapping.searching_from_module,
-            &decl_node,
-            &module_index
-        );
-        if (result.error != GLOBAL_RES_OK) {
-            namespace_access_error(&ctx, result);
-        }
-
-        if (decl_node->body->kind == AST_CONSTRUCTOR) {
-            struct ConstructorNode *constructor = (struct ConstructorNode*)decl_node->body;
-
-            if (constructor->body != null) {
-                remapping.searching_from_module = module_index;
-                if (constructor->body->kind == AST_NAMESPACE_ACCESS) {
-                    remapping.is_namespace = true;
-                    remapping.namespace_access = (struct NamespaceAccessNode*)constructor->body;
-                } else {
-                    remapping.is_namespace = false;
-                    remapping.identifier = (struct IdentifierNode*)constructor->body;
-                }
-                enqueue_remapping_work(&remapping_queue, remapping);
+            if (global->closure_info_index != (u16)-1) {
                 continue;
             }
-        }
 
-        ctx.module_index = module_index;
-        struct TopLevelDeclInfo decl_info = compile_top_level_decl(&ctx, decl_node);
-
-        u8 *bytecode_ptr = get_bytecode_byte(&ctx, remapping.bytecode_index);
-
-        if (remapping.is_pattern_constructor) {
-            if (decl_node->body->kind != AST_CONSTRUCTOR) {
-                if (decl_node->body->kind != AST_LAMBDA
-                    || ((struct LambdaNode*)decl_node->body)->body->kind != AST_CONSTRUCTOR
-                ) {
-                    invalid_pattern_err(
-                        &ctx,
-                        remapping.loc,
-                        "not a constructor"
-                    );
-                }
-            }
-            u16 expected_args = ctx.compiling_chunk->closures.ptr[decl_info.closure_index].arity;
-
-            if (expected_args != remapping.arg_count) {
-                invalid_pattern_err(
-                    &ctx,
-                    remapping.loc,
-                    "wrong arg count"
-                );
-            }
-
-            for (u32 i = 0; i < sizeof(u16); i++) {
-                bytecode_ptr[i] = ((u8*)&decl_info.closure_index)[i];
-            }
-        } else {
-            for (u32 i = 0; i < sizeof(u32); i++) {
-                bytecode_ptr[i] = ((u8*)&decl_info.constant_index)[i];
-            }
+            compile_top_level_decl(&ctx, global->node);
         }
     }
+    clear_remapping_queue(&ctx);
 
     free_remapping_queue(&remapping_queue);
-
     free_global_ctx(&globals);
 
     return errors;

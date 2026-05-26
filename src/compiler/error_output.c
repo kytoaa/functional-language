@@ -68,7 +68,7 @@ static void print_ident(FILE *err, const char *src, struct Location loc)
         &src[ident.line_start],
         ident.ident_len,
         &src[ident.line_start + ident.ident_start],
-        ident.line_len - (ident.ident_start + ident.ident_len),
+        ident.line_len - (ident.ident_start + ident.ident_len) + 1,
         &src[ident.line_start + ident.ident_start + ident.ident_len]
     );
     fprintf(err, "    \x1b[1;34m|\x1b[0m ");

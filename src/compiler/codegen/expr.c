@@ -69,6 +69,9 @@ void compile_literal(struct Context *ctx, struct LiteralNode *node)
     // unit is at index 0 as all units are identical
     if (node->type != LITERAL_TYPE_UNIT && node->type != LITERAL_TYPE_BOOLEAN) {
         constant = create_constant(ctx->compiling_chunk, OBJ_BOX, sizeof(struct Box));
+        if (constant == (u32)-1)
+            return;
+
         struct Value *value = &((struct Box*)get_constant(ctx, constant))->val;
 
         switch (node->type) {
@@ -156,6 +159,9 @@ void compile_bin_op(struct Context *ctx, struct BinOpNode *node)
     u64 end_location = get_last_bytecode_index(ctx) + 1;
     u8 *jump_addr_bytes = get_bytecode_byte(ctx, jump_location);
 
+    if (jump_addr_bytes == null)
+        return;
+
     // jump distance + size of OP_U64_ADD
     i64 jump_diff = end_location - jump_location + 1;
     u8 *jump_diff_bytes = (u8*)&jump_diff;
@@ -191,6 +197,9 @@ void compile_unary_op(struct Context *ctx, struct UnaryOpNode *node)
     u64 end_location = get_last_bytecode_index(ctx) + 1;
     u8 *jump_addr_bytes = get_bytecode_byte(ctx, jump_location);
 
+    if (jump_addr_bytes == null)
+        return;
+
     // jump distance + size of OP_U64_ADD
     i64 jump_diff = end_location - jump_location + 1;
     u8 *jump_diff_bytes = (u8*)&jump_diff;
@@ -218,8 +227,10 @@ void compile_if_expr(struct Context *ctx, struct IfExprNode *node)
     u8 *diff_bytes = (u8*)&diff;
     u8 *true_jump_instruction_bytes = get_bytecode_byte(ctx, true_jump_instruction);
 
-    true_jump_instruction_bytes[0] = diff_bytes[0];
-    true_jump_instruction_bytes[1] = diff_bytes[1];
+    if (true_jump_instruction_bytes != null) {
+        true_jump_instruction_bytes[0] = diff_bytes[0];
+        true_jump_instruction_bytes[1] = diff_bytes[1];
+    }
 
     compile_expr(ctx, node->then_expr);
     u32 end_jump_location = get_last_bytecode_index(ctx) + 1;
@@ -227,6 +238,9 @@ void compile_if_expr(struct Context *ctx, struct IfExprNode *node)
 
     diff_bytes = (u8*)&diff;
     u8 *end_jump_instruction_bytes = get_bytecode_byte(ctx, end_jump_instruction);
+
+    if (end_jump_instruction_bytes == null)
+        return;
 
     end_jump_instruction_bytes[0] = diff_bytes[0];
     end_jump_instruction_bytes[1] = diff_bytes[1];
@@ -296,8 +310,10 @@ void compile_lambda(struct Context *ctx, struct LambdaNode *node, const char *bi
     u8 *diff_bytes = (u8*)&diff;
     u8 *jump_location_bytes = get_bytecode_byte(&context, jump_location);
 
-    jump_location_bytes[0] = diff_bytes[0];
-    jump_location_bytes[1] = diff_bytes[1];
+    if (jump_location_bytes != null) {
+        jump_location_bytes[0] = diff_bytes[0];
+        jump_location_bytes[1] = diff_bytes[1];
+    }
 
     struct IdentSearchResult self_ident = {};
     get_ident_info(ctx, SELF_IDENT, &self_ident);
@@ -342,7 +358,10 @@ void compile_lambda(struct Context *ctx, struct LambdaNode *node, const char *bi
     } else {
         u32 constant = create_constant(ctx->compiling_chunk, OBJ_CLOSURE, sizeof(struct Closure));
         struct Closure *closure_const = (struct Closure*)get_constant(ctx, constant);
-        closure_const->info = (struct ClosureInfo*)(u64)closure_info_index;
+
+        if (closure_const != null) {
+            closure_const->info = (struct ClosureInfo*)(u64)closure_info_index;
+        }
         emit_byte(ctx, OP_PUSH_CONST);
         emit_u32(ctx, constant);
 
@@ -384,8 +403,10 @@ void compile_thunk(struct Context *ctx, struct AstNode *node, const char *bind_t
     u8 *diff_bytes = (u8*)&diff;
     u8 *jump_location_bytes = get_bytecode_byte(&context, jump_location);
 
-    jump_location_bytes[0] = diff_bytes[0];
-    jump_location_bytes[1] = diff_bytes[1];
+    if (jump_location_bytes != null) {
+        jump_location_bytes[0] = diff_bytes[0];
+        jump_location_bytes[1] = diff_bytes[1];
+    }
 
     struct IdentSearchResult self_ident = {};
     get_ident_info(ctx, SELF_IDENT, &self_ident);
@@ -430,8 +451,11 @@ void compile_thunk(struct Context *ctx, struct AstNode *node, const char *bind_t
     } else {
         u32 constant = create_constant(ctx->compiling_chunk, OBJ_THUNK, sizeof(struct Thunk));
         struct Thunk *thunk_const = (struct Thunk*)get_constant(ctx, constant);
-        thunk_const->evaluated = null;
-        thunk_const->info = (struct ClosureInfo*)(u64)closure_info_index;
+
+        if (thunk_const != null) {
+            thunk_const->evaluated = null;
+            thunk_const->info = (struct ClosureInfo*)(u64)closure_info_index;
+        }
         emit_byte(ctx, OP_PUSH_CONST);
         emit_u32(ctx, constant);
 
