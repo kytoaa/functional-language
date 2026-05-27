@@ -7,11 +7,13 @@
 
 struct TopLevelDeclInfo {
     u32 constant_index;
-    u16 closure_index;
+    u16 variant_index;
+    u8 arg_count;
 };
 
 static struct TopLevelDeclInfo compile_top_level_decl(struct Context *ctx, struct DeclarationNode *node)
 {
+    static u16 variant_count = 0;
     u32 function_start_index = get_last_bytecode_index(ctx) + 1;
 
     if (node->body->kind == AST_LAMBDA) {
@@ -25,12 +27,12 @@ static struct TopLevelDeclInfo compile_top_level_decl(struct Context *ctx, struc
             binding = binding->next_binding;
             emit_byte(ctx, OP_CREATE_BINDING);
         }
-        u32 constructor_variant = 0;
+        u16 variant = -1;
         if (lambda->body->kind == AST_CONSTRUCTOR) {
+            variant = variant_count++;
             emit_byte(ctx, OP_CREATE_OBJECT);
             emit_u16(ctx, 0);
-            constructor_variant = get_last_bytecode_index(ctx) + 1;
-            emit_u16(ctx, 0);
+            emit_u16(ctx, variant);
             emit_u16(ctx, bindings);
         } else {
             compile_expr(ctx, lambda->body);
@@ -49,34 +51,29 @@ static struct TopLevelDeclInfo compile_top_level_decl(struct Context *ctx, struc
             .address = function_start_index,
             .capture_count = 0,
         });
-        if (constructor_variant != 0) {
-            u8 *constructor_variant_index = get_bytecode_byte(ctx, constructor_variant);
-            if (constructor_variant_index != null) {
-                for (u8 i = 0; i < sizeof(u16); i++) {
-                    constructor_variant_index[i] = ((u8*)&closure_info)[i];
-                }
-            }
-        }
 
         if (const_closure != null) {
             const_closure->info = (struct ClosureInfo*)(u64)closure_info;
         }
 
-        set_global_decl_const_index(
+        set_global_decl_info(
             get_module_globals(ctx->globals, ctx->module_index),
             node,
-            constant_index,
-            closure_info
+            (struct GlobalInfo){
+                .constant_index = constant_index,
+                .variant_index = variant,
+                .arg_count = bindings,
+            }
         );
 
-        return (struct TopLevelDeclInfo){ constant_index, closure_info };
+        return (struct TopLevelDeclInfo){ constant_index, variant, bindings };
     } else {
-        u32 constructor_variant = 0;
+        u16 variant = -1;
         if (node->body->kind == AST_CONSTRUCTOR) {
+            variant = variant_count++;
             emit_byte(ctx, OP_CREATE_OBJECT);
             emit_u16(ctx, 0);
-            constructor_variant = get_last_bytecode_index(ctx) + 1;
-            emit_u16(ctx, 0);
+            emit_u16(ctx, variant);
             emit_u16(ctx, 0);
         } else {
             compile_expr(ctx, node->body);
@@ -92,35 +89,29 @@ static struct TopLevelDeclInfo compile_top_level_decl(struct Context *ctx, struc
             .address = function_start_index,
             .capture_count = 0,
         });
-        if (constructor_variant != 0) {
-            u8 *constructor_variant_index = get_bytecode_byte(ctx, constructor_variant);
-            if (constructor_variant_index != null) {
-                for (u8 i = 0; i < sizeof(u16); i++) {
-                    constructor_variant_index[i] = ((u8*)&closure_info)[i];
-                }
-            }
-        }
 
         if (const_thunk != null) {
             const_thunk->evaluated = null;
             const_thunk->info = (struct ClosureInfo*)(u64)closure_info;
         }
 
-        set_global_decl_const_index(
+        set_global_decl_info(
             get_module_globals(ctx->globals, ctx->module_index),
             node,
-            constant_index,
-            closure_info
+            (struct GlobalInfo){
+                .constant_index = constant_index,
+                .variant_index = variant,
+                .arg_count = 0,
+            }
         );
 
-        return (struct TopLevelDeclInfo){ constant_index, closure_info };
+        return (struct TopLevelDeclInfo){ constant_index, variant, 0 };
     }
 }
 
 static bool try_remap_from_globals(struct Context *ctx, struct GlobalCtx *globals, struct RemappingWork remapping)
 {
-    u32 constant_index = 0;
-    u16 closure_info_index = 0;
+    struct GlobalInfo global_info = {};
 
     if (remapping.is_namespace) {
         struct GlobalResolutionResult result = resolve_global_path(
@@ -129,14 +120,13 @@ static bool try_remap_from_globals(struct Context *ctx, struct GlobalCtx *global
                 .searching_for = remapping.namespace_access,
                 .origin_module = remapping.searching_from_module,
             },
-            &constant_index,
-            &closure_info_index
+            &global_info
         );
         if (result.error != GLOBAL_RES_OK) {
             namespace_access_error(ctx, result);
             return false;
         }
-        if (constant_index == -1 && ctx->compiling_chunk != null) {
+        if (global_info.constant_index == -1 && ctx->compiling_chunk != null) {
             return false;
         }
     } else {
@@ -144,14 +134,13 @@ static bool try_remap_from_globals(struct Context *ctx, struct GlobalCtx *global
             globals,
             remapping.searching_from_module,
             remapping.identifier->src_loc,
-            &constant_index,
-            &closure_info_index
+            &global_info
         );
         if (error != GLOBAL_RES_OK) {
             non_existent_ident_err(ctx, remapping.identifier->node.loc, null);
             return false;
         }
-        if (constant_index == -1 && ctx->compiling_chunk != null) {
+        if (global_info.constant_index == -1 && ctx->compiling_chunk != null) {
             return false;
         }
     }
@@ -159,15 +148,13 @@ static bool try_remap_from_globals(struct Context *ctx, struct GlobalCtx *global
     u8 *constant_index_bytes = get_bytecode_byte(ctx, remapping.bytecode_index);
 
     if (remapping.is_pattern_constructor) {
-        if (closure_info_index == (u16)-1) {
+        if (global_info.variant_index == (u16)-1)
             return false;
-        }
         if (ctx->compiling_chunk == null)
             return true;
 
-        u16 expected_args = ctx->compiling_chunk->closures.ptr[closure_info_index].arity;
-
-        if (expected_args != remapping.arg_count) {
+        if (global_info.arg_count != remapping.arg_count) {
+            printf("wrong arg count, %.*s expected %d, got %d\n", remapping.identifier->len, remapping.identifier->src_loc, global_info.arg_count, remapping.arg_count);
             invalid_pattern_err(
                 ctx,
                 remapping.is_namespace
@@ -179,12 +166,12 @@ static bool try_remap_from_globals(struct Context *ctx, struct GlobalCtx *global
         }
 
         for (u32 i = 0; i < sizeof(u16); i++) {
-            constant_index_bytes[i] = ((u8*)&closure_info_index)[i];
+            constant_index_bytes[i] = ((u8*)&global_info.variant_index)[i];
         }
     } else {
         if (constant_index_bytes != null) {
             for (u32 i = 0; i < sizeof(u32); i++) {
-                constant_index_bytes[i] = ((u8*)&constant_index)[i];
+                constant_index_bytes[i] = ((u8*)&global_info.constant_index)[i];
             }
         }
     }
@@ -253,9 +240,8 @@ static void clear_remapping_queue(struct Context *ctx)
             }
             if (ctx->compiling_chunk == null)
                 continue;
-            u16 expected_args = ctx->compiling_chunk->closures.ptr[decl_info.closure_index].arity;
 
-            if (expected_args != remapping.arg_count) {
+            if (decl_info.arg_count != remapping.arg_count) {
                 invalid_pattern_err(
                     ctx,
                     remapping.loc,
@@ -264,7 +250,7 @@ static void clear_remapping_queue(struct Context *ctx)
             }
 
             for (u32 i = 0; i < sizeof(u16); i++) {
-                bytecode_ptr[i] = ((u8*)&decl_info.closure_index)[i];
+                bytecode_ptr[i] = ((u8*)&decl_info.variant_index)[i];
             }
         } else {
             if (bytecode_ptr != null) {
@@ -329,7 +315,7 @@ struct CodegenErrorList generate_code(struct Compiler *compiler, struct ModuleCt
         for (u16 i = 0; i < module->len; i++) {
             struct Global *global = &module->globals[i];
 
-            if (global->closure_info_index != (u16)-1) {
+            if (global->constant_index != (u16)-1) {
                 continue;
             }
 

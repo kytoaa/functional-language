@@ -1,30 +1,20 @@
-mod list = std..list;
 mod io = std..io;
-mod slice = std..slice;
+mod Option = std..Option;
+with Some = std..Some;
+with None = std..None;
 
-stdin_contents = io..read_line io..stdin;
+mod Functor = type {
+	with F fmap x;
 
-is_whitespace c = case c of
-    | ' '  -> true
-    | '\n' -> true
-    | '\t' -> true
-    | '\r' -> true
-    | _    -> false;
-
-trim s = let
-    length = slice..len s;
-    count_start n = if is_whitespace (slice..index n s) then count_start (n + 1) else n;
-    count_end n = if is_whitespace (slice..index n s) then count_start (n - 1) else n;
-    in slice..drop (count_start 0) (slice..take (count_end (length - 1) + 1) s);
-
-mod MyType = type {
-    with A;
-    with B;
-
-    get_either x = case x of
-        | A -> true
-        | B -> false;
+	fmap f functor = case functor of
+		| F fmap x -> F fmap (fmap f x);
+	
+	inner functor = case functor of
+		| F fmap x -> x;
 };
+fmap = Functor..fmap;
 
-main = io..println : MyType..get_either MyType..B;
+option_functor = Functor..F Option..map;
+
+main = io..println : Option..unwrap_or 0 (Functor..inner (fmap (fun x -> x + 1) (option_functor (Some 3))));
 

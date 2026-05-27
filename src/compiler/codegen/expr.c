@@ -37,17 +37,17 @@ void compile_identifier(struct Context *ctx, struct IdentifierNode *node)
         emit_u16(ctx, ident.offset);
         emit_byte(ctx, capture_index);
     } else {
+        struct GlobalInfo global_info = {};
         enum GlobalResolutionError result = resolve_global(
             ctx->globals,
             ctx->module_index,
             node->src_loc,
-            &global_index,
-            null
+            &global_info
         );
 
         emit_byte(ctx, OP_PUSH_CONST);
         if (result == GLOBAL_RES_OK) {
-            if (global_index == -1) {
+            if (global_info.constant_index == -1) {
                 enqueue_remapping_work(ctx->remapping_queue, (struct RemappingWork){
                     .identifier = node,
                     .loc = node->node.loc,
@@ -56,7 +56,7 @@ void compile_identifier(struct Context *ctx, struct IdentifierNode *node)
                     .is_namespace = false,
                 });
             }
-            emit_u32(ctx, global_index);
+            emit_u32(ctx, global_info.constant_index);
         } else {
             non_existent_ident_err(ctx, node->node.loc, null);
         }
@@ -470,15 +470,14 @@ void compile_thunk(struct Context *ctx, struct AstNode *node, const char *bind_t
 
 void namespace_access_expr(struct Context *ctx, struct NamespaceAccessNode *node)
 {
-    u32 constant_index = 0;
+    struct GlobalInfo global_info = {};
     struct GlobalResolutionResult result = resolve_global_path(
         ctx->globals,
         (struct GlobalSearch){
             .origin_module = ctx->module_index,
             .searching_for = node,
         },
-        &constant_index,
-        null
+        &global_info
     );
 
     if (result.error != GLOBAL_RES_OK) {
@@ -487,7 +486,7 @@ void namespace_access_expr(struct Context *ctx, struct NamespaceAccessNode *node
     }
 
     emit_byte(ctx, OP_PUSH_CONST);
-    if (constant_index == -1) {
+    if (global_info.constant_index == -1) {
         enqueue_remapping_work(ctx->remapping_queue, (struct RemappingWork){
             .namespace_access = node,
             .loc = node->node.loc,
@@ -496,7 +495,7 @@ void namespace_access_expr(struct Context *ctx, struct NamespaceAccessNode *node
             .is_namespace = true,
         });
     }
-    emit_u32(ctx, constant_index);
+    emit_u32(ctx, global_info.constant_index);
 }
 
 void compile_application(struct Context *ctx, struct ApplicationNode *application)

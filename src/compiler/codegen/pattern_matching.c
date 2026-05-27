@@ -97,14 +97,14 @@ static u32 compile_pattern_node(struct Context *ctx, struct AstNode *node)
         case AST_IDENTIFIER:{
             struct IdentifierNode *ident = (struct IdentifierNode*)node;
 
+            struct GlobalInfo global_info = {};
             enum GlobalResolutionError error = resolve_global(
                 ctx->globals,
                 ctx->module_index,
                 ident->src_loc,
-                null,
-                null
+                &global_info
             );
-            if (error == GLOBAL_RES_OK) {
+            if (error == GLOBAL_RES_OK && global_info.is_constructor) {
                 goto application_pattern;
             }
 
@@ -185,15 +185,14 @@ static u32 compile_pattern_node(struct Context *ctx, struct AstNode *node)
                 constructor_ident = appl_node->function;
             }
 
-            u16 variant = 0;
+            struct GlobalInfo global_info = {};
 
             if (constructor_ident->kind == AST_IDENTIFIER) {
                 enum GlobalResolutionError error = resolve_global(
                     ctx->globals,
                     ctx->module_index,
                     ((struct IdentifierNode*)constructor_ident)->src_loc,
-                    null,
-                    &variant
+                    &global_info
                 );
                 if (error != GLOBAL_RES_OK) {
                     non_existent_ident_err(ctx, constructor_ident->loc, null);
@@ -206,8 +205,7 @@ static u32 compile_pattern_node(struct Context *ctx, struct AstNode *node)
                         .origin_module = ctx->module_index,
                         .searching_for = (struct NamespaceAccessNode*)constructor_ident,
                     },
-                    null,
-                    &variant
+                    &global_info
                 );
                 if (result.error != GLOBAL_RES_OK) {
                     namespace_access_error(ctx, result);
@@ -220,7 +218,7 @@ static u32 compile_pattern_node(struct Context *ctx, struct AstNode *node)
 
             emit_byte(ctx, OP_IS_VARIANT);
             u32 variant_index = get_last_bytecode_index(ctx) + 1;
-            emit_u16(ctx, variant);
+            emit_u16(ctx, global_info.variant_index);
 
             emit_byte(ctx, OP_JUMP_REL_CONDITIONAL);
             emit_u16(ctx, 3);
@@ -229,7 +227,7 @@ static u32 compile_pattern_node(struct Context *ctx, struct AstNode *node)
             i16 jump = (i32)(failure_index - 2) - (i32)(current_index + 2);
             emit_u16(ctx, jump);
 
-            if (variant == (u16)-1) {
+            if (global_info.variant_index == (u16)-1) {
                 if (constructor_ident->kind == AST_IDENTIFIER) {
                     enqueue_remapping_work(ctx->remapping_queue, (struct RemappingWork){
                         .identifier = (struct IdentifierNode*)constructor_ident,

@@ -32,28 +32,46 @@ bool declare_global_decl(
     bool is_public,
     struct Location *out_err_loc
 ) {
+    bool is_constructor = false;
+    u8 arg_count = 0;
+    if (node->body->kind == AST_CONSTRUCTOR) {
+        is_constructor = true;
+        if (((struct ConstructorNode*)node->body)->body != null)
+            arg_count = -1;
+    } else if (node->body->kind == AST_LAMBDA) {
+        struct LambdaNode *lambda = (struct LambdaNode*)node->body;
+        is_constructor = lambda->body->kind == AST_CONSTRUCTOR;
+
+        struct FunctionBindingNode *binding = lambda->bindings;
+        while (binding != null) {
+            binding = binding->next_binding;
+            arg_count += 1;
+        }
+    }
+
     return push_global(
         globals,
         (struct Global){
             .node = node,
             .constant_index = const_index,
-            .closure_info_index = closure_info_index,
+            .is_constructor = is_constructor,
+            .variant_index = -1,
             .is_public = is_public,
         },
         out_err_loc
     );
 }
-void set_global_decl_const_index(
+void set_global_decl_info(
     struct ModuleGlobals *globals,
     struct DeclarationNode *node,
-    u32 const_index,
-    u16 closure_info_index
+    struct GlobalInfo info
 ) {
     for (u32 i = 0; i < globals->len; i++) {
         struct Global *global = &globals->globals[i];
         if (global->node == node) {
-            global->constant_index = const_index;
-            global->closure_info_index = closure_info_index;
+            global->constant_index = info.constant_index;
+            global->variant_index = info.variant_index;
+            global->arg_count = info.arg_count;
             return;
         }
     }
@@ -93,18 +111,21 @@ static enum GlobalResolutionError find_global_in(
     struct ModuleGlobals *mod,
     const char *ident,
     bool search_private,
-    u32 *const_index_out,
-    u16 *closure_index_out
+    struct GlobalInfo *out_info
 ) {
     for (u16 i = 0; i < mod->len; i++) {
         struct Global *current = &mod->globals[i];
 
         if (current->node->name == ident) {
             if (search_private || current->is_public) {
-                if (const_index_out != null)
-                    *const_index_out = current->constant_index;
-                if (closure_index_out != null)
-                    *closure_index_out = current->closure_info_index;
+                if (out_info != null) {
+                    *out_info = (struct GlobalInfo){
+                        .constant_index = current->constant_index,
+                        .variant_index = current->variant_index,
+                        .arg_count = current->arg_count,
+                        .is_constructor = current->is_constructor,
+                    };
+                }
                 return GLOBAL_RES_OK;
             }
             return GLOBAL_RES_ERROR_PRIVATE;
@@ -113,9 +134,9 @@ static enum GlobalResolutionError find_global_in(
     return GLOBAL_RES_ERROR_DOESNT_EXIST;
 }
 
-enum GlobalResolutionError resolve_global(struct GlobalCtx *ctx, u16 mod, const char *ident, u32 *const_index_out, u16 *closure_index_out)
+enum GlobalResolutionError resolve_global(struct GlobalCtx *ctx, u16 mod, const char *ident, struct GlobalInfo *out_info)
 {
-    return find_global_in(&ctx->globals_per_module[mod], ident, true, const_index_out, closure_index_out);
+    return find_global_in(&ctx->globals_per_module[mod], ident, true, out_info);
 }
 
 struct FindSubmodule {
@@ -304,8 +325,7 @@ struct GlobalResolutionResult get_module_index_for(struct GlobalCtx *globals, st
 struct GlobalResolutionResult resolve_global_path(
     struct GlobalCtx *globals,
     struct GlobalSearch search,
-    u32 *constant_index_out,
-    u16 *closure_index_out
+    struct GlobalInfo *out_info
 ) {
     struct GlobalResolutionResult result = resolve_path(globals, search, false, 0);
     if (result.error_finding != null)
@@ -323,8 +343,7 @@ struct GlobalResolutionResult resolve_global_path(
         &globals->globals_per_module[module_index],
         ((struct IdentifierNode*)namespace)->src_loc,
         module_index == parent_index || module_index == search.origin_module,
-        constant_index_out,
-        closure_index_out
+        out_info
     );
 
     if (item_result == GLOBAL_RES_OK) {
