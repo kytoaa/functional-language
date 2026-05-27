@@ -15,6 +15,8 @@ static usize val_type_size(enum ValueType type)
         case VALUE_UNIT:
             return 0;
     }
+    panic("unreachable");
+    return -1;
 }
 
 void extern_func_slice_empty()
@@ -198,7 +200,6 @@ struct SliceInfo {
 };
 static struct SliceInfo get_slice_info(Val val)
 {
-    struct SliceInfo slice = {};
     switch (val->type) {
         case OBJ_ARRAY:{
             struct ArrayObj *array = (struct ArrayObj*)val;

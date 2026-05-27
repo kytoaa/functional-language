@@ -71,8 +71,6 @@ static void eval_thunk(struct Thunk *thunk)
 
 static void eval_application(struct Application *application)
 {
-    struct Box **payload = obj_dyn_fields(TO_OBJ(application));
-
     Val closure = application->closure;
     if (closure->type != OBJ_CLOSURE) {
         printf("\n%d\n", closure->type);

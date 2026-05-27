@@ -246,6 +246,9 @@ static void print_node(struct AstNode *node)
         case AST_FUNCTION_BINDING:
             printf("error, encountered %s", ast_node_name(node));
             break;
+        case AST_MODULE_DECL:
+        case AST_USE_DECL:
+            break;
     }
 }
 

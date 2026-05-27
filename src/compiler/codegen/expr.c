@@ -26,7 +26,6 @@ void compile_identifier(struct Context *ctx, struct IdentifierNode *node)
 {
     struct IdentSearchResult ident = {};
     u8 capture_index = 0;
-    u32 global_index = 0;
     if (get_ident_info(ctx, node->src_loc, &ident)) {
         emit_byte(ctx, OP_READ_BINDING);
         emit_u16(ctx, ident.offset);

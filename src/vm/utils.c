@@ -6,12 +6,12 @@
 
 void print_stack(FILE *out)
 {
-    fprintf(out, "%llu, %llu [ ", instruction_ptr, vm.registers[REG_1]);
+    fprintf(out, "%zu, %zu [ ", instruction_ptr, vm.registers[REG_1]);
     if (stack_ptr > 0) {
         for (u32 i = 0; i < stack_ptr - 1; i++) {
-            fprintf(out, "%llu, ", vm.stack[i]);
+            fprintf(out, "%zu, ", vm.stack[i]);
         }
-        fprintf(out, "%llu ]\n", vm.stack[stack_ptr - 1]);
+        fprintf(out, "%zu ]\n", vm.stack[stack_ptr - 1]);
     } else {
         fprintf(out, "]\n");
     }
@@ -21,7 +21,7 @@ void runtime_error(const char *msg)
 {
     fprintf(vm.config.error, "error: %s\n", msg);
 #ifdef DEBUG_CHECKS
-    fprintf(vm.config.error, "\tip: [%llu], sp: [%llu], r1: [%llu]\n", instruction_ptr, stack_ptr, vm.registers[REG_1]);
+    fprintf(vm.config.error, "\tip: [%zu], sp: [%zu], r1: [%zu]\n", instruction_ptr, stack_ptr, vm.registers[REG_1]);
     print_stack(vm.config.error);
 #endif
     vm.had_error = true;

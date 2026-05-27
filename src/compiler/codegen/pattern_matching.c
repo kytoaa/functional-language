@@ -87,6 +87,8 @@ static u8 type_check_op(enum LiteralType lit)
         case LITERAL_TYPE_CHARACTER:
             return OP_IS_CHAR;
     }
+    panic("unreachable");
+    return -1;
 }
 
 /// expects expression to match at top of stack, returns index of jump on match failure

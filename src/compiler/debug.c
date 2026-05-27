@@ -127,7 +127,7 @@ u32 print_instruction(FILE *out, u8 *bytes)
         case OP_PUSH_U64:{
             u64 value = read_u64(&bytes[consumed]);
             consumed += 8;
-            fprintf(out, " %llu", value);
+            fprintf(out, " %zu", value);
             break;
         }
 
@@ -176,7 +176,7 @@ u32 print_instruction(FILE *out, u8 *bytes)
         case OP_U64_ADD:{
             i64 val = (i64)read_u64(&bytes[1]);
             consumed += 8;
-            fprintf(out, " %lld", val);
+            fprintf(out, " %zd", val);
             break;
         }
         case OP_PUSH_CONST:{

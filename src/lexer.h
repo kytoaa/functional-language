@@ -86,7 +86,7 @@ static inline bool is_digit(char c)
     return '0' <= c && c <= '9';
 }
 
-static const char *token_type_name(enum TokenType type)
+static inline const char *token_type_name(enum TokenType type)
 {
     switch (type) {
         case TOKEN_EQ:

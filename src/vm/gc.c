@@ -122,7 +122,7 @@ static void process_obj(struct Obj *obj)
             process_cons((struct Cons*)obj);
             break;
         case OBJ_OBJECT:
-            process_cons((struct Cons*)obj);
+            process_object((struct Object*)obj);
             break;
         case OBJ_CLOSURE:
             process_closure((struct Closure*)obj);
