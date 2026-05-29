@@ -74,8 +74,7 @@ struct SliceObj {
 
 struct RuntimeType {
     struct Obj obj;
-    const char *name;
-    u32 name_len;
+    u16 type_index;
 };
 
 struct ClosureInfo {
@@ -137,12 +136,12 @@ struct Application *obj_create_application(u8 arg_count);
 struct Closure *obj_create_closure(struct ClosureInfo *info);
 struct Thunk *obj_create_thunk(struct ClosureInfo *info);
 struct Object *obj_create_object(u16 type_info, u16 variant, u16 arg_count);
+struct RuntimeType *obj_create_runtime_type(u16 type_info);
 
 void obj_init_box(struct Box *box);
 void obj_init_cons(struct Cons *cons);
 void obj_init_array(struct ArrayObj *slice, u32 len, enum ValueType type, u8 *ptr);
 void obj_init_slice(struct SliceObj *slice, struct ArrayObj *array, u32 start, u32 len);
-void obj_init_type(struct RuntimeType *type, const char *name, u32 name_len);
 void obj_init_object(struct Object *object, u16 type_info, u16 variant, u16 arg_count);
 
 struct Box **obj_dyn_fields(struct Obj *obj);

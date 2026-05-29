@@ -19,6 +19,7 @@ enum CodegenErrorType {
     CODEGEN_ERR_MULTIPLE_MAIN_DECL,
     CODEGEN_ERR_USED_UNDERSCORE,
     CODEGEN_ERR_INVALID_PATTERN,
+    CODEGEN_ERR_MOD_NOT_TYPE,
     CODEGEN_ERR_MSG,
 };
 
@@ -43,6 +44,10 @@ struct CodegenError {
         struct {
             struct Location loc;
         } invalid_pattern;
+        struct {
+            struct Location loc;
+            struct Location mod_loc;
+        } mod_not_type;
         struct {
             const char *msg;
             struct Location loc;
@@ -125,5 +130,6 @@ u32 create_constant(struct Chunk *chunk, enum ObjType type, u32 size);
 u64 *get_constant(struct Context *ctx, u32 index);
 
 u16 create_closure_info(struct Context *ctx, struct ClosureInfo info);
+u16 create_type_info(struct Context *ctx, struct TypeInfo info);
 
 #endif

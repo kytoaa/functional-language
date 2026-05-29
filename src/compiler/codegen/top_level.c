@@ -4,6 +4,8 @@
 #include "../builtins.h"
 #include "global_resolution.h"
 #include "remapping.h"
+#include <stdio.h>
+#include <string.h>
 
 struct TopLevelDeclInfo {
     u32 constant_index;
@@ -15,6 +17,8 @@ static struct TopLevelDeclInfo compile_top_level_decl(struct Context *ctx, struc
 {
     static u16 variant_count = 0;
     u32 function_start_index = get_last_bytecode_index(ctx) + 1;
+
+    u16 type_info_index = get_module_globals(ctx->globals, ctx->module_index)->type_info_index;
 
     if (node->body->kind == AST_LAMBDA) {
         struct LambdaNode *lambda = (struct LambdaNode*)node->body;
@@ -31,9 +35,11 @@ static struct TopLevelDeclInfo compile_top_level_decl(struct Context *ctx, struc
         if (lambda->body->kind == AST_CONSTRUCTOR) {
             variant = variant_count++;
             emit_byte(ctx, OP_CREATE_OBJECT);
-            emit_u16(ctx, 0);
+            emit_u16(ctx, type_info_index);
             emit_u16(ctx, variant);
             emit_u16(ctx, bindings);
+            if (type_info_index == 0)
+                panic("unreachable: type should have been compiled");
         } else {
             compile_expr(ctx, lambda->body);
         }
@@ -72,9 +78,12 @@ static struct TopLevelDeclInfo compile_top_level_decl(struct Context *ctx, struc
         if (node->body->kind == AST_CONSTRUCTOR) {
             variant = variant_count++;
             emit_byte(ctx, OP_CREATE_OBJECT);
-            emit_u16(ctx, 0);
+            emit_u16(ctx, type_info_index);
             emit_u16(ctx, variant);
             emit_u16(ctx, 0);
+            if (type_info_index == 0) {
+                panic("unreachable: type should have been compiled");
+            }
         } else {
             compile_expr(ctx, node->body);
         }
@@ -154,7 +163,6 @@ static bool try_remap_from_globals(struct Context *ctx, struct GlobalCtx *global
             return true;
 
         if (global_info.arg_count != remapping.arg_count) {
-            printf("wrong arg count, %.*s expected %d, got %d\n", remapping.identifier->len, remapping.identifier->src_loc, global_info.arg_count, remapping.arg_count);
             invalid_pattern_err(
                 ctx,
                 remapping.is_namespace
@@ -222,6 +230,20 @@ static void clear_remapping_queue(struct Context *ctx)
         }
 
         ctx->module_index = module_index;
+        {
+            struct Module *mod = get_module(ctx->globals->modules, ctx->module_index);
+            if (is_type_module(mod)) {
+                struct ModuleGlobals *globals = get_module_globals(ctx->globals, ctx->module_index);
+                if (globals->type_info_index == 0) {
+                    char *name = alloc_mem(mod->name_len);
+                    memcpy(name, mod->name, mod->name_len);
+                    globals->type_info_index = create_type_info(ctx, (struct TypeInfo){
+                        .name = name,
+                        .name_len = mod->name_len,
+                    });
+                }
+            }
+        }
         struct TopLevelDeclInfo decl_info = compile_top_level_decl(ctx, decl_node);
 
         u8 *bytecode_ptr = get_bytecode_byte(ctx, remapping.bytecode_index);

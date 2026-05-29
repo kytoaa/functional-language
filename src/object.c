@@ -143,14 +143,6 @@ void obj_init_cons(struct Cons *cons)
     cons->r = null;
 }
 
-void obj_init_type(struct RuntimeType *type, const char *name, u32 name_len)
-{
-    type->obj.type = OBJ_RUNTIME_TYPE;
-    type->obj.flags.is_whnf = true;
-    type->name = name;
-    type->name_len = name_len;
-}
-
 struct Application *obj_create_application(u8 arg_count)
 {
     const u32 size = sizeof(struct Application) + sizeof(void*) * arg_count;
@@ -216,6 +208,18 @@ void obj_init_object(struct Object *object, u16 type_info, u16 variant, u16 arg_
     object->type_info = type_info;
     object->variant = variant;
     object->arg_count = arg_count;
+}
+
+struct RuntimeType *obj_create_runtime_type(u16 type_info)
+{
+    const u32 size = sizeof(struct RuntimeType);
+    struct RuntimeType *type = (struct RuntimeType*)alloc_obj(size);
+
+    type->obj.type = OBJ_RUNTIME_TYPE;
+    type->obj.flags.is_whnf = true;
+    type->type_index = type_info;
+
+    return type;
 }
 
 struct Box **obj_dyn_fields(struct Obj *obj)

@@ -51,7 +51,7 @@ static struct LineIdentPrintInfo ident_info(const char *src, struct Location loc
 
     return (struct LineIdentPrintInfo){
         .line_start = line_start_index,
-        .line_len = line_end_index - line_start_index,
+        .line_len = (line_end_index - line_start_index) + 1,
         .ident_start = loc.file_pos - line_start_index,
         .ident_len = ident_len,
     };
@@ -68,12 +68,16 @@ static void print_ident(FILE *err, const char *src, struct Location loc)
         &src[ident.line_start],
         ident.ident_len,
         &src[ident.line_start + ident.ident_start],
-        ident.line_len - (ident.ident_start + ident.ident_len) + 1,
+        ident.line_len - (ident.ident_start + ident.ident_len),
         &src[ident.line_start + ident.ident_start + ident.ident_len]
     );
     fprintf(err, "    \x1b[1;34m|\x1b[0m ");
     for (u32 i = 0; i < ident.ident_start; i++) {
-        fprintf(err, " ");
+        if (src[ident.line_start + i] == '\t') {
+            fprintf(err, "\t");
+        } else {
+            fprintf(err, " ");
+        }
     }
     fprintf(err, "\x1b[32m");
     for (u32 i = 0; i < ident.ident_len; i++) {
@@ -190,6 +194,31 @@ void print_codegen_error(struct Compiler *compiler, struct CodegenError error)
                 config->error,
                 src,
                 error.error.invalid_pattern.loc
+            );
+            break;
+        }
+        case CODEGEN_ERR_MOD_NOT_TYPE:{
+            fprintf(
+                config->error,
+                ERROR_STR " constructor declared in module that isnt a type\n "ARROW_STR" %.*s:%d\n",
+                config->file_name_len, config->file_name,
+                error.error.mod_not_type.loc.line
+            );
+            print_ident(
+                config->error,
+                src,
+                error.error.mod_not_type.loc
+            );
+            fprintf(
+                config->error,
+                "module declared in:\n "ARROW_STR" %.*s:%d\n",
+                config->file_name_len, config->file_name,
+                error.error.mod_not_type.mod_loc.line
+            );
+            print_ident(
+                config->error,
+                src,
+                error.error.mod_not_type.mod_loc
             );
             break;
         }

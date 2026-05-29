@@ -25,6 +25,7 @@ struct ModuleGlobals {
     u16 len;
     u16 cap;
     u16 module;
+    u16 type_info_index;
 };
 
 struct GlobalCtx {
@@ -57,12 +58,19 @@ void free_global_ctx(struct GlobalCtx *globals);
 
 struct ModuleGlobals *get_module_globals(struct GlobalCtx *globals, u16 mod);
 
-bool declare_global_decl(
+enum GlobalDeclError {
+    GLOBAL_DECL_OK,
+    GLOBAL_DECL_ERROR_REDECLARED,
+    GLOBAL_DECL_ERROR_MOD_NOT_TYPE,
+};
+
+enum GlobalDeclError declare_global_decl(
     struct ModuleGlobals *globals,
     struct DeclarationNode *node,
     u32 const_index,
     u16 closure_info_index,
     bool is_public,
+    bool is_type_module,
     struct Location *out_err_loc
 );
 void set_global_decl_info(

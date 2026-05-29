@@ -177,6 +177,8 @@ enum VmExternFunction {
     VM_EXTERN_FUNC_STDOUT,
     VM_EXTERN_FUNC_STDERR,
 
+    VM_EXTERN_FUNC_TYPE_OF,
+
     VM_EXTERN_FUNC_SLICE_EMPTY,
     VM_EXTERN_FUNC_SLICE_LEN,
     VM_EXTERN_FUNC_READ_SLICE_INDEX,
@@ -199,6 +201,11 @@ struct ClosureInfoList {
     u32 len;
     u32 cap;
 };
+struct TypeInfoList {
+    struct TypeInfo *ptr;
+    u32 len;
+    u32 cap;
+};
 
 struct Chunk {
     struct {
@@ -208,6 +215,7 @@ struct Chunk {
     } bytecode;
     struct ConstantList constants;
     struct ClosureInfoList closures;
+    struct TypeInfoList types;
 };
 
 void init_chunk(struct Chunk *chunk);

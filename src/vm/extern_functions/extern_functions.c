@@ -108,6 +108,57 @@ void call_extern_function(enum VmExternFunction function)
             push_val(as_val(file_handle));
             break;
         }
+        case VM_EXTERN_FUNC_TYPE_OF:{
+            Val val = pop_val();
+            u32 type_index = 0;
+            switch (val->type) {
+                case OBJ_BOX:{
+                    struct Box *box = (struct Box*)val;
+                    switch (box->val.type) {
+                        case VALUE_UNIT:
+                            type_index = 0;
+                            break;
+                        case VALUE_INT:
+                            type_index = 1;
+                            break;
+                        case VALUE_BOOL:
+                            type_index = 2;
+                            break;
+                        case VALUE_CHAR:
+                            type_index = 3;
+                            break;
+                    }
+                    break;
+                }
+                case OBJ_CONS:
+                    type_index = 4;
+                    break;
+                case OBJ_CLOSURE:
+                case OBJ_APPLICATION:
+                    type_index = 5;
+                    break;
+                case OBJ_FILE_HANDLE:
+                    type_index = 6;
+                    break;
+                case OBJ_ARRAY:
+                case OBJ_SLICE:
+                    type_index = 7;
+                    break;
+                case OBJ_RUNTIME_TYPE:
+                    type_index = 8;
+                    break;
+                case OBJ_OBJECT:{
+                    struct Object *obj = (struct Object*)val;
+                    type_index = obj->type_info;
+                    break;
+                }
+                default:
+                    panic("unreachable: cannot get type");
+            }
+            struct RuntimeType *type = obj_create_runtime_type(type_index);
+            push_val(as_val(type));
+            break;
+        }
         case VM_EXTERN_FUNC_SLICE_EMPTY:{
             extern_func_slice_empty();
             break;
@@ -221,7 +272,8 @@ static void print_val(FILE *out, Val val)
             break;
         case OBJ_RUNTIME_TYPE:{
             struct RuntimeType *type = (struct RuntimeType*)val;
-            fprintf(out, "<type %.*s>", type->name_len, type->name);
+            struct TypeInfo *info = &vm.code.types[type->type_index];
+            fprintf(out, "<type %.*s>", info->name_len, info->name);
             break;
         }
         case OBJ_OBJECT:{

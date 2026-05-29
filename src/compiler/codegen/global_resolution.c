@@ -5,8 +5,11 @@
 
 #define PATH_RESOLUTION_RECURSION_LIMIT 32
 
-static bool push_global(struct ModuleGlobals *globals, struct Global global, struct Location *out_err_loc)
-{
+static enum GlobalDeclError push_global(
+    struct ModuleGlobals *globals,
+    struct Global global,
+    struct Location *out_err_loc
+) {
     if (globals->len == globals->cap) {
         u32 new_cap = (globals->cap == 0) ? 2 : globals->cap * 2;
         struct Global *new_ptr = realloc_mem(globals->globals, new_cap * sizeof(struct Global));
@@ -17,19 +20,20 @@ static bool push_global(struct ModuleGlobals *globals, struct Global global, str
         struct Global *current = &globals->globals[i];
         if (current->node->name == global.node->name) {
             *out_err_loc = current->node->node.loc;
-            return false;
+            return GLOBAL_DECL_ERROR_REDECLARED;
         }
     }
     globals->globals[globals->len++] = global;
-    return true;
+    return GLOBAL_DECL_OK;
 }
 
-bool declare_global_decl(
+enum GlobalDeclError declare_global_decl(
     struct ModuleGlobals *globals,
     struct DeclarationNode *node,
     u32 const_index,
     u16 closure_info_index,
     bool is_public,
+    bool is_type_module,
     struct Location *out_err_loc
 ) {
     bool is_constructor = false;
@@ -47,6 +51,10 @@ bool declare_global_decl(
             binding = binding->next_binding;
             arg_count += 1;
         }
+    }
+    // if arg_count != -1 then a constructor, not an import
+    if (is_constructor && arg_count != (u8)-1 && !is_type_module) {
+        return GLOBAL_DECL_ERROR_MOD_NOT_TYPE;
     }
 
     return push_global(

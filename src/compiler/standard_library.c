@@ -47,6 +47,8 @@ mod = {\n\
         bind f l = join (map f l);\n\
     };\n\
 \n\
+    type_of x = @std_builtin(type_of);\n\
+\n\
     fst p = case p of\n\
         | a :: _ -> a;\n\
 \n\

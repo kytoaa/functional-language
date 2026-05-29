@@ -16,5 +16,5 @@ fmap = Functor..fmap;
 
 option_functor = Functor..F Option..map;
 
-main = io..println : Option..unwrap_or 0 (Functor..inner (fmap (fun x -> x + 1) (option_functor (Some 3))));
+main = io..println : std..type_of (Some 1) == std..type_of None;
 

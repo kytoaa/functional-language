@@ -498,7 +498,9 @@ next_instruction:
             Val r = pop_val();
 
             if (l->type == OBJ_RUNTIME_TYPE && r->type == OBJ_RUNTIME_TYPE) {
-                push_val(l == r ? (Val)TRUE_BOX_CONST : (Val)FALSE_BOX_CONST);
+                struct RuntimeType *l_type = (struct RuntimeType*)l;
+                struct RuntimeType *r_type = (struct RuntimeType*)r;
+                push_val(l_type->type_index == r_type->type_index ? (Val)TRUE_BOX_CONST : (Val)FALSE_BOX_CONST);
                 break;
             }
 
@@ -616,16 +618,19 @@ void run_vm(struct Chunk *chunk, struct VmConfig config)
 
     u32 constants_size = chunk->constants.len * sizeof(u64);
     u32 closures_size = chunk->closures.len * sizeof(struct ClosureInfo);
+    u32 types_size = chunk->types.len * sizeof(struct TypeInfo);
     u32 instructions_size = chunk->bytecode.len * sizeof(u8);
     u32 globals_size = global_functions_size();
 
-    u8 *memory = alloc_mem(instructions_size + constants_size + closures_size + globals_size);
+    u8 *memory = alloc_mem(instructions_size + constants_size + closures_size + globals_size + types_size);
 
     u8 *constants = memory;
     u8 *closures = constants + constants_size;
-    u8 *instructions = closures + closures_size;
+    u8 *types = closures + closures_size;
+    u8 *instructions = types + types_size;
     memcpy(constants, chunk->constants.ptr, constants_size);
     memcpy(closures, chunk->closures.ptr, closures_size);
+    memcpy(types, chunk->types.ptr, types_size);
     memcpy(instructions, chunk->bytecode.ptr, instructions_size);
     write_global_functions(instructions + instructions_size);
 
@@ -633,8 +638,10 @@ void run_vm(struct Chunk *chunk, struct VmConfig config)
         .code = {
             .constants = (u64*)constants,
             .functions = (struct ClosureInfo*)closures,
+            .types = (struct TypeInfo*)types,
             .instructions = instructions,
             .global_function_start = chunk->bytecode.len,
+            .type_count = chunk->types.len,
         },
         .config = config,
         .had_error = false,
@@ -647,9 +654,14 @@ void run_vm(struct Chunk *chunk, struct VmConfig config)
     vm.static_thunks.len = thunk_count;
 
     run_interpreter();
+
+    end_vm();
 }
 void end_vm()
 {
+    for (u32 i = 9; i < vm.code.type_count; i++) {
+        free_mem(vm.code.types[i].name);
+    }
     free_mem(vm.code.constants);
     free_objects();
 }

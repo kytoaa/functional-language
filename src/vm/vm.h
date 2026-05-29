@@ -12,8 +12,10 @@
 struct Code {
     u64 *constants;
     struct ClosureInfo *functions;
+    struct TypeInfo *types;
     u8 *instructions;
     u64 global_function_start;
+    u16 type_count;
 };
 
 struct VmConfig {

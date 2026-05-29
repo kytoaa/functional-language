@@ -799,8 +799,8 @@ static void **module_get_next(void *mod)
 }
 static struct AstNode *module()
 {
-    struct Location loc = prev_loc();
     advance();
+    struct Location loc = prev_loc();
 
     struct IdentifierNode *ident = null;
     if (parser.current.type == TOKEN_IDENT) {
@@ -824,6 +824,10 @@ static struct AstNode *module()
         } else {
             has_body = true;
             if (parser.current.type == TOKEN_TYPE) {
+                if (ident == null) {
+                    error(parser.current, "file module cannot be a type");
+                    return null;
+                }
                 is_type = true;
                 advance();
             }

@@ -17,8 +17,9 @@ char *ident_table_get(struct IdentifierTable *table, const char *str, u32 str_le
         table->items = realloc_mem(table->items, sizeof(*table->items) * new_cap);
         table->cap = new_cap;
     }
-    char *str_mem = ast_alloc(str_len);
+    char *str_mem = ast_alloc(str_len + 1);
     memcpy(str_mem, str, str_len);
+    str_mem[str_len] = '\0';
 
     table->items[table->count].ptr = str_mem;
     table->items[table->count].len = str_len;

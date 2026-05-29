@@ -25,7 +25,7 @@ void init_chunk(struct Chunk *chunk)
     true_box->val = BOOL_VAL(true);
 
     struct Box *false_box = unit_box + 2;
-    true_box->obj = (struct Obj){
+    false_box->obj = (struct Obj){
         .flags = { .is_whnf = true, .is_static = true },
         .next = null,
         .type = OBJ_BOX,
@@ -35,11 +35,56 @@ void init_chunk(struct Chunk *chunk)
 
     const u32 size = (initial_size + sizeof(u64) - 1) / sizeof(u64);
 
+    const u32 type_info_size = sizeof(struct TypeInfo) * 9;
+    struct TypeInfo *type_info_ptr = alloc_mem(type_info_size);
+
+    type_info_ptr[0] = (struct TypeInfo){
+        .name = "()",
+        .name_len = 2,
+    };
+    type_info_ptr[1] = (struct TypeInfo){
+        .name = "int",
+        .name_len = 3,
+    };
+    type_info_ptr[2] = (struct TypeInfo){
+        .name = "bool",
+        .name_len = 4,
+    };
+    type_info_ptr[3] = (struct TypeInfo){
+        .name = "char",
+        .name_len = 4,
+    };
+    type_info_ptr[4] = (struct TypeInfo){
+        .name = "Cons",
+        .name_len = 4,
+    };
+    type_info_ptr[5] = (struct TypeInfo){
+        .name = "function",
+        .name_len = 8,
+    };
+    type_info_ptr[6] = (struct TypeInfo){
+        .name = "File",
+        .name_len = 4,
+    };
+    type_info_ptr[7] = (struct TypeInfo){
+        .name = "Slice",
+        .name_len = 5,
+    };
+    type_info_ptr[8] = (struct TypeInfo){
+        .name = "type",
+        .name_len = 4,
+    };
+
     *chunk = (struct Chunk){
         .constants = {
             .ptr = constants_ptr,
             .cap = size,
             .len = size,
+        },
+        .types = {
+            .ptr = type_info_ptr,
+            .cap = 9,
+            .len = 9,
         },
     };
 }
@@ -63,6 +108,7 @@ void free_chunk(struct Chunk *chunk)
     free_mem(chunk->bytecode.ptr);
     free_mem(chunk->constants.ptr);
     free_mem(chunk->closures.ptr);
+    free_mem(chunk->types.ptr);
     *chunk = (struct Chunk){};
 }
 

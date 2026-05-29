@@ -3,15 +3,58 @@
 #include "global_resolution.h"
 #include "../module_resolution.h"
 #include "../file_compilation.h"
+#include <stdio.h>
 
-static bool global_decl(
+static enum GlobalDeclError global_decl(
     struct ModuleGlobals *globals,
     struct Chunk *chunk,
     struct DeclarationNode *node,
     bool is_public,
+    bool is_type_module,
     struct Location *out_err_loc
 ) {
-    return declare_global_decl(globals, node, -1, -1, is_public, out_err_loc);
+    return declare_global_decl(globals, node, -1, -1, is_public, is_type_module, out_err_loc);
+}
+
+static void handle_global_decl_result(
+    struct CodegenErrorList *errors,
+    enum GlobalDeclError err,
+    struct Location decl_loc,
+    struct Location module_loc,
+    struct Location err_loc,
+    u16 file_index
+) {
+    if (err == GLOBAL_DECL_ERROR_REDECLARED) {
+        push_codegen_err(
+            errors,
+            (struct CodegenError){
+                .additional_msg = null,
+                .type = CODEGEN_ERR_REDECLARED_GLOBAL,
+                .file_index = file_index,
+                .error = {
+                    .redeclared_global = {
+                        .loc = decl_loc,
+                        .prev_decl_loc = err_loc,
+                    },
+                },
+            }
+        );
+    } else if (err == GLOBAL_DECL_ERROR_MOD_NOT_TYPE) {
+        push_codegen_err(
+            errors,
+            (struct CodegenError){
+                .additional_msg = null,
+                .type = CODEGEN_ERR_MOD_NOT_TYPE,
+                .file_index = file_index,
+                .error = {
+                    .mod_not_type = {
+                        .loc = decl_loc,
+                        .mod_loc = module_loc,
+                    },
+                },
+            }
+        );
+    }
 }
 
 static void run_global_pass_on(
@@ -25,6 +68,7 @@ static void run_global_pass_on(
     struct ModuleGlobals *module_globals = get_module_globals(global_ctx, module_index);
     module_globals->module = module_index;
     u16 file_index = compiled_file_index(module);
+    bool type_module = is_type_module(module);
 
     struct Location err_loc = {};
 
@@ -33,22 +77,22 @@ static void run_global_pass_on(
 
         struct DeclarationNode *decl = (struct DeclarationNode*)ast->declarations;
         while (decl != null) {
-            if (!global_decl(module_globals, chunk, decl, false, &err_loc)) {
-                push_codegen_err(
-                    errors,
-                    (struct CodegenError){
-                        .additional_msg = null,
-                        .type = CODEGEN_ERR_REDECLARED_GLOBAL,
-                        .file_index = file_index,
-                        .error = {
-                            .redeclared_global = {
-                                .loc = decl->node.loc,
-                                .prev_decl_loc = err_loc,
-                            },
-                        },
-                    }
-                );
-            }
+            enum GlobalDeclError decl_error = global_decl(
+                module_globals,
+                chunk,
+                decl,
+                false,
+                type_module,
+                &err_loc
+            );
+            handle_global_decl_result(
+                errors,
+                decl_error,
+                decl->node.loc,
+                module->loc,
+                err_loc,
+                file_index
+            );
             decl = decl->next_declaration;
         }
     }
@@ -57,22 +101,22 @@ static void run_global_pass_on(
         if (item->is_submodule)
             continue;
 
-        if (!global_decl(module_globals, chunk, item->decl_node, true, &err_loc)) {
-            push_codegen_err(
-                errors,
-                (struct CodegenError){
-                    .additional_msg = null,
-                    .type = CODEGEN_ERR_REDECLARED_GLOBAL,
-                    .file_index = file_index,
-                    .error = {
-                        .redeclared_global = {
-                            .loc = item->decl_node->node.loc,
-                            .prev_decl_loc = err_loc,
-                        },
-                    },
-                }
-            );
-        }
+        enum GlobalDeclError decl_error = global_decl(
+            module_globals,
+            chunk,
+            item->decl_node,
+            true,
+            type_module,
+            &err_loc
+        );
+        handle_global_decl_result(
+            errors,
+            decl_error,
+            item->decl_node->node.loc,
+            module->loc,
+            err_loc,
+            file_index
+        );
     }
 }
 

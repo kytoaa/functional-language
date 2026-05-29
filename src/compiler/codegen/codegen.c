@@ -211,6 +211,24 @@ u16 create_closure_info(struct Context *ctx, struct ClosureInfo info)
     return index;
 }
 
+u16 create_type_info(struct Context *ctx, struct TypeInfo info)
+{
+    if (ctx->compiling_chunk == null)
+        return -1;
+
+    struct TypeInfoList *types = &ctx->compiling_chunk->types;
+
+    if (types->len == types->cap) {
+        u32 new_cap = (types->cap == 0) ? 4 : types->cap * 2;
+        struct TypeInfo *new_ptr = realloc_mem(types->ptr, new_cap * sizeof(struct TypeInfo));
+        types->ptr = new_ptr;
+        types->cap = new_cap;
+    }
+    u16 index = types->len;
+    types->ptr[types->len++] = info;
+    return index;
+}
+
 static void codegen_error(struct Context *ctx, struct CodegenError error)
 {
     push_codegen_err(ctx->errors, error);

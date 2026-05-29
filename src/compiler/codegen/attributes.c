@@ -17,39 +17,6 @@ void compile_attribute(struct Context *ctx, struct AttributeNode *node)
         if (try_compile_std_attribute(ctx, node))
             return;
     }
-
-    const char *type_ident = ident_table_get(ctx->identifier_table, "type", 4);
-    if (node->ident->src_loc == type_ident) {
-        u32 constant = create_constant(ctx->compiling_chunk, OBJ_RUNTIME_TYPE, sizeof(struct RuntimeType));
-        struct RuntimeType *type_constant = null;
-
-        if (constant != (u32)-1) {
-            type_constant = (struct RuntimeType*)get_constant(ctx, constant);
-        }
-
-        char *name = null;
-        u32 name_len = 0;
-
-        if (node->body != null) {
-            if (node->body->kind != AST_IDENTIFIER) {
-                panic("not a valid attribute argument, `@type(..)` expects an identifier");
-            }
-            struct IdentifierNode *ident = (struct IdentifierNode*)node->body;
-            if (type_constant != null) {
-                name = alloc_mem(ident->len);
-                memcpy(name, ident->src_loc, ident->len);
-                name_len = ident->len;
-            }
-        }
-
-        if (type_constant != null) {
-            obj_init_type(type_constant, name, name_len);
-        }
-
-        emit_byte(ctx, OP_PUSH_CONST);
-        emit_u32(ctx, constant);
-        return;
-    }
 }
 
 static bool try_compile_std_attribute(struct Context *ctx, struct AttributeNode *node)
@@ -76,6 +43,8 @@ static void compile_builtin(struct Context *ctx, struct AstNode *body)
 
     const char *read_file_contents_ident = ident_table_get(ctx->identifier_table, "read_file_contents", 18);
     const char *read_file_line_ident = ident_table_get(ctx->identifier_table, "read_file_line", 14);
+
+    const char *type_of_ident = ident_table_get(ctx->identifier_table, "type_of", 7);
 
     const char *slice_empty_ident = ident_table_get(ctx->identifier_table, "slice_empty", 11);
     const char *slice_len_ident = ident_table_get(ctx->identifier_table, "slice_len", 9);
@@ -125,6 +94,13 @@ static void compile_builtin(struct Context *ctx, struct AstNode *body)
 
                 emit_byte(ctx, OP_CALL_EXTERN);
                 emit_byte(ctx, VM_EXTERN_FUNC_READ_LINE);
+            } else if (node->src_loc == type_of_ident) {
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, 0);
+                emit_byte(ctx, OP_EVAL);
+
+                emit_byte(ctx, OP_CALL_EXTERN);
+                emit_byte(ctx, VM_EXTERN_FUNC_TYPE_OF);
             } else if (node->src_loc == slice_empty_ident) {
                 emit_byte(ctx, OP_CALL_EXTERN);
                 emit_byte(ctx, VM_EXTERN_FUNC_SLICE_EMPTY);

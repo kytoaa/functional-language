@@ -190,11 +190,6 @@ static void free_obj(struct Obj *object)
             free_mem(array->ptr);
             break;
         }
-        case OBJ_RUNTIME_TYPE:{
-            struct RuntimeType *type = (struct RuntimeType*)object;
-            free_mem((void*)type->name);
-            break;
-        }
         default:
             break;
     }

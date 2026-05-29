@@ -21,11 +21,13 @@ struct ModuleItem {
 
 struct Module {
     const char *name;
+    struct Location loc;
     struct {
         struct ModuleItem *ptr;
         u32 len;
         u32 cap;
     } items;
+    u32 name_len;
     u16 _compiled_file_index;
     u16 parent_index;
 };
