@@ -14,7 +14,29 @@ mod Functor = type {
 };
 fmap = Functor..fmap;
 
-option_functor = Functor..F Option..map;
+mod Monad = type {
+	with M bind return x;
 
-main = io..println : std..type_of (Some 1) == std..type_of None;
+	bind f monad = case monad of
+		| M bind return x -> M bind return (bind f x);
+	
+	return monad = case monad of
+		| M bind return x -> M bind return (return x);
+
+	inner monad = case monad of
+		| M bind return x -> x;
+};
+
+flip f a b = f b a;
+
+`>>=` = flip Monad..bind;
+`>>` a b = Monad..bind (fun x -> b) a;
+
+option_functor = Functor..F Option..map;
+option_monad = Monad..M (fun f x -> Option..join (Option..map f x)) Option..Some;
+io_monad = Monad..M (fun f x -> io..join (io..map f x)) io..return;
+
+discard_negative x = if x - 5 < 0 then None else Some x;
+
+main = io..println : 0;
 

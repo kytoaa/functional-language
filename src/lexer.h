@@ -22,6 +22,7 @@ enum TokenType {
 
     TOKEN_ARROW,
     TOKEN_WIDE_ARROW,
+    TOKEN_DOT,
     TOKEN_TWO_DOT,
     TOKEN_FUN,
     TOKEN_LET,
@@ -48,6 +49,9 @@ enum TokenType {
     TOKEN_COLON,
     TOKEN_DOUBLE_COLON,
     TOKEN_FORCE,
+
+    TOKEN_CUSTOM_OP,
+    TOKEN_BACKTICK,
 
     TOKEN_AND,
     TOKEN_OR,
@@ -84,6 +88,34 @@ static inline bool is_alpha(char c)
 static inline bool is_digit(char c)
 {
     return '0' <= c && c <= '9';
+}
+static inline bool is_custom_op_start(char c)
+{
+    switch (c) {
+        case '=':
+        case '>':
+        case '<':
+        case '@':
+        case '&':
+        case '$':
+        case '+':
+        case '-':
+        case '/':
+        case '*':
+        case '^':
+        case '%':
+        case '|':
+        case ':':
+        case '#':
+            return true;
+        default:
+            return false;
+    }
+}
+
+static inline bool is_custom_op(char c)
+{
+    return is_custom_op_start(c);
 }
 
 static inline const char *token_type_name(enum TokenType type)
@@ -167,6 +199,10 @@ static inline const char *token_type_name(enum TokenType type)
             return "TOKEN_DOUBLE_COLON";
         case TOKEN_FORCE:
             return "TOKEN_FORCE";
+        case TOKEN_CUSTOM_OP:
+            return "TOKEN_CUSTOM_OP";
+        case TOKEN_BACKTICK:
+            return "TOKEN_BACKTICK";
         case TOKEN_AND:
             return "TOKEN_AND";
         case TOKEN_OR:

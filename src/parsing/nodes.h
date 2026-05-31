@@ -53,6 +53,8 @@ enum AstBinaryOp {
     AST_BIN_OP_OR,
 
     AST_BIN_OP_CONS,
+
+    AST_BIN_OP_COMPOSITION,
 };
 
 struct BinOpNode {

@@ -75,6 +75,7 @@ enum Precedence {
     PREC_TERM, // + -
     PREC_FACTOR, // * /
     PREC_UNARY, // not -
+    PREC_COMPOSITION, // .
     PREC_APPLICATION, // a b
     PREC_NAMESPACE,
     PREC_PRIMARY,
@@ -88,6 +89,7 @@ static struct AstNode *expr(enum Precedence precedence);
 static struct AstNode *module();
 
 static struct AstNode *binary(enum Precedence precedence, struct AstNode *lhs);
+static struct AstNode *custom_binary(enum Precedence precedence, struct AstNode *lhs);
 static struct AstNode *application(enum Precedence precedence, struct AstNode *lhs);
 static struct AstNode *namespace(enum Precedence precedence, struct AstNode *lhs);
 static struct AstNode *grouping();
@@ -139,6 +141,7 @@ static struct ParseRule rules[] = {
     [TOKEN_ARROW]        = { null, null, PREC_NONE },
     [TOKEN_WIDE_ARROW]   = { null, null, PREC_NONE },
 
+    [TOKEN_DOT]          = { null, binary, PREC_COMPOSITION },
     [TOKEN_TWO_DOT]      = { null, namespace, PREC_NAMESPACE },
 
     [TOKEN_ATTR]         = { attribute, null, PREC_NONE },
@@ -191,9 +194,40 @@ static struct ParseRule rules[] = {
     [TOKEN_ERROR]        = { error_token, null, PREC_NONE },
 };
 
-static struct ParseRule *get_rule(enum TokenType type)
+static struct ParseRule get_rule(struct Token token)
 {
-    return &rules[type];
+    if (token.type == TOKEN_CUSTOM_OP) {
+        enum Precedence prec = 0;
+        switch (*token.start) {
+            case '=':
+            case '>':
+            case '<':
+            case '|':
+            case '&':
+            case '$':
+            case ':':
+                prec = PREC_OR;
+                break;
+            case '^':
+            case '@':
+                prec = PREC_COMPARISON;
+                break;
+            case '+':
+            case '-':
+                prec = PREC_TERM;
+                break;
+            case '/':
+            case '*':
+            case '%':
+                prec = PREC_FACTOR;
+                break;
+            case '#':
+                prec = PREC_COMPOSITION;
+                break;
+        }
+        return (struct ParseRule){ null, custom_binary, prec };
+    }
+    return rules[token.type];
 }
 
 static struct AstNode *grouping()
@@ -250,6 +284,10 @@ static struct AstNode *binary(enum Precedence precedence, struct AstNode *lhs)
         case TOKEN_DIV:
             op = AST_BIN_OP_DIV;
             break;
+        case TOKEN_DOT:
+            op = AST_BIN_OP_COMPOSITION;
+            precedence -= 1;
+            break;
         case TOKEN_DOUBLE_COLON:
             op = AST_BIN_OP_CONS;
             // subtract to make it right associative
@@ -290,6 +328,43 @@ static struct AstNode *binary(enum Precedence precedence, struct AstNode *lhs)
         .op = op,
         .l = lhs,
         .r = expr(precedence + 1),
+    };
+
+    return AS_NODE(node);
+}
+
+static struct AstNode *custom_binary(enum Precedence precedence, struct AstNode *lhs)
+{
+    struct ApplicationNode *node = ALLOC_NODE(struct ApplicationNode);
+    struct Location loc = prev_loc();
+
+    switch (*parser.prev.start) {
+        case '&':
+        case '^':
+            precedence -= 1;
+            break;
+        default:
+            break;
+    }
+
+    struct IdentifierNode *ident = ALLOC_NODE(struct IdentifierNode);
+    *ident = (struct IdentifierNode){
+        .node = { AST_IDENTIFIER, loc },
+        .src_loc = parser.prev.start,
+        .len = parser.prev.len,
+    };
+
+    struct ApplicationNode *l_arg = ALLOC_NODE(struct ApplicationNode);
+    *l_arg = (struct ApplicationNode){
+        .node = { AST_APPLICATION, loc },
+        .function = AS_NODE(ident),
+        .argument = lhs,
+    };
+
+    *node = (struct ApplicationNode){
+        .node = { AST_APPLICATION, loc },
+        .function = AS_NODE(l_arg),
+        .argument = expr(precedence + 1),
     };
 
     return AS_NODE(node);
@@ -672,7 +747,7 @@ static struct AstNode *case_expr()
 static struct AstNode *expr(enum Precedence precedence)
 {
     advance();
-    PrefixParseFn prefix = get_rule(parser.prev.type)->prefix;
+    PrefixParseFn prefix = get_rule(parser.prev).prefix;
     if (prefix == null) {
         error(parser.prev, "unexpected token in prefix expression");
         return null;
@@ -680,21 +755,21 @@ static struct AstNode *expr(enum Precedence precedence)
 
     struct AstNode *lhs = prefix();
 
-    while (precedence <= get_rule(parser.current.type)->infix_precedence) {
-        struct ParseRule *infix = null;
-        if (get_rule(parser.current.type)->leave_op_token) {
-            infix = get_rule(parser.current.type);
+    while (precedence <= get_rule(parser.current).infix_precedence) {
+        struct ParseRule infix = {};
+        if (get_rule(parser.current).leave_op_token) {
+            infix = get_rule(parser.current);
         } else {
             advance();
-            infix = get_rule(parser.prev.type);
+            infix = get_rule(parser.prev);
         }
 
-        if (infix == null || infix->infix == null) {
+        if ((infix.infix == null && infix.prefix == null) || infix.infix == null) {
             error(parser.prev, "unexpected token in infix expression");
             return null;
         }
 
-        lhs = infix->infix(infix->infix_precedence, lhs);
+        lhs = infix.infix(infix.infix_precedence, lhs);
     }
 
     return lhs;
@@ -702,9 +777,21 @@ static struct AstNode *expr(enum Precedence precedence)
 
 static struct AstNode *function_declaration()
 {
-    if (parser.current.type != TOKEN_IDENT) {
-        error(parser.prev, "expected function declaration");
-        return null;
+    bool expect_backtick = false;
+    switch (parser.current.type) {
+        case TOKEN_IDENT:
+            break;
+        case TOKEN_BACKTICK:
+            advance();
+            expect_backtick = true;
+            if (parser.current.type != TOKEN_CUSTOM_OP) {
+                error(parser.current, "expected custom operator");
+                return null;
+            }
+            break;
+        default:
+            error(parser.prev, "expected function declaration");
+            return null;
     }
     advance();
 
@@ -713,6 +800,14 @@ static struct AstNode *function_declaration()
 
     struct DeclarationNode *declaration = ALLOC_NODE(struct DeclarationNode);
     struct Location loc = prev_loc();
+
+    if (expect_backtick) {
+        if (parser.current.type != TOKEN_BACKTICK) {
+            error(parser.prev, "expected ``` after custom operator declaration");
+            return null;
+        }
+        advance();
+    }
 
     struct FunctionBindingNode *binding = bindings(TOKEN_EQ);
 

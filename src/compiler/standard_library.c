@@ -117,6 +117,7 @@ mod _io = {\n\
             | super..IO..New a -> super..IO..New (f a);\n\
         join a = case a of\n\
             | super..IO..New (super..IO..New a) -> super..IO..New a;\n\
+        return = super..IO..New;\n\
     };\n\
 };\n\
 \n\

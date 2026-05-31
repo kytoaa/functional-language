@@ -190,6 +190,19 @@ void init_lexer(const char *src)
     };
 }
 
+static struct Token try_custom_op(enum TokenType single_char)
+{
+    u32 len = 1;
+    while (is_custom_op(peek())) {
+        consume();
+        len += 1;
+    }
+    if (len == 1)
+        return make_token(single_char);
+
+    return make_token(TOKEN_CUSTOM_OP);
+}
+
 struct Token next_token()
 {
     skip_whitespace();
@@ -220,40 +233,43 @@ struct Token next_token()
             return make_token(TOKEN_R_BRACE);
 
         case ';':
-            return make_token(TOKEN_SEMICOLON);
+            return try_custom_op(TOKEN_SEMICOLON);
 
         case '|':
-            return make_token(TOKEN_PIPE);
+            return try_custom_op(TOKEN_PIPE);
 
         case '=':
-            return make_token(match('=') ? TOKEN_EQUAL
+            return try_custom_op(match('=') ? TOKEN_EQUAL
                              : match('>') ? TOKEN_WIDE_ARROW
                              : TOKEN_EQ);
         case '>':
-            return make_token(match('=') ? TOKEN_GREATER_EQ : TOKEN_GREATER);
+            return try_custom_op(match('=') ? TOKEN_GREATER_EQ : TOKEN_GREATER);
         case '<':
-            return make_token(match('=') ? TOKEN_LESS_EQ : TOKEN_LESS);
+            return try_custom_op(match('=') ? TOKEN_LESS_EQ : TOKEN_LESS);
 
         case '.':
-            return make_token(match('.') ? TOKEN_TWO_DOT : TOKEN_ERROR);
+            return try_custom_op(match('.') ? TOKEN_TWO_DOT : TOKEN_DOT);
 
         case '+':
-            return make_token(TOKEN_ADD);
+            return try_custom_op(TOKEN_ADD);
         case '-':
-            return make_token(match('>') ? TOKEN_ARROW : TOKEN_SUB);
+            return try_custom_op(match('>') ? TOKEN_ARROW : TOKEN_SUB);
         case '*':
-            return make_token(TOKEN_MUL);
+            return try_custom_op(TOKEN_MUL);
         case '/':
-            return make_token(TOKEN_DIV);
+            return try_custom_op(TOKEN_DIV);
 
         case '$':
-            return make_token(TOKEN_FORCE);
+            return try_custom_op(TOKEN_FORCE);
 
         case '@':
-            return make_token(TOKEN_ATTR);
+            return try_custom_op(TOKEN_ATTR);
 
         case ':':
-            return make_token(match(':') ? TOKEN_DOUBLE_COLON : TOKEN_COLON);
+            return try_custom_op(match(':') ? TOKEN_DOUBLE_COLON : TOKEN_COLON);
+
+        case '`':
+            return make_token(TOKEN_BACKTICK);
 
         case '\'':
             return char_token();
