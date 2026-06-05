@@ -182,20 +182,6 @@ static void trace_objects()
     }
 }
 
-static void free_obj(struct Obj *object)
-{
-    switch (object->type) {
-        case OBJ_ARRAY:{
-            struct ArrayObj *array = (struct ArrayObj*)object;
-            free_mem(array->ptr);
-            break;
-        }
-        default:
-            break;
-    }
-    free_mem(object);
-}
-
 static void sweep()
 {
     struct Obj *prev = null;

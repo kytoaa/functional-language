@@ -45,6 +45,7 @@ static void compile_builtin(struct Context *ctx, struct AstNode *body)
     const char *read_file_line_ident = ident_table_get(ctx->identifier_table, "read_file_line", 14);
 
     const char *type_of_ident = ident_table_get(ctx->identifier_table, "type_of", 7);
+    const char *exit_ident = ident_table_get(ctx->identifier_table, "exit", 4);
 
     const char *slice_empty_ident = ident_table_get(ctx->identifier_table, "slice_empty", 11);
     const char *slice_len_ident = ident_table_get(ctx->identifier_table, "slice_len", 9);
@@ -101,6 +102,8 @@ static void compile_builtin(struct Context *ctx, struct AstNode *body)
 
                 emit_byte(ctx, OP_CALL_EXTERN);
                 emit_byte(ctx, VM_EXTERN_FUNC_TYPE_OF);
+            } else if (node->src_loc == exit_ident) {
+                emit_byte(ctx, OP_END);
             } else if (node->src_loc == slice_empty_ident) {
                 emit_byte(ctx, OP_CALL_EXTERN);
                 emit_byte(ctx, VM_EXTERN_FUNC_SLICE_EMPTY);

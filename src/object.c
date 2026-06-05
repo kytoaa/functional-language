@@ -26,10 +26,25 @@ void free_objects()
     while (most_recent_alloc != null) {
         struct Obj *object = most_recent_alloc;
         most_recent_alloc = object->next;
-        free_mem(object);
+        free_obj(object);
     }
     end_gc();
 }
+
+void free_obj(struct Obj *object)
+{
+    switch (object->type) {
+        case OBJ_ARRAY:{
+            struct ArrayObj *array = (struct ArrayObj*)object;
+            free_mem(array->ptr);
+            break;
+        }
+        default:
+            break;
+    }
+    free_mem(object);
+}
+
 
 static struct Obj *alloc_obj(u32 size)
 {

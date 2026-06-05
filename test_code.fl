@@ -38,5 +38,5 @@ io_monad = Monad..M (fun f x -> io..join (io..map f x)) io..return;
 
 discard_negative x = if x - 5 < 0 then None else Some x;
 
-main = io..println : 0;
+main = Monad..inner (io_monad (io..read_line io..stdin) >>= io..print);
 

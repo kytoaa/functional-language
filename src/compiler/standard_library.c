@@ -49,6 +49,8 @@ mod = {\n\
 \n\
     type_of x = @std_builtin(type_of);\n\
 \n\
+    run = _io..run;\n\
+\n\
     fst p = case p of\n\
         | a :: _ -> a;\n\
 \n\
@@ -91,6 +93,12 @@ mod _io = {\n\
 \n\
     seq a b = case $ a of | _ -> b;\n\
 \n\
+    exit = @std_builtin(exit);\n\
+\n\
+    run x = case x of\n\
+        | IO..New x -> run x\n\
+        | x -> seq x exit;\n\
+\n\
     read_file_contents file = @std_builtin(read_file_contents);\n\
     read_line file = @std_builtin(read_file_line);\n\
 \n\
@@ -105,13 +113,25 @@ mod _io = {\n\
         stderr = super..stderr;\n\
 \n\
         seq = super..seq;\n\
-        read_file_contents file = super..IO..New (super..read_file_contents file);\n\
-        read_line file = super..IO..New (super..read_line file);\n\
+        read_file_contents file = let\n\
+            result = super..read_file_contents file;\n\
+            in super..IO..New result;\n\
+        read_line file = let\n\
+            result = super..read_line file;\n\
+            in super..IO..New result;\n\
 \n\
-        write file val = super..IO..New (super..write file val);\n\
-        writeln = super..writeln;\n\
-        print = super..print;\n\
-        println = super..println;\n\
+        write file val = let\n\
+            result = super..write file val;\n\
+            in super..IO..New result;\n\
+        writeln file val = let\n\
+            result = super..writeln file val;\n\
+            in super..IO..New result;\n\
+        print val = let\n\
+            result = super..print val;\n\
+            in super..IO..New result;\n\
+        println val = let\n\
+            result = super..println val;\n\
+            in super..IO..New result;\n\
 \n\
         map f a = case a of\n\
             | super..IO..New a -> super..IO..New (f a);\n\

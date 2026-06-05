@@ -149,5 +149,6 @@ struct Box **obj_dyn_fields(struct Obj *obj);
 struct Obj **get_most_recent_alloc();
 void try_gc();
 void free_objects();
+void free_obj(struct Obj *obj);
 
 #endif

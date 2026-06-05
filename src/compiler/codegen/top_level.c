@@ -317,7 +317,33 @@ struct CodegenErrorList generate_code(struct Compiler *compiler, struct ModuleCt
     if (main_ident != null && main_decl != null) {
         ctx.module_index = 0;
 
-        compile_expr(&ctx, main_decl->body);
+        struct Location loc = main_decl->body->loc;
+
+        static struct IdentifierNode STD_IDENT, RUN_IDENT;
+        static struct NamespaceAccessNode NAMESPACE_NODE;
+        static struct ApplicationNode APPLICATION_NODE;
+        STD_IDENT = (struct IdentifierNode){
+            .node = { AST_IDENTIFIER, loc },
+            .src_loc = ident_table_get(ctx.identifier_table, "std", 3),
+            .len = 3,
+        };
+        RUN_IDENT = (struct IdentifierNode){
+            .node = { AST_IDENTIFIER, loc },
+            .src_loc = ident_table_get(ctx.identifier_table, "run", 3),
+            .len = 3,
+        };
+        NAMESPACE_NODE = (struct NamespaceAccessNode){
+            .node = { AST_NAMESPACE_ACCESS, loc },
+            .ident = &STD_IDENT,
+            .rhs = AS_NODE(&RUN_IDENT),
+        };
+        APPLICATION_NODE = (struct ApplicationNode){
+            .node = { AST_APPLICATION, loc },
+            .function = AS_NODE(&NAMESPACE_NODE),
+            .argument = main_decl->body,
+        };
+
+        compile_expr(&ctx, AS_NODE(&APPLICATION_NODE));
 
         emit_2_bytes(&ctx, OP_PUSH_REG_STACK, INSTRUCTION_PTR);
         emit_byte(&ctx, OP_U64_ADD);
