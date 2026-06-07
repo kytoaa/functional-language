@@ -126,6 +126,13 @@ static void fill_symbol_table(struct AstTopLevel *ast, struct IdentifierTable *t
         traverse_node(AS_NODE(decl), table, generate_symbols, null);
         decl = decl->next_declaration;
     }
+
+    struct UseDeclNode *use_decl = (struct UseDeclNode*)ast->use_declarations;
+    while (use_decl != null) {
+        traverse_node(AS_NODE(use_decl), table, generate_symbols, null);
+        use_decl = use_decl->next_use;
+    }
+
     struct ModuleDeclNode *module = (struct ModuleDeclNode*)ast->modules;
     while (module != null) {
         traverse_node(AS_NODE(module), table, generate_symbols, null);

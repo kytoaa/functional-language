@@ -42,6 +42,7 @@ struct AstNode {
 struct AstTopLevel {
     struct AstNode *modules;
     struct AstNode *declarations;
+    struct AstNode *use_declarations;
 };
 
 struct AstAllocator {

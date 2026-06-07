@@ -134,6 +134,7 @@ struct ModuleDeclNode {
     struct IdentifierNode *name;
     struct DeclarationNode *declarations;
     struct ModuleDeclNode *submodules;
+    struct UseDeclNode *use_declarations;
     struct ModuleDeclNode *next_mod;
     bool has_body;
     bool is_type;
@@ -147,7 +148,7 @@ struct NamespaceAccessNode {
 
 struct UseDeclNode {
     struct AstNode node;
-    struct NamespaceAccessNode *use_expr;
+    struct AstNode *use_expr;
     struct UseDeclNode *next_use;
 };
 

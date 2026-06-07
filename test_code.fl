@@ -17,7 +17,7 @@ fmap = Functor..fmap;
 mod Monad = type {
 	with M bind return x;
 
-	bind f monad = case monad of
+	bind monad f = case monad of
 		| M bind return x -> M bind return (bind f x);
 	
 	return monad = case monad of
@@ -29,14 +29,17 @@ mod Monad = type {
 
 flip f a b = f b a;
 
-`>>=` = flip Monad..bind;
+`>>=` = Monad..bind;
 `>>` a b = Monad..bind (fun x -> b) a;
 
 option_functor = Functor..F Option..map;
-option_monad = Monad..M (fun f x -> Option..join (Option..map f x)) Option..Some;
+option_monad = Monad..M (fun x f -> Option..join (Option..map x f)) Option..Some;
 io_monad = Monad..M (fun f x -> io..join (io..map f x)) io..return;
 
 discard_negative x = if x - 5 < 0 then None else Some x;
+add_5 x = x + 5;
+mul_2 x = x * 2;
+compose f g = fun x -> f (g x);
 
-main = Monad..inner (io_monad (io..read_line io..stdin) >>= io..print);
+main = io..println ((add_5 . mul_2) 9);
 

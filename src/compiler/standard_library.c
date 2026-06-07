@@ -49,6 +49,9 @@ mod = {\n\
 \n\
     type_of x = @std_builtin(type_of);\n\
 \n\
+    compose f g = fun x -> f (g x);\n\
+    flip f x y = f y x;\n\
+\n\
     run = _io..run;\n\
 \n\
     fst p = case p of\n\

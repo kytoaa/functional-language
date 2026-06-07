@@ -102,6 +102,41 @@ void compile_literal(struct Context *ctx, struct LiteralNode *node)
 
 void compile_bin_op(struct Context *ctx, struct BinOpNode *node)
 {
+    if (node->op == AST_BIN_OP_COMPOSITION) {
+        static struct IdentifierNode STD_IDENT, COMP_IDENT;
+        static struct NamespaceAccessNode NAMESPACE;
+
+        STD_IDENT = (struct IdentifierNode){
+            .node = { AST_IDENTIFIER, node->node.loc },
+            .src_loc = ident_table_get(ctx->identifier_table, "std", 3),
+            .len = 3,
+        };
+        COMP_IDENT = (struct IdentifierNode){
+            .node = { AST_IDENTIFIER, node->node.loc },
+            .src_loc = ident_table_get(ctx->identifier_table, "compose", 7),
+            .len = 7,
+        };
+        NAMESPACE = (struct NamespaceAccessNode){
+            .node = { AST_NAMESPACE_ACCESS, node->node.loc },
+            .ident = &STD_IDENT,
+            .rhs = AS_NODE(&COMP_IDENT),
+        };
+
+        struct ApplicationNode application_l = {
+            .node = { AST_APPLICATION, node->l->loc },
+            .function = AS_NODE(&NAMESPACE),
+            .argument = node->l,
+        };
+        struct ApplicationNode application_r = {
+            .node = { AST_APPLICATION, node->r->loc },
+            .function = AS_NODE(&application_l),
+            .argument = node->r,
+        };
+        compile_expr(ctx, AS_NODE(&application_r));
+
+        return;
+    }
+
     emit_2_bytes(ctx, OP_PUSH_REG_STACK, INSTRUCTION_PTR);
     emit_byte(ctx, OP_U64_ADD);
     u32 jump_location = get_last_bytecode_index(ctx) + 1;
@@ -150,6 +185,7 @@ void compile_bin_op(struct Context *ctx, struct BinOpNode *node)
         case AST_BIN_OP_GREATER_EQ:
             op = GLOBAL_FUNC_GREATER_EQ;
             break;
+        case AST_BIN_OP_COMPOSITION:
         default:
             panic("unreachable, invalid expression");
             break;

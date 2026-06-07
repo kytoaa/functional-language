@@ -4,7 +4,6 @@
 #include "../builtins.h"
 #include "global_resolution.h"
 #include "remapping.h"
-#include <stdio.h>
 #include <string.h>
 
 struct TopLevelDeclInfo {

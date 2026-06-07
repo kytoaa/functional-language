@@ -84,6 +84,7 @@ enum Precedence {
 static struct AstNode *declaration();
 static struct AstNode *function_declaration();
 static struct AstNode *constructor_declaration();
+static struct AstNode *use_declaration();
 static struct AstNode *expr(enum Precedence precedence);
 
 static struct AstNode *module();
@@ -102,6 +103,7 @@ static struct AstNode *number();
 static struct AstNode *boolean();
 static struct AstNode *character();
 static struct AstNode *unit();
+static struct AstNode *custom_op();
 
 static struct AstNode *lambda();
 
@@ -137,6 +139,7 @@ static struct ParseRule rules[] = {
 
     [TOKEN_IDENT]        = { identifier, application, PREC_APPLICATION, true },
     [TOKEN_UNDERSCORE]   = { underscore, null, PREC_NONE },
+    [TOKEN_BACKTICK]     = { custom_op, application, PREC_APPLICATION, true },
 
     [TOKEN_ARROW]        = { null, null, PREC_NONE },
     [TOKEN_WIDE_ARROW]   = { null, null, PREC_NONE },
@@ -429,6 +432,19 @@ static struct AstNode *underscore()
     };
 
     return AS_NODE(underscore);
+}
+static struct AstNode *custom_op()
+{
+    advance();
+
+    if (parser.prev.type != TOKEN_CUSTOM_OP) {
+        error(parser.prev, "not a custom operator");
+        return null;
+    }
+    struct AstNode *ident = identifier();
+    consume(TOKEN_BACKTICK, "expected ``` after custom operator");
+
+    return ident;
 }
 
 static struct AstNode *attribute()
@@ -904,6 +920,7 @@ static struct AstNode *module()
     }
     struct DeclarationNode *current_decl = null;
     struct ModuleDeclNode *current_submodule = null;
+    struct UseDeclNode *current_use_decl = null;
     bool has_body = false;
     bool is_type = false;
 
@@ -937,6 +954,14 @@ static struct AstNode *module()
                     if (parser.has_error)
                         return null;
                     current_submodule = submodule;
+                } else if (parser.current.type == TOKEN_USE) {
+                    struct UseDeclNode *use_decl = (struct UseDeclNode*)use_declaration();
+                    if (use_decl != null) {
+                        use_decl->next_use = current_use_decl;
+                    }
+                    if (parser.has_error)
+                        return null;
+                    current_use_decl = use_decl;
                 } else {
                     struct DeclarationNode *decl = (struct DeclarationNode*)declaration();
                     if (decl != null) {
@@ -974,6 +999,34 @@ static struct AstNode *module()
     return AS_NODE(node);
 }
 
+static void **use_decl_get_next(void *decl)
+{
+    return (void*)&((struct UseDeclNode*)decl)->next_use;
+}
+
+static struct AstNode *use_declaration()
+{
+    advance();
+    struct Location loc = prev_loc();
+
+    struct AstNode *use_expr = expr(PREC_NAMESPACE);
+    if (use_expr->kind != AST_NAMESPACE_ACCESS && use_expr->kind != AST_IDENTIFIER) {
+        error(parser.prev, "not a path");
+        return null;
+    }
+
+    consume(TOKEN_SEMICOLON, "expected `;` after use declaration");
+
+    struct UseDeclNode *node = ALLOC_NODE(struct UseDeclNode);
+    *node = (struct UseDeclNode){
+        .node = { AST_USE_DECL, loc },
+        .use_expr = use_expr,
+        .next_use = null,
+    };
+
+    return AS_NODE(node);
+}
+
 bool build_ast(const char *src, struct AstTopLevel *out, struct ParseError *err)
 {
     init_lexer(src);
@@ -983,6 +1036,7 @@ bool build_ast(const char *src, struct AstTopLevel *out, struct ParseError *err)
 
     struct ModuleDeclNode *modules = null;
     struct DeclarationNode *declarations = null;
+    struct UseDeclNode *use_declarations = null;
     while (parser.current.type != TOKEN_EOF) {
         if (parser.current.type == TOKEN_MOD) {
             struct ModuleDeclNode *current = (struct ModuleDeclNode*)module();
@@ -994,6 +1048,15 @@ bool build_ast(const char *src, struct AstTopLevel *out, struct ParseError *err)
 
             current->next_mod = modules;
             modules = current;
+        } else if (parser.current.type == TOKEN_USE) {
+            struct UseDeclNode *current = (struct UseDeclNode*)use_declaration();
+
+            if (parser.has_error) {
+                *err = parser.err;
+                return false;
+            }
+            current->next_use = use_declarations;
+            use_declarations = current;
         } else {
             struct DeclarationNode *current = (struct DeclarationNode*)declaration();
 
@@ -1009,6 +1072,7 @@ bool build_ast(const char *src, struct AstTopLevel *out, struct ParseError *err)
     }
     declarations = reverse_linked_list(declarations, declaration_get_next);
     modules = reverse_linked_list(modules, module_get_next);
+    use_declarations = reverse_linked_list(use_declarations, use_decl_get_next);
 
     *out = (struct AstTopLevel){
         .declarations = AS_NODE(declarations),

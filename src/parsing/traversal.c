@@ -28,11 +28,22 @@ void traverse_node(
                     decl = decl->next_declaration;
                 }
             }
+            struct UseDeclNode *use_decl = node->use_declarations;
+            while (use_decl != null) {
+                traverse_node(AS_NODE(use_decl), arg, pre_callback, post_callback);
+                use_decl = use_decl->next_use;
+            }
+
             struct ModuleDeclNode *submodule = node->submodules;
             while (submodule != null) {
                 traverse_node(AS_NODE(submodule), arg, pre_callback, post_callback);
                 submodule = submodule->next_mod;
             }
+            break;
+        }
+        case AST_USE_DECL:{
+            struct UseDeclNode *node = (struct UseDeclNode*)n;
+            traverse_node(AS_NODE(node->use_expr), arg, pre_callback, post_callback);
             break;
         }
         case AST_NAMESPACE_ACCESS:{
