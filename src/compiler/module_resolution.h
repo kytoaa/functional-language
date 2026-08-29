@@ -27,6 +27,11 @@ struct Module {
         u32 len;
         u32 cap;
     } items;
+    struct {
+        struct AstNode **ptr;
+        u32 len;
+        u32 cap;
+    } use_decls;
     u32 name_len;
     u16 _compiled_file_index;
     u16 parent_index;

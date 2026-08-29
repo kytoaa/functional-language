@@ -3,7 +3,6 @@
 #include "global_resolution.h"
 #include "../module_resolution.h"
 #include "../file_compilation.h"
-#include <stdio.h>
 
 static enum GlobalDeclError global_decl(
     struct ModuleGlobals *globals,

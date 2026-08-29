@@ -70,6 +70,9 @@ static void print_binary_op(struct BinOpNode *node)
         case AST_BIN_OP_CONS:
             printf(" :: ");
             break;
+        case AST_BIN_OP_COMPOSITION:
+            printf(" . ");
+            break;
     }
     print_node(node->r);
     printf(")");

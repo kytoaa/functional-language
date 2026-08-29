@@ -30,16 +30,20 @@ mod Monad = type {
 flip f a b = f b a;
 
 `>>=` = Monad..bind;
-`>>` a b = Monad..bind (fun x -> b) a;
+`>>` a b = Monad..bind a (fun x -> b);
+`<$>` = Functor..fmap;
 
 option_functor = Functor..F Option..map;
 option_monad = Monad..M (fun x f -> Option..join (Option..map x f)) Option..Some;
 io_monad = Monad..M (fun f x -> io..join (io..map f x)) io..return;
+cont_monad = Monad..M Cont..bind (fun x -> fun f -> (f x));
 
 discard_negative x = if x - 5 < 0 then None else Some x;
 add_5 x = x + 5;
 mul_2 x = x * 2;
-compose f g = fun x -> f (g x);
 
-main = io..println ((add_5 . mul_2) 9);
+mod module_a;
+use module_a;
+
+main = io..println test_value;
 

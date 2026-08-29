@@ -1077,6 +1077,7 @@ bool build_ast(const char *src, struct AstTopLevel *out, struct ParseError *err)
     *out = (struct AstTopLevel){
         .declarations = AS_NODE(declarations),
         .modules = AS_NODE(modules),
+        .use_declarations = AS_NODE(use_declarations),
     };
 
     return true;

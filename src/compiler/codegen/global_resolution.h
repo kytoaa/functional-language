@@ -49,6 +49,7 @@ enum GlobalResolutionError {
 
 struct GlobalResolutionResult {
     struct IdentifierNode *error_finding;
+    /// if `error_finding == null`, error stores the module index
     enum GlobalResolutionError error;
 };
 
@@ -86,13 +87,17 @@ struct GlobalResolutionResult resolve_global_path(
 );
 struct GlobalResolutionResult find_global_decl(
     struct GlobalCtx *globals,
-    struct AstNode *search_for,
-    u16 search_from_module,
+    struct GlobalSearch search,
     struct DeclarationNode **out,
     u16 *out_mod
 );
 
-enum GlobalResolutionError resolve_global(struct GlobalCtx *ctx, u16 mod, const char *ident, struct GlobalInfo *out_info);
+enum GlobalResolutionError resolve_global(
+    struct GlobalCtx *ctx,
+    u16 mod,
+    const char *ident,
+    struct GlobalInfo *out_info
+);
 
 struct GlobalResolutionResult get_module_index_for(struct GlobalCtx *globals, struct GlobalSearch search);
 

@@ -2,6 +2,8 @@ mod = {
     drop = drop_;
 
     mod inner = super..module_c;
+
+    test_value = 3;
 };
 
 drop_ n l = case n :: l of

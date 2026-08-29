@@ -5,6 +5,21 @@
 
 #define PATH_RESOLUTION_RECURSION_LIMIT 32
 
+static struct GlobalResolutionResult resolve_path(
+    struct GlobalCtx *globals,
+    struct GlobalSearch search,
+    bool is_module,
+    u16 current_depth
+);
+
+static enum GlobalResolutionError resolve_global_inner(
+    struct GlobalCtx *ctx,
+    u16 mod,
+    const char *ident,
+    struct GlobalInfo *out_info,
+    bool search_private
+);
+
 static enum GlobalDeclError push_global(
     struct ModuleGlobals *globals,
     struct Global global,
@@ -142,9 +157,62 @@ static enum GlobalResolutionError find_global_in(
     return GLOBAL_RES_ERROR_DOESNT_EXIST;
 }
 
-enum GlobalResolutionError resolve_global(struct GlobalCtx *ctx, u16 mod, const char *ident, struct GlobalInfo *out_info)
+static enum GlobalResolutionError check_use_decls(struct GlobalCtx *ctx, u16 origin_module, const char *ident, struct GlobalInfo *out_info)
 {
-    return find_global_in(&ctx->globals_per_module[mod], ident, true, out_info);
+    struct Module *mod = get_module(ctx->modules, origin_module);
+
+    for (u32 i = 0; i < mod->use_decls.len; i++) {
+        struct AstNode *use_expr = mod->use_decls.ptr[i];
+        struct GlobalSearch search = {
+            .origin_module = origin_module,
+            .searching_for = (struct NamespaceAccessNode*)use_expr,
+        };
+        struct GlobalResolutionResult res = resolve_path(ctx, search, true, 0);
+
+        if (res.error_finding == null) {
+            enum GlobalResolutionError err = resolve_global_inner(ctx, res.error, ident, out_info, false);
+            if (err == GLOBAL_RES_OK) {
+                return GLOBAL_RES_OK;
+            }
+        }
+    }
+    return GLOBAL_RES_ERROR_DOESNT_EXIST;
+}
+
+static enum GlobalResolutionError resolve_global_inner(
+    struct GlobalCtx *ctx,
+    u16 mod,
+    const char *ident,
+    struct GlobalInfo *out_info,
+    bool search_private
+) {
+    enum GlobalResolutionError result = find_global_in(
+        &ctx->globals_per_module[mod],
+        ident,
+        search_private,
+        out_info
+    );
+
+    if (result != GLOBAL_RES_ERROR_DOESNT_EXIST) {
+        return result;
+    }
+
+    enum GlobalResolutionError use_decls = check_use_decls(ctx, mod, ident, out_info);
+
+    if (use_decls == GLOBAL_RES_OK) {
+        return GLOBAL_RES_OK;
+    } else {
+        return result;
+    }
+}
+
+enum GlobalResolutionError resolve_global(
+    struct GlobalCtx *ctx,
+    u16 mod,
+    const char *ident,
+    struct GlobalInfo *out_info
+) {
+    return resolve_global_inner(ctx, mod, ident, out_info, true);
 }
 
 struct FindSubmodule {
@@ -368,11 +436,13 @@ struct GlobalResolutionResult resolve_global_path(
 
 struct GlobalResolutionResult find_global_decl(
     struct GlobalCtx *globals,
-    struct AstNode *search_for,
-    u16 search_from_module,
+    struct GlobalSearch search,
     struct DeclarationNode **out,
     u16 *out_mod
 ) {
+    const struct AstNode *const search_for = AS_NODE(search.searching_for);
+    const u16 search_from_module = search.origin_module;
+
     struct IdentifierNode *ident = null;
     u16 module_index = 0;
     switch (search_for->kind) {
@@ -422,6 +492,30 @@ struct GlobalResolutionResult find_global_decl(
             };
         }
     }
+
+    struct Module *module = get_module(globals->modules, module_index);
+    for (u32 i = 0; i < module->use_decls.len; i++) {
+        struct AstNode *use_expr = module->use_decls.ptr[i];
+
+        struct GlobalSearch search = {
+            .origin_module = module_index,
+            .searching_for = (struct NamespaceAccessNode*)use_expr,
+        };
+        struct GlobalResolutionResult res = resolve_path(globals, search, true, 0);
+
+        if (res.error_finding == null) {
+            struct GlobalSearch search = {
+                .origin_module = res.error,
+                .searching_for = (struct NamespaceAccessNode*)ident,
+            };
+            struct GlobalResolutionResult r = find_global_decl(globals, search, out, out_mod);
+
+            if (r.error_finding == null && r.error == GLOBAL_RES_OK) {
+                return r;
+            }
+        }
+    }
+
     return (struct GlobalResolutionResult){
         .error = GLOBAL_RES_ERROR_DOESNT_EXIST,
         .error_finding = ident,

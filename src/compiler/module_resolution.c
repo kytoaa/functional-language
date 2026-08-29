@@ -16,6 +16,7 @@ void free_module_ctx(struct ModuleCtx *modules)
 {
     for (u32 i = 0; i < modules->modules.count; i++) {
         free_mem(modules->modules.ptr[i].items.ptr);
+        free_mem(modules->modules.ptr[i].use_decls.ptr);
     }
     free_mem(modules->modules.ptr);
     free_mem(modules->libraries.ptr);
@@ -75,6 +76,16 @@ static void declare_item(struct Module *mod, struct ModuleItem item)
     }
     mod->items.ptr[mod->items.len++] = item;
 }
+static void declare_use_decl(struct Module *mod, struct AstNode *use_expr)
+{
+    if (mod->use_decls.len == mod->use_decls.cap) {
+        u32 new_cap = (mod->use_decls.cap == 0) ? 2 : mod->use_decls.cap * 2;
+        struct AstNode **new_ptr = realloc_mem(mod->use_decls.ptr, new_cap * sizeof(struct AstNode*));
+        mod->use_decls.ptr = new_ptr;
+        mod->use_decls.cap = new_cap;
+    }
+    mod->use_decls.ptr[mod->use_decls.len++] = use_expr;
+}
 
 static void queue_resolution_work(struct ModuleCtxWork *ctx, struct ModuleResolutionWork work)
 {
@@ -129,6 +140,11 @@ static struct ModuleResult declare_module_items(struct ModuleCtxWork *ctx, struc
             });
 
             decl = decl->next_declaration;
+        }
+        struct UseDeclNode *use_decl = module->use_declarations;
+        while (use_decl != null) {
+            declare_use_decl(mod, use_decl->use_expr);
+            use_decl = use_decl->next_use;
         }
     }
     struct ModuleDeclNode *submodule = module->submodules;
@@ -246,6 +262,13 @@ static struct ModuleResult resolve_top_level(
 
         submodule = submodule->next_mod;
     }
+
+    struct UseDeclNode *use_decl = (struct UseDeclNode*)ast->use_declarations;
+    while (use_decl != null) {
+        declare_use_decl(mod, use_decl->use_expr);
+        use_decl = use_decl->next_use;
+    }
+
     return (struct ModuleResult){
         .successful = true,
         .msg = (const char*)(usize)mod_index,

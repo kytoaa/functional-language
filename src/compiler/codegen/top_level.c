@@ -200,10 +200,15 @@ static void clear_remapping_queue(struct Context *ctx)
         struct DeclarationNode *decl_node = null;
 
         u16 module_index = 0;
+        struct GlobalSearch search = {
+            .searching_for = remapping.is_namespace
+                                ? remapping.namespace_access
+                                : (struct NamespaceAccessNode*)remapping.identifier,
+            .origin_module = remapping.searching_from_module,
+        };
         struct GlobalResolutionResult result = find_global_decl(
             ctx->globals,
-            remapping.is_namespace ? AS_NODE(remapping.namespace_access) : AS_NODE(remapping.identifier),
-            remapping.searching_from_module,
+            search,
             &decl_node,
             &module_index
         );
