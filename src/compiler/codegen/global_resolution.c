@@ -157,8 +157,12 @@ static enum GlobalResolutionError find_global_in(
     return GLOBAL_RES_ERROR_DOESNT_EXIST;
 }
 
-static enum GlobalResolutionError check_use_decls(struct GlobalCtx *ctx, u16 origin_module, const char *ident, struct GlobalInfo *out_info)
-{
+static enum GlobalResolutionError check_use_decls(
+    struct GlobalCtx *ctx,
+    u16 origin_module,
+    const char *ident,
+    struct GlobalInfo *out_info
+) {
     struct Module *mod = get_module(ctx->modules, origin_module);
 
     for (u32 i = 0; i < mod->use_decls.len; i++) {

@@ -163,6 +163,7 @@ static struct ParseRule rules[] = {
 
     [TOKEN_MOD]          = { null, null, PREC_NONE },
     [TOKEN_USE]          = { null, null, PREC_NONE },
+    [TOKEN_TYPE]         = { null, null, PREC_NONE },
 
     [TOKEN_ADD]          = { null, binary, PREC_TERM },
     [TOKEN_SUB]          = { unary, binary, PREC_TERM },
@@ -396,10 +397,19 @@ static struct AstNode *namespace(enum Precedence precedence, struct AstNode *lhs
 
     struct Location loc = prev_loc();
 
-    struct AstNode *rhs = expr(PREC_NAMESPACE);
-    if (rhs->kind != AST_IDENTIFIER && rhs->kind != AST_NAMESPACE_ACCESS) {
-        error(parser.prev, "namespace rhs must be an identifier or namespace access");
-        return null;
+    struct AstNode *rhs;
+
+    if (parser.current.type == TOKEN_TYPE) {
+        advance();
+        rhs = identifier();
+    } else {
+        rhs = expr(PREC_NAMESPACE);
+        if (parser.has_error)
+            return null;
+        if (rhs->kind != AST_IDENTIFIER && rhs->kind != AST_NAMESPACE_ACCESS) {
+            error(parser.prev, "namespace rhs must be an identifier or namespace access");
+            return null;
+        }
     }
 
     *node = (struct NamespaceAccessNode){
@@ -453,8 +463,10 @@ static struct AstNode *attribute()
 
     struct Location loc = prev_loc();
 
-    if (is_alpha(*parser.current.start))
-        advance();
+    consume(TOKEN_IDENT, "expected an identifier");
+    if (parser.has_error)
+        return null;
+
     struct IdentifierNode *ident = (struct IdentifierNode*)identifier();
 
     struct AstNode *body = null;
@@ -944,6 +956,36 @@ static struct AstNode *module()
                 advance();
             }
             consume(TOKEN_L_BRACE, "expected `{` after module");
+
+            if (is_type) {
+                struct IdentifierNode *attr_ident = ALLOC_NODE(struct IdentifierNode);
+                *attr_ident = (struct IdentifierNode){
+                    { AST_IDENTIFIER, loc },
+                    .src_loc = "type",
+                    .len = 4,
+                };
+
+                struct AttributeNode *attr = ALLOC_NODE(struct AttributeNode);
+                *attr = (struct AttributeNode){
+                    { AST_ATTR, loc },
+                    .ident = attr_ident,
+                    .body = null,
+                };
+
+                struct DeclarationNode *type_decl = ALLOC_NODE(struct DeclarationNode);
+                *type_decl = (struct DeclarationNode){
+                    { AST_DECLARATION, loc },
+                    .name = "type",
+                    .name_len = 4,
+                    .is_global = true,
+                    .bindings = null,
+                    .body = AS_NODE(attr),
+                    .next_declaration = null,
+                };
+
+
+                current_decl = type_decl;
+            }
 
             while (parser.current.type != TOKEN_R_BRACE) {
                 if (parser.current.type == TOKEN_MOD) {

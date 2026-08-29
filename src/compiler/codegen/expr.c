@@ -515,7 +515,7 @@ void namespace_access_expr(struct Context *ctx, struct NamespaceAccessNode *node
         &global_info
     );
 
-    if (result.error != GLOBAL_RES_OK) {
+    if (result.error_finding != null && result.error != GLOBAL_RES_OK) {
         namespace_access_error(ctx, result);
         return;
     }

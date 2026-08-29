@@ -1,6 +1,5 @@
 #include "attributes.h"
 #include "codegen.h"
-#include <string.h>
 
 static bool try_compile_std_attribute(struct Context *ctx, struct AttributeNode *node);
 static void compile_builtin(struct Context *ctx, struct AstNode *body);
@@ -16,6 +15,21 @@ void compile_attribute(struct Context *ctx, struct AttributeNode *node)
     {
         if (try_compile_std_attribute(ctx, node))
             return;
+    }
+    const char *type_ident = ident_table_get(ctx->identifier_table, "type", 4);
+
+    if (node->ident->src_loc == type_ident) {
+        struct ModuleGlobals *globals = get_module_globals(ctx->globals, ctx->module_index);
+
+        u32 constant = create_constant(ctx->compiling_chunk, OBJ_RUNTIME_TYPE, sizeof(struct RuntimeType));
+        struct RuntimeType *runtime_type = (struct RuntimeType*)get_constant(ctx, constant);
+
+        if (runtime_type != null) {
+            runtime_type->type_index = globals->type_info_index;
+
+            emit_byte(ctx, OP_PUSH_CONST);
+            emit_u32(ctx, constant);
+        }
     }
 }
 

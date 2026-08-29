@@ -1,49 +1,5 @@
 mod io = std..io;
 mod Option = std..Option;
-with Some = std..Some;
-with None = std..None;
 
-mod Functor = type {
-	with F fmap x;
-
-	fmap f functor = case functor of
-		| F fmap x -> F fmap (fmap f x);
-	
-	inner functor = case functor of
-		| F fmap x -> x;
-};
-fmap = Functor..fmap;
-
-mod Monad = type {
-	with M bind return x;
-
-	bind monad f = case monad of
-		| M bind return x -> M bind return (bind f x);
-	
-	return monad = case monad of
-		| M bind return x -> M bind return (return x);
-
-	inner monad = case monad of
-		| M bind return x -> x;
-};
-
-flip f a b = f b a;
-
-`>>=` = Monad..bind;
-`>>` a b = Monad..bind a (fun x -> b);
-`<$>` = Functor..fmap;
-
-option_functor = Functor..F Option..map;
-option_monad = Monad..M (fun x f -> Option..join (Option..map x f)) Option..Some;
-io_monad = Monad..M (fun f x -> io..join (io..map f x)) io..return;
-cont_monad = Monad..M Cont..bind (fun x -> fun f -> (f x));
-
-discard_negative x = if x - 5 < 0 then None else Some x;
-add_5 x = x + 5;
-mul_2 x = x * 2;
-
-mod module_a;
-use module_a;
-
-main = io..println test_value;
+main = io..println Option..type;
 
