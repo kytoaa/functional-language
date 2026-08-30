@@ -1,5 +1,30 @@
 mod io = std..io;
 mod Option = std..Option;
+with Some = Option..Some;
+with None = Option..None;
 
-main = io..println Option..type;
+mod monad = {
+	`>>=` m f = std..Option..bind f m;
+	return = std..Some;
+};
+use std..Option..monad;
+
+add a b = a + b;
+greater_than x a = if a > x then Some a else None;
+
+mod Test = type {
+	with A;
+	with B;
+	with C;
+
+	mod inner = {
+		test_to_str x = case x of
+			| super..A -> 'a'
+			| super..B -> 'b'
+			| super..C -> 'c';
+	};
+};
+use Test..inner;
+
+main = io..println (test_to_str Test..B);
 

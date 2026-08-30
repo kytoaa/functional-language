@@ -659,9 +659,6 @@ void run_vm(struct Chunk *chunk, struct VmConfig config)
 }
 void end_vm()
 {
-    for (u32 i = 9; i < vm.code.type_count; i++) {
-        free_mem(vm.code.types[i].name);
-    }
     free_mem(vm.code.constants);
     free_objects();
 }

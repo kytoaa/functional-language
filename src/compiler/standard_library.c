@@ -20,6 +20,12 @@ mod = {\n\
         unwrap_or a x = case x of\n\
             | Some x -> x\n\
             | None   -> a;\n\
+\n\
+        mod monad = {\n\
+            `>>=` m f = super..bind f m;\n\
+            return = super..Some;\n\
+        };\n\
+\n\
     };\n\
     with Some = Option..Some;\n\
     with None = Option..None;\n\

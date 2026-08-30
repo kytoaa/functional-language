@@ -77,7 +77,6 @@ void compile_file(const struct CompilerConfig config)
     if (errors.len == 0) {
         run_chunk(&config, compiler.chunk);
     }
-
     free_chunk(&compiler.chunk);
 
     return;

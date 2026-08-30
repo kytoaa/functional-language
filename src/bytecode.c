@@ -1,6 +1,8 @@
 #include "bytecode.h"
 #include "object.h"
 
+#define BUILTIN_TYPE_COUNT 9
+
 void init_chunk(struct Chunk *chunk)
 {
     const u32 initial_size = sizeof(struct Box) * 3;
@@ -35,7 +37,7 @@ void init_chunk(struct Chunk *chunk)
 
     const u32 size = (initial_size + sizeof(u64) - 1) / sizeof(u64);
 
-    const u32 type_info_size = sizeof(struct TypeInfo) * 9;
+    const u32 type_info_size = sizeof(struct TypeInfo) * BUILTIN_TYPE_COUNT;
     struct TypeInfo *type_info_ptr = alloc_mem(type_info_size);
 
     type_info_ptr[0] = (struct TypeInfo){
@@ -108,6 +110,10 @@ void free_chunk(struct Chunk *chunk)
     free_mem(chunk->bytecode.ptr);
     free_mem(chunk->constants.ptr);
     free_mem(chunk->closures.ptr);
+    for (u32 i = BUILTIN_TYPE_COUNT; i < chunk->types.len; i++) {
+        free_mem(chunk->types.ptr[i].name);
+        chunk->types.ptr[i].name = null;
+    }
     free_mem(chunk->types.ptr);
     *chunk = (struct Chunk){};
 }
