@@ -54,6 +54,7 @@ static void compile_builtin(struct Context *ctx, struct AstNode *body)
     const char *stdin_ident = ident_table_get(ctx->identifier_table, "stdin", 5);
     const char *stdout_ident = ident_table_get(ctx->identifier_table, "stdout", 6);
     const char *stderr_ident = ident_table_get(ctx->identifier_table, "stderr", 6);
+    const char *stream_err_ident = ident_table_get(ctx->identifier_table, "stream_err", 10);
 
     const char *read_file_contents_ident = ident_table_get(ctx->identifier_table, "read_file_contents", 18);
     const char *read_file_line_ident = ident_table_get(ctx->identifier_table, "read_file_line", 14);
@@ -95,6 +96,9 @@ static void compile_builtin(struct Context *ctx, struct AstNode *body)
             } else if (node->src_loc == stderr_ident) {
                 emit_byte(ctx, OP_CALL_EXTERN);
                 emit_byte(ctx, VM_EXTERN_FUNC_STDERR);
+            } else if (node->src_loc == stream_err_ident) {
+                emit_byte(ctx, OP_CALL_EXTERN);
+                emit_byte(ctx, VM_EXTERN_FUNC_STREAM_ERRORS);
             } else if (node->src_loc == read_file_contents_ident) {
                 emit_byte(ctx, OP_READ_BINDING);
                 emit_u16(ctx, 0);

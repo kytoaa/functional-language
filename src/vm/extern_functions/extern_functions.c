@@ -52,6 +52,19 @@ static struct FileHandleObj *get_std_stream(enum VmExternFunction function)
 void call_extern_function(enum VmExternFunction function)
 {
     switch (function) {
+        case VM_EXTERN_FUNC_STREAM_ERRORS:{
+            Val val = pop_val();
+            if (val->type != OBJ_FILE_HANDLE) {
+                return runtime_error("not a file handle");
+            }
+            struct FileHandleObj *file = (struct FileHandleObj*)val;
+            u32 error = ferror(file->file);
+            struct Box *result = obj_create_box();
+            result->val = BOOL_VAL(error);
+
+            push_val(as_val(result));
+            break;
+        }
         case VM_EXTERN_FUNC_WRITE:{
             Val val = pop_val();
             if (val->type != OBJ_FILE_HANDLE) {

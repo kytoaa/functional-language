@@ -45,6 +45,33 @@ mod = {\n\
     with Some = Option..Some;\n\
     with None = Option..None;\n\
 \n\
+    mod Result = type {\n\
+        with Err e;\n\
+        with Ok a;\n\
+\n\
+        map f a = case a of\n\
+            | Err e -> Err e\n\
+            | Ok a  -> Ok (f a);\n\
+\n\
+        mod functor = {\n\
+            fmap = super..map;\n\
+        };\n\
+        mod applicative = {\n\
+            mod functor = super..functor;\n\
+            pure = super..monad..return;\n\
+            `<*>` a b = a >>= fun f ->\n\
+                        b >>= fun x -> super..Ok (f x);\n\
+        };\n\
+        mod monad = {\n\
+            mod applicative = super..applicative;\n\
+            return = super..Ok;\n\
+            `>>=` m f = case m of\n\
+                | super..Err e -> super..Err e\n\
+                | super..Ok a  -> f a;\n\
+            `>>` a b = a >>= fun x -> b;\n\
+        };\n\
+    };\n\
+\n\
     mod list = {\n\
         map f l = case l of\n\
             | ()      -> ()\n\
@@ -112,67 +139,84 @@ mod = {\n\
 };\n\
 \n\
 mod _io = {\n\
-    mod IO = type {\n\
-        with New a;\n\
-    };\n\
+	mod IO = type {\n\
+		mod State = type {\n\
+			with State;\n\
+		};\n\
 \n\
-    stdin = @std_builtin(stdin);\n\
-    stdout = @std_builtin(stdout);\n\
-    stderr = @std_builtin(stderr);\n\
+		with IO runState;\n\
 \n\
-    seq a b = case $ a of | _ -> b;\n\
+		-- IO a -> State -> (a, State)\n\
+		runState s = case s of\n\
+			| IO runState -> runState;\n\
 \n\
-    exit = @std_builtin(exit);\n\
+		return s = IO (fun x -> x :: s);\n\
 \n\
-    run x = case x of\n\
-        | IO..New x -> run x\n\
-        | x -> seq x exit;\n\
+		map f = bind (return . f);\n\
+		bind f x = let\n\
+			run s = case super..strict_pair (runState x s) of\n\
+				| a :: s1 -> runState (f a) s1;\n\
+			in IO run;\n\
+\n\
+		mod functor = {\n\
+			fmap = super..map;\n\
+		};\n\
+		mod applicative = {\n\
+			mod functor = super..functor;\n\
+\n\
+			pure = super..monad..return;\n\
+			`<*>` a1 a2 = use super..monad { `>>=`; return }\n\
+				in a1 >>= (fun f ->\n\
+				   a2 >>= (fun x -> return (f x)));\n\
+		};\n\
+		mod monad = {\n\
+			mod applicative = super..applicative;\n\
+\n\
+			return = super..return;\n\
+			`>>=` m f = super..bind f m;\n\
+			`>>` a b = a >>= fun x -> b;\n\
+		};\n\
+	};\n\
+\n\
+	stdin = @std_builtin(stdin);\n\
+	stdout = @std_builtin(stdout);\n\
+	stderr = @std_builtin(stderr);\n\
+	stream_err stream = @std_builtin(stream_err);\n\
+\n\
+	seq a b = case $ a of | _ -> b;\n\
+    strict_pair p = case p of\n\
+        | a :: b -> case $ a of\n\
+            | a1 -> case $ b of\n\
+            | b1 -> a1 :: b1;\n\
+\n\
+	exit = @std_builtin(exit);\n\
+\n\
+	run x = case x of\n\
+		| IO..IO runState -> strict_pair (runState IO..State..State)\n\
+		| x 			  -> seq x exit;\n\
 \n\
     read_file_contents file = @std_builtin(read_file_contents);\n\
     read_line file = @std_builtin(read_file_line);\n\
 \n\
     write file val = @std_builtin(write);\n\
-    writeln file val = seq (write file val) (write file '\n');\n\
-    print = write stdout;\n\
-    println = writeln stdout;\n\
 \n\
-    mod io = {\n\
-        stdin = super..stdin;\n\
-        stdout = super..stdout;\n\
-        stderr = super..stderr;\n\
+	mod io = {\n\
+		mod functor = super..IO..functor;\n\
+		mod applicative = super..IO..applicative;\n\
+		mod monad = super..IO..monad;\n\
 \n\
-        seq = super..seq;\n\
-        read_file_contents file = let\n\
-            result = super..read_file_contents file;\n\
-            in super..IO..New result;\n\
-        read_line file = let\n\
-            result = super..read_line file;\n\
-            in super..IO..New result;\n\
+		stdin = super..stdin;\n\
+		stdout = super..stdout;\n\
+		stderr = super..stderr;\n\
 \n\
-        write file val = let\n\
-            result = super..write file val;\n\
-            in super..IO..New result;\n\
-        writeln file val = let\n\
-            result = super..writeln file val;\n\
-            in super..IO..New result;\n\
-        print val = let\n\
-            result = super..print val;\n\
-            in super..IO..New result;\n\
-        println val = let\n\
-            result = super..println val;\n\
-            in super..IO..New result;\n\
+		write file val = monad..return (super..write file val);\n\
+		writeln file val = use monad { `>>` } in write file val >> write file '\n';\n\
+		print = write stdout;\n\
+		println = writeln stdout;\n\
 \n\
-        map f a = case a of\n\
-            | super..IO..New a -> super..IO..New (f a);\n\
-        join a = case a of\n\
-            | super..IO..New (super..IO..New a) -> super..IO..New a;\n\
-        return = super..IO..New;\n\
-\n\
-        mod monad = {\n\
-            `>>=` m f = super..join (super..map f m);\n\
-            return = super..return;\n\
-        };\n\
-    };\n\
+		read_file_contents = monad..return . super..read_file_contents;\n\
+		read_line = monad..return . super..read_line;\n\
+	};\n\
 };\n\
 \n\
 ";

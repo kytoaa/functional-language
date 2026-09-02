@@ -1,30 +1,6 @@
 mod io = std..io;
-mod Option = std..Option;
-with Some = Option..Some;
-with None = Option..None;
 
-mod monad = {
-	`>>=` m f = std..Option..bind f m;
-	return = std..Some;
-};
-use std..Option..monad {};
+print = io..println 3;
 
-add a b = a + b;
-greater_than x a = if a > x then Some a else None;
-
-mod Test = type {
-	with A;
-	with B;
-	with C;
-
-	mod inner = {
-        a = 3;
-		test_to_str x = case x of
-			| super..A -> 'a'
-			| super..B -> 'b'
-			| super..C -> 'c';
-	};
-};
-
-main = io..println (5 * use Test..inner { a } in a);
+main = use std..io..monad { `>>`; return } in io..println 3 >> io..println 5;
 
