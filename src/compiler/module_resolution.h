@@ -19,6 +19,7 @@ struct ModuleItem {
     bool is_submodule;
 };
 
+/// stores the module, its name, location, and every item in the module
 struct Module {
     const char *name;
     struct Location loc;
@@ -27,11 +28,6 @@ struct Module {
         u32 len;
         u32 cap;
     } items;
-    struct {
-        struct AstNode **ptr;
-        u32 len;
-        u32 cap;
-    } use_decls;
     u32 name_len;
     u16 _compiled_file_index;
     u16 parent_index;

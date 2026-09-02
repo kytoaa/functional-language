@@ -110,6 +110,7 @@ static struct AstNode *lambda();
 static struct AstNode *if_expr();
 static struct AstNode *let_expr();
 static struct AstNode *case_expr();
+static struct AstNode *use_expr();
 
 static struct AstNode *error_token()
 {
@@ -162,7 +163,7 @@ static struct ParseRule rules[] = {
     [TOKEN_OF]           = { null, null, PREC_NONE },
 
     [TOKEN_MOD]          = { null, null, PREC_NONE },
-    [TOKEN_USE]          = { null, null, PREC_NONE },
+    [TOKEN_USE]          = { use_expr, null, PREC_NONE },
     [TOKEN_TYPE]         = { null, null, PREC_NONE },
 
     [TOKEN_ADD]          = { null, binary, PREC_TERM },
@@ -932,7 +933,7 @@ static struct AstNode *module()
     }
     struct DeclarationNode *current_decl = null;
     struct ModuleDeclNode *current_submodule = null;
-    struct UseDeclNode *current_use_decl = null;
+    struct UseExprNode *current_use_decl = null;
     bool has_body = false;
     bool is_type = false;
 
@@ -997,7 +998,7 @@ static struct AstNode *module()
                         return null;
                     current_submodule = submodule;
                 } else if (parser.current.type == TOKEN_USE) {
-                    struct UseDeclNode *use_decl = (struct UseDeclNode*)use_declaration();
+                    struct UseExprNode *use_decl = (struct UseExprNode*)use_declaration();
                     if (use_decl != null) {
                         use_decl->next_use = current_use_decl;
                     }
@@ -1043,28 +1044,89 @@ static struct AstNode *module()
 
 static void **use_decl_get_next(void *decl)
 {
-    return (void*)&((struct UseDeclNode*)decl)->next_use;
+    return (void*)&((struct UseExprNode*)decl)->next_use;
+}
+
+static struct AstNode *use_expr_body()
+{
+    struct Location loc = prev_loc();
+
+    struct AstNode *use_expr = expr(PREC_NAMESPACE);
+    if (use_expr != null && use_expr->kind != AST_NAMESPACE_ACCESS && use_expr->kind != AST_IDENTIFIER) {
+        error(parser.prev, "not a path");
+        return null;
+    }
+
+    consume(TOKEN_L_BRACE, "expected `{` after namespace");
+
+    struct UseExprItem *current_item = null;
+
+    for (;;) {
+        if (parser.current.type == TOKEN_R_BRACE)
+            break;
+
+        struct AstNode *ident = expr(PREC_EXPR);
+        if (ident == null || ident->kind != AST_IDENTIFIER) {
+            error(parser.prev, "expected identifier");
+            return null;
+        }
+
+        struct UseExprItem *item = ALLOC_NODE(struct UseExprItem);
+        *item = (struct UseExprItem){
+            { AST_USE_EXPR_ITEM, ident->loc },
+            .ident = (struct IdentifierNode*)ident,
+            .next_item = current_item,
+        };
+        current_item = item;
+
+        if (parser.current.type == TOKEN_SEMICOLON) {
+            advance();
+        } else if (parser.current.type != TOKEN_R_BRACE) {
+            error(parser.current, "expected `}` or `;`");
+            return null;
+        }
+    }
+
+    consume(TOKEN_R_BRACE, "unreachable: expected `}` after use list");
+
+    struct UseExprNode *node = ALLOC_NODE(struct UseExprNode);
+    *node = (struct UseExprNode){
+        .node = { AST_USE_EXPR, loc },
+        .path = use_expr,
+        .items = current_item,
+    };
+
+    return AS_NODE(node);
+}
+
+static struct AstNode *use_expr()
+{
+    struct UseExprNode *node = (struct UseExprNode*)use_expr_body();
+    if (node == null) {
+        return null;
+    }
+
+    consume(TOKEN_IN, "expected `in` in use expr");
+
+    struct AstNode *body = expr(PREC_EXPR);
+    if (body == null) {
+        return null;
+    }
+
+    node->expr = body;
+
+    return AS_NODE(node);
 }
 
 static struct AstNode *use_declaration()
 {
     advance();
-    struct Location loc = prev_loc();
-
-    struct AstNode *use_expr = expr(PREC_NAMESPACE);
-    if (use_expr->kind != AST_NAMESPACE_ACCESS && use_expr->kind != AST_IDENTIFIER) {
-        error(parser.prev, "not a path");
+    struct UseExprNode *node = (struct UseExprNode*)use_expr_body();
+    if (node == null) {
         return null;
     }
 
     consume(TOKEN_SEMICOLON, "expected `;` after use declaration");
-
-    struct UseDeclNode *node = ALLOC_NODE(struct UseDeclNode);
-    *node = (struct UseDeclNode){
-        .node = { AST_USE_DECL, loc },
-        .use_expr = use_expr,
-        .next_use = null,
-    };
 
     return AS_NODE(node);
 }
@@ -1078,7 +1140,7 @@ bool build_ast(const char *src, struct AstTopLevel *out, struct ParseError *err)
 
     struct ModuleDeclNode *modules = null;
     struct DeclarationNode *declarations = null;
-    struct UseDeclNode *use_declarations = null;
+    struct UseExprNode *use_declarations = null;
     while (parser.current.type != TOKEN_EOF) {
         if (parser.current.type == TOKEN_MOD) {
             struct ModuleDeclNode *current = (struct ModuleDeclNode*)module();
@@ -1091,7 +1153,7 @@ bool build_ast(const char *src, struct AstTopLevel *out, struct ParseError *err)
             current->next_mod = modules;
             modules = current;
         } else if (parser.current.type == TOKEN_USE) {
-            struct UseDeclNode *current = (struct UseDeclNode*)use_declaration();
+            struct UseExprNode *current = (struct UseExprNode*)use_declaration();
 
             if (parser.has_error) {
                 *err = parser.err;

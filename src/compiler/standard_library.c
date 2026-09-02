@@ -21,7 +21,22 @@ mod = {\n\
             | Some x -> x\n\
             | None   -> a;\n\
 \n\
+        ap a b = case a :: b of\n\
+            | (Some f) :: (Some x) -> Some (f x)\n\
+            | otherwise            -> None;\n\
+\n\
+        mod functor = {\n\
+            fmap = super..map;\n\
+            `<$>` = fmap;\n\
+            `<&>` x f = fmap f x;\n\
+        };\n\
+        mod applicative = {\n\
+            mod functor = super..functor;\n\
+            `<*>` a b = super..ap a b;\n\
+            pure = super..Some;\n\
+        };\n\
         mod monad = {\n\
+            mod applicative = super..applicative;\n\
             `>>=` m f = super..bind f m;\n\
             return = super..Some;\n\
         };\n\
@@ -32,11 +47,11 @@ mod = {\n\
 \n\
     mod list = {\n\
         map f l = case l of\n\
-            | ()       -> ()\n\
+            | ()      -> ()\n\
             | x :: xs -> (f x) :: (map f xs);\n\
 \n\
         append a b = case a of\n\
-            | () -> b\n\
+            | ()      -> b\n\
             | x :: xs -> x :: (append xs b);\n\
 \n\
         filter p l = case l of\n\
@@ -51,6 +66,11 @@ mod = {\n\
         join = foldr append ();\n\
 \n\
         bind f l = join (map f l);\n\
+\n\
+        mod monad = {\n\
+            `>>=` m f = super..bind f m;\n\
+            return x = x :: ();\n\
+        };\n\
     };\n\
 \n\
     type_of x = @std_builtin(type_of);\n\
@@ -147,6 +167,11 @@ mod _io = {\n\
         join a = case a of\n\
             | super..IO..New (super..IO..New a) -> super..IO..New a;\n\
         return = super..IO..New;\n\
+\n\
+        mod monad = {\n\
+            `>>=` m f = super..join (super..map f m);\n\
+            return = super..return;\n\
+        };\n\
     };\n\
 };\n\
 \n\

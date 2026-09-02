@@ -85,8 +85,8 @@ void init_chunk(struct Chunk *chunk)
         },
         .types = {
             .ptr = type_info_ptr,
-            .cap = 9,
-            .len = 9,
+            .cap = BUILTIN_TYPE_COUNT,
+            .len = BUILTIN_TYPE_COUNT,
         },
     };
 }

@@ -592,6 +592,9 @@ void compile_expr(struct Context *ctx, struct AstNode *node)
         case AST_ATTR:
             compile_attribute(ctx, (struct AttributeNode*)node);
             break;
+        case AST_USE_EXPR:
+            compile_expr(ctx, ((struct UseExprNode*)node)->expr);
+            break;
         default:
             panic("unreachable: unknown ast node");
             break;

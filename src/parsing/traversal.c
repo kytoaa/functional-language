@@ -28,10 +28,10 @@ void traverse_node(
                     decl = decl->next_declaration;
                 }
             }
-            struct UseDeclNode *use_decl = node->use_declarations;
-            while (use_decl != null) {
-                traverse_node(AS_NODE(use_decl), arg, pre_callback, post_callback);
-                use_decl = use_decl->next_use;
+            struct UseExprNode *use_expr = node->use_declarations;
+            while (use_expr != null) {
+                traverse_node(AS_NODE(use_expr), arg, pre_callback, post_callback);
+                use_expr = use_expr->next_use;
             }
 
             struct ModuleDeclNode *submodule = node->submodules;
@@ -41,9 +41,17 @@ void traverse_node(
             }
             break;
         }
-        case AST_USE_DECL:{
-            struct UseDeclNode *node = (struct UseDeclNode*)n;
-            traverse_node(AS_NODE(node->use_expr), arg, pre_callback, post_callback);
+        case AST_USE_EXPR:{
+            struct UseExprNode *node = (struct UseExprNode*)n;
+            traverse_node(AS_NODE(node->path), arg, pre_callback, post_callback);
+
+            struct UseExprItem *item = node->items;
+            while (item != null) {
+                traverse_node(AS_NODE(item->ident), arg, pre_callback, post_callback);
+                item = item->next_item;
+            }
+
+            traverse_node(AS_NODE(node->expr), arg, pre_callback, post_callback);
             break;
         }
         case AST_NAMESPACE_ACCESS:{

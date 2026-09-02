@@ -134,7 +134,7 @@ struct ModuleDeclNode {
     struct IdentifierNode *name;
     struct DeclarationNode *declarations;
     struct ModuleDeclNode *submodules;
-    struct UseDeclNode *use_declarations;
+    struct UseExprNode *use_declarations;
     struct ModuleDeclNode *next_mod;
     bool has_body;
     bool is_type;
@@ -146,10 +146,19 @@ struct NamespaceAccessNode {
     struct AstNode *rhs;
 };
 
-struct UseDeclNode {
+struct UseExprNode {
     struct AstNode node;
-    struct AstNode *use_expr;
-    struct UseDeclNode *next_use;
+    struct AstNode *path;
+    struct UseExprItem *items;
+    // if use as an expr, `next_use == null`, otherwise `expr == null`
+    struct AstNode *expr;
+    struct UseExprNode *next_use;
+};
+
+struct UseExprItem {
+    struct AstNode node;
+    struct IdentifierNode *ident;
+    struct UseExprItem *next_item;
 };
 
 struct AttributeNode {

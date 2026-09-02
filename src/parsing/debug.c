@@ -250,7 +250,8 @@ static void print_node(struct AstNode *node)
             printf("error, encountered %s", ast_node_name(node));
             break;
         case AST_MODULE_DECL:
-        case AST_USE_DECL:
+        case AST_USE_EXPR:
+        case AST_USE_EXPR_ITEM:
             break;
     }
 }
@@ -268,5 +269,9 @@ void print_ast(struct AstTopLevel *top_level)
         }
         printf("\n");
     }
+}
+
+void print_ast_node(struct AstNode *node) {
+    print_node(node);
 }
 

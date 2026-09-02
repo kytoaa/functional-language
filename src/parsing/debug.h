@@ -4,5 +4,6 @@
 #include "ast.h"
 
 void print_ast(struct AstTopLevel *top_level);
+void print_ast_node(struct AstNode *node);
 
 #endif

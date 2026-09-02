@@ -157,32 +157,6 @@ static enum GlobalResolutionError find_global_in(
     return GLOBAL_RES_ERROR_DOESNT_EXIST;
 }
 
-static enum GlobalResolutionError check_use_decls(
-    struct GlobalCtx *ctx,
-    u16 origin_module,
-    const char *ident,
-    struct GlobalInfo *out_info
-) {
-    struct Module *mod = get_module(ctx->modules, origin_module);
-
-    for (u32 i = 0; i < mod->use_decls.len; i++) {
-        struct AstNode *use_expr = mod->use_decls.ptr[i];
-        struct GlobalSearch search = {
-            .origin_module = origin_module,
-            .searching_for = (struct NamespaceAccessNode*)use_expr,
-        };
-        struct GlobalResolutionResult res = resolve_path(ctx, search, true, 0);
-
-        if (res.error_finding == null) {
-            enum GlobalResolutionError err = resolve_global_inner(ctx, res.error, ident, out_info, false);
-            if (err == GLOBAL_RES_OK) {
-                return GLOBAL_RES_OK;
-            }
-        }
-    }
-    return GLOBAL_RES_ERROR_DOESNT_EXIST;
-}
-
 static enum GlobalResolutionError resolve_global_inner(
     struct GlobalCtx *ctx,
     u16 mod,
@@ -190,24 +164,12 @@ static enum GlobalResolutionError resolve_global_inner(
     struct GlobalInfo *out_info,
     bool search_private
 ) {
-    enum GlobalResolutionError result = find_global_in(
+    return find_global_in(
         &ctx->globals_per_module[mod],
         ident,
         search_private,
         out_info
     );
-
-    if (result != GLOBAL_RES_ERROR_DOESNT_EXIST) {
-        return result;
-    }
-
-    enum GlobalResolutionError use_decls = check_use_decls(ctx, mod, ident, out_info);
-
-    if (use_decls == GLOBAL_RES_OK) {
-        return GLOBAL_RES_OK;
-    } else {
-        return result;
-    }
 }
 
 enum GlobalResolutionError resolve_global(
@@ -494,29 +456,6 @@ struct GlobalResolutionResult find_global_decl(
                 .error = GLOBAL_RES_OK,
                 .error_finding = null,
             };
-        }
-    }
-
-    struct Module *module = get_module(globals->modules, module_index);
-    for (u32 i = 0; i < module->use_decls.len; i++) {
-        struct AstNode *use_expr = module->use_decls.ptr[i];
-
-        struct GlobalSearch search = {
-            .origin_module = module_index,
-            .searching_for = (struct NamespaceAccessNode*)use_expr,
-        };
-        struct GlobalResolutionResult res = resolve_path(globals, search, true, 0);
-
-        if (res.error_finding == null) {
-            struct GlobalSearch search = {
-                .origin_module = res.error,
-                .searching_for = (struct NamespaceAccessNode*)ident,
-            };
-            struct GlobalResolutionResult r = find_global_decl(globals, search, out, out_mod);
-
-            if (r.error_finding == null && r.error == GLOBAL_RES_OK) {
-                return r;
-            }
         }
     }
 
