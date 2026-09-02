@@ -159,6 +159,10 @@ struct UseExprItem {
     struct AstNode node;
     struct IdentifierNode *ident;
     struct UseExprItem *next_item;
+    struct {
+        bool is_constructor : 1;
+        bool is_mod : 1;
+    };
 };
 
 struct AttributeNode {

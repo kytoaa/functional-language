@@ -1,6 +1,5 @@
 mod io = std..io;
+use std { mod Option; with Some };
 
-print = io..println 3;
-
-main = use std..io..monad { `>>`; return } in io..println 3 >> io..println 5;
+main = io..println (case Some 1 of | Some x -> x | Option..None -> 0);
 

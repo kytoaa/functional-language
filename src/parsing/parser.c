@@ -162,6 +162,7 @@ static struct ParseRule rules[] = {
     [TOKEN_CASE]         = { case_expr, null, PREC_NONE },
     [TOKEN_OF]           = { null, null, PREC_NONE },
 
+    [TOKEN_WITH]         = { null, null, PREC_NONE },
     [TOKEN_MOD]          = { null, null, PREC_NONE },
     [TOKEN_USE]          = { use_expr, null, PREC_NONE },
     [TOKEN_TYPE]         = { null, null, PREC_NONE },
@@ -1047,7 +1048,7 @@ static void **use_decl_get_next(void *decl)
     return (void*)&((struct UseExprNode*)decl)->next_use;
 }
 
-static struct AstNode *use_expr_body()
+static struct AstNode *use_expr_body(bool allow_non_functions)
 {
     struct Location loc = prev_loc();
 
@@ -1065,8 +1066,31 @@ static struct AstNode *use_expr_body()
         if (parser.current.type == TOKEN_R_BRACE)
             break;
 
-        struct AstNode *ident = expr(PREC_EXPR);
-        if (ident == null || ident->kind != AST_IDENTIFIER) {
+        struct AstNode *ident = null;
+        bool is_constructor = false;
+        bool is_mod = false;
+
+        switch (parser.current.type) {
+            case TOKEN_IDENT:
+            case TOKEN_BACKTICK:
+                ident = expr(PREC_EXPR);
+                break;
+            case TOKEN_WITH:
+            case TOKEN_MOD:
+                if (allow_non_functions) {
+                    is_constructor = parser.current.type == TOKEN_WITH;
+                    is_mod = !is_constructor;
+                    advance();
+                    ident = expr(PREC_EXPR);
+                    break;
+                }
+            default:
+                error(parser.prev, "expected identifier");
+                return null;
+        }
+        if (ident == null)
+            return null;
+        if (ident->kind != AST_IDENTIFIER) {
             error(parser.prev, "expected identifier");
             return null;
         }
@@ -1076,6 +1100,8 @@ static struct AstNode *use_expr_body()
             { AST_USE_EXPR_ITEM, ident->loc },
             .ident = (struct IdentifierNode*)ident,
             .next_item = current_item,
+            .is_mod = is_mod,
+            .is_constructor = is_constructor,
         };
         current_item = item;
 
@@ -1101,7 +1127,7 @@ static struct AstNode *use_expr_body()
 
 static struct AstNode *use_expr()
 {
-    struct UseExprNode *node = (struct UseExprNode*)use_expr_body();
+    struct UseExprNode *node = (struct UseExprNode*)use_expr_body(false);
     if (node == null) {
         return null;
     }
@@ -1121,7 +1147,7 @@ static struct AstNode *use_expr()
 static struct AstNode *use_declaration()
 {
     advance();
-    struct UseExprNode *node = (struct UseExprNode*)use_expr_body();
+    struct UseExprNode *node = (struct UseExprNode*)use_expr_body(true);
     if (node == null) {
         return null;
     }

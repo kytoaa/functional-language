@@ -5,11 +5,15 @@
 
 static void reduce_node(struct AstNode *node, void *arg);
 static void post_reduce_node(struct AstNode *node, void *arg);
-static void reduce_use_decls(struct UseExprNode *use_decl, struct DeclarationNode **decls);
+static void reduce_use_decls(struct UseExprNode *use_decl, struct DeclarationNode **decls, struct ModuleDeclNode **mods);
 
 void reduce_ast(struct AstTopLevel *ast)
 {
-    reduce_use_decls((struct UseExprNode*)ast->use_declarations, (struct DeclarationNode**)&ast->declarations);
+    reduce_use_decls(
+        (struct UseExprNode*)ast->use_declarations,
+        (struct DeclarationNode**)&ast->declarations,
+        (struct ModuleDeclNode**)&ast->modules
+    );
 
     struct UseExprNode *use = (struct UseExprNode*)ast->use_declarations;
     while (use != null) {
@@ -75,8 +79,11 @@ static struct NamespaceClone clone_namespace(struct NamespaceAccessNode *namespa
     }
 }
 
-static void reduce_use_decls(struct UseExprNode *use_decl, struct DeclarationNode **decls)
-{
+static void reduce_use_decls(
+    struct UseExprNode *use_decl,
+    struct DeclarationNode **decls,
+    struct ModuleDeclNode **mods
+) {
     while (use_decl != null) {
         struct UseExprItem *item = use_decl->items;
 
@@ -101,17 +108,38 @@ static void reduce_use_decls(struct UseExprNode *use_decl, struct DeclarationNod
                 root->ident = (struct IdentifierNode*)use_decl->path;
             }
 
-            struct DeclarationNode *decl = ALLOC_NODE(struct DeclarationNode);
-            *decl = (struct DeclarationNode){
-                { AST_DECLARATION, use_decl->node.loc },
-                .name = item->ident->src_loc,
-                .name_len = item->ident->len,
-                .is_global = true,
-                .bindings = null,
-                .body = AS_NODE(root),
-                .next_declaration = *decls,
-            };
-            *decls = decl;
+            if (!item->is_mod) {
+                struct AstNode *body = AS_NODE(root);
+                if (item->is_constructor) {
+                    struct ConstructorNode *cons = ALLOC_NODE(struct ConstructorNode);
+                    *cons = (struct ConstructorNode){
+                        { AST_CONSTRUCTOR, body->loc },
+                        .body = body,
+                    };
+                    body = AS_NODE(cons);
+                }
+
+                struct DeclarationNode *decl = ALLOC_NODE(struct DeclarationNode);
+                *decl = (struct DeclarationNode){
+                    { AST_DECLARATION, use_decl->node.loc },
+                    .name = item->ident->src_loc,
+                    .name_len = item->ident->len,
+                    .is_global = true,
+                    .bindings = null,
+                    .body = body,
+                    .next_declaration = *decls,
+                };
+                *decls = decl;
+            } else {
+                struct ModuleDeclNode *mod = ALLOC_NODE(struct ModuleDeclNode);
+                *mod = (struct ModuleDeclNode){
+                    { AST_MODULE_DECL, root->node.loc },
+                    .name = item->ident,
+                    .declarations = (struct DeclarationNode*)root,
+                    .next_mod = *mods,
+                };
+                *mods = mod;
+            }
 
             item = item->next_item;
         }
@@ -131,7 +159,7 @@ static void reduce_use_expr(struct UseExprNode *use_expr)
         .body = use_expr->expr,
     };
 
-    reduce_use_decls(use_expr, (struct DeclarationNode**)&let_expr->first_decl);
+    reduce_use_decls(use_expr, (struct DeclarationNode**)&let_expr->first_decl, null);
     use_expr->expr = AS_NODE(let_expr);
 }
 
@@ -140,7 +168,7 @@ static void reduce_module(struct ModuleDeclNode *mod)
     if (!mod->has_body)
         return;
 
-    reduce_use_decls(mod->use_declarations, &mod->declarations);
+    reduce_use_decls(mod->use_declarations, &mod->declarations, &mod->submodules);
 }
 
 static void reduce_node(struct AstNode *node, void *arg)
