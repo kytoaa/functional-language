@@ -363,7 +363,7 @@ struct CodegenErrorList generate_code(struct Compiler *compiler, struct ModuleCt
     for (u16 mod = 0; mod < globals.len; mod++) {
         struct ModuleGlobals *module = get_module_globals(&globals, mod);
         ctx.module_index = mod;
-        
+
         for (u16 i = 0; i < module->len; i++) {
             struct Global *global = &module->globals[i];
 

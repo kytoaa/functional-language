@@ -1,5 +1,7 @@
 mod io = std..io;
 use std { mod Option; with Some };
 
-main = io..println (case Some 1 of | Some x -> x | Option..None -> 0);
+main = io..println : case Some 1 of
+	| Some x -> x
+	| Option..None -> 0;
 

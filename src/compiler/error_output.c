@@ -228,12 +228,12 @@ void print_codegen_error(struct Compiler *compiler, struct CodegenError error)
                 ERROR_STR " %s\n "ARROW_STR" %.*s:%d\n",
                 error.error.with_message.msg,
                 config->file_name_len, config->file_name,
-                error.error.main_args.loc.line
+                error.error.with_message.loc.line
             );
             print_ident(
                 config->error,
                 src,
-                error.error.main_args.loc
+                error.error.with_message.loc
             );
             break;
         }

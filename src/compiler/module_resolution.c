@@ -56,6 +56,24 @@ static u16 create_module(struct ModuleCtxWork *ctx, const char *name, u32 name_l
     };
     return index;
 }
+static bool check_module_exists(const struct ModuleDeclNode *submodule, const struct Module *mod, struct ModuleResult *out)
+{
+    for (u32 i = 0; i < mod->items.len; i++) {
+        struct ModuleItem *item = &mod->items.ptr[i];
+        if (!item->is_submodule)
+            continue;
+        if (item->name == submodule->name->src_loc) {
+            *out = (struct ModuleResult){
+                .successful = false,
+                .msg = "redeclared module",
+                .location = submodule->name->node.loc,
+                .file_index = compiled_file_index(mod),
+            };
+            return true;
+        }
+    }
+    return false;
+}
 
 struct Module *get_module(struct ModuleCtx *ctx, u16 index)
 {
@@ -148,6 +166,12 @@ static struct ModuleResult declare_module_items(struct ModuleCtxWork *ctx, struc
                 .location = submodule->node.loc,
             };
         } else {
+            {
+                struct ModuleResult result = {};
+                if (check_module_exists(submodule, mod, &result)) {
+                    return result;
+                }
+            }
             if (submodule->has_body) {
                 declare_item(mod, (struct ModuleItem){
                     .name = submodule->name->src_loc,
@@ -231,6 +255,12 @@ static struct ModuleResult resolve_top_level(
         if (!submodule->has_body && submodule->declarations != null)
             path = AS_NODE(submodule->declarations);
 
+        {
+            struct ModuleResult result = {};
+            if (check_module_exists(submodule, mod, &result)) {
+                return result;
+            }
+        }
         declare_item(mod, (struct ModuleItem){
             .name = submodule->name->src_loc,
             .name_len = submodule->name->len,
@@ -262,7 +292,12 @@ struct ModuleResult resolve_ast(struct Compiler *compiler, const struct Compiled
         },
         .worklist = {},
     };
-    resolve_top_level(&ctx, &file->ast, 0, "main", 4, (u16)-1);
+    struct ModuleResult result = resolve_top_level(&ctx, &file->ast, 0, "main", 4, (u16)-1);
+    if (!result.successful) {
+        free_mem(ctx.worklist.ptr);
+        free_module_ctx(&ctx.ctx);
+        return result;
+    }
 
     ctx.ctx.libraries.ptr = alloc_mem((compiler->config.library_count + 1) * sizeof(struct Library));
     ctx.ctx.libraries.count = compiler->config.library_count + 1;
@@ -299,7 +334,14 @@ struct ModuleResult resolve_ast(struct Compiler *compiler, const struct Compiled
 
         const char *lib_name = ident_table_get(&compiler->identifiers, library->name, library->name_len);
 
-        struct ModuleResult result = resolve_top_level(&ctx, &compiled->ast, file_index, library->name, library->name_len, (u16)-1);
+        struct ModuleResult result = resolve_top_level(
+            &ctx,
+            &compiled->ast,
+            file_index,
+            library->name,
+            library->name_len,
+            (u16)-1
+        );
         if (!result.successful) {
             free_mem(ctx.worklist.ptr);
             free_module_ctx(&ctx.ctx);
@@ -314,7 +356,12 @@ struct ModuleResult resolve_ast(struct Compiler *compiler, const struct Compiled
     while (pop_resolution_queue(&ctx, &work)) {
         switch (work.work_kind) {
             case MODULE_WORK_AST_NODE:{
-                resolve_node(&ctx, work.ast_node.node, work.parent_module);
+                struct ModuleResult result = resolve_node(&ctx, work.ast_node.node, work.parent_module);
+                if (!result.successful) {
+                    free_mem(ctx.worklist.ptr);
+                    free_module_ctx(&ctx.ctx);
+                    return result;
+                }
                 break;
             }
             case MODULE_WORK_FILE:{
@@ -331,7 +378,19 @@ struct ModuleResult resolve_ast(struct Compiler *compiler, const struct Compiled
                 }
                 struct CompiledFile *compiled = get_compiled_file(compiler, file_index);
 
-                resolve_top_level(&ctx, &compiled->ast, file_index, work.file.name, work.file.name_len, work.parent_module);
+                struct ModuleResult result = resolve_top_level(
+                    &ctx,
+                    &compiled->ast,
+                    file_index,
+                    work.file.name,
+                    work.file.name_len,
+                    work.parent_module
+                );
+                if (!result.successful) {
+                    free_mem(ctx.worklist.ptr);
+                    free_module_ctx(&ctx.ctx);
+                    return result;
+                }
                 break;
             }
         }
