@@ -150,7 +150,7 @@ mod _io = {\n\
 		runState s = case s of\n\
 			| IO runState -> runState;\n\
 \n\
-		return s = IO (fun x -> x :: s);\n\
+		return x = IO (fun s -> x :: s);\n\
 \n\
 		map f = bind (return . f);\n\
 		bind f x = let\n\
