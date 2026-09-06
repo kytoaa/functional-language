@@ -2,6 +2,7 @@
 #define func_lang_compiler_h
 
 #include "../prelude.h"
+#include "../bytecode.h"
 #include <stdio.h>
 
 struct LibraryPath {
@@ -26,6 +27,8 @@ struct FileData {
     u32 file_name_len;
 };
 
-void compile_file(const struct CompilerConfig config);
+bool compile_file(const struct CompilerConfig config, struct Chunk *out);
+bool load_bytecode_file(const struct CompilerConfig config, struct Chunk *out);
+bool save_bytecode_file(const struct CompilerConfig config, const struct Chunk *chunk);
 
 #endif

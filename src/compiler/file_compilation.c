@@ -2,6 +2,7 @@
 #include "error_output.h"
 #include "../parsing/traversal.h"
 #include "reduction.h"
+#include "../compiler_info.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -59,6 +60,7 @@ u32 compile_file_module(
     if (bytes_read < file_size) {
         free_mem(path);
         free_mem(buffer);
+        fclose(file);
         return -1;
     }
     buffer[bytes_read] = '\0';

@@ -532,6 +532,11 @@ next_instruction:
             break;
         }
 
+        case OP_PATTERN_MATCH_FAIL:{
+            runtime_error("pattern match failure");
+            break;
+        }
+
         case OP_END:
             return INTERPRET_OK;
 

@@ -156,6 +156,8 @@ enum Bytecode {
     /// op u8
     OP_CALL_EXTERN,
 
+    OP_PATTERN_MATCH_FAIL,
+
     OP_END,
 };
 
@@ -208,6 +210,8 @@ struct TypeInfoList {
     u32 cap;
 };
 
+#define BUILTIN_TYPE_COUNT 9
+
 struct Chunk {
     struct {
         u8 *ptr;
@@ -222,6 +226,8 @@ struct Chunk {
 void init_chunk(struct Chunk *chunk);
 void chunk_write_byte(struct Chunk *chunk, u8 byte);
 void chunk_add_constant(struct Chunk *chunk, struct Value value);
+
+void chunk_write_builtin_types(struct TypeInfo *type_infos);
 
 void free_chunk(struct Chunk *chunk);
 

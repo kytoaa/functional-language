@@ -44,6 +44,4 @@ struct CompiledFile *get_compiled_file(struct Compiler *compiler, u32 file);
 
 void free_compiler(struct Compiler *compiler);
 
-#define FILE_EXTENSION ".fl"
-
 #endif

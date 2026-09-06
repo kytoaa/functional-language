@@ -1,8 +1,6 @@
 #include "bytecode.h"
 #include "object.h"
 
-#define BUILTIN_TYPE_COUNT 9
-
 void init_chunk(struct Chunk *chunk)
 {
     const u32 initial_size = sizeof(struct Box) * 3;
@@ -40,42 +38,7 @@ void init_chunk(struct Chunk *chunk)
     const u32 type_info_size = sizeof(struct TypeInfo) * BUILTIN_TYPE_COUNT;
     struct TypeInfo *type_info_ptr = alloc_mem(type_info_size);
 
-    type_info_ptr[0] = (struct TypeInfo){
-        .name = "()",
-        .name_len = 2,
-    };
-    type_info_ptr[1] = (struct TypeInfo){
-        .name = "int",
-        .name_len = 3,
-    };
-    type_info_ptr[2] = (struct TypeInfo){
-        .name = "bool",
-        .name_len = 4,
-    };
-    type_info_ptr[3] = (struct TypeInfo){
-        .name = "char",
-        .name_len = 4,
-    };
-    type_info_ptr[4] = (struct TypeInfo){
-        .name = "Cons",
-        .name_len = 4,
-    };
-    type_info_ptr[5] = (struct TypeInfo){
-        .name = "function",
-        .name_len = 8,
-    };
-    type_info_ptr[6] = (struct TypeInfo){
-        .name = "File",
-        .name_len = 4,
-    };
-    type_info_ptr[7] = (struct TypeInfo){
-        .name = "Slice",
-        .name_len = 5,
-    };
-    type_info_ptr[8] = (struct TypeInfo){
-        .name = "type",
-        .name_len = 4,
-    };
+    chunk_write_builtin_types(type_info_ptr);
 
     *chunk = (struct Chunk){
         .constants = {
@@ -88,6 +51,46 @@ void init_chunk(struct Chunk *chunk)
             .cap = BUILTIN_TYPE_COUNT,
             .len = BUILTIN_TYPE_COUNT,
         },
+    };
+}
+
+void chunk_write_builtin_types(struct TypeInfo *type_infos)
+{
+    type_infos[0] = (struct TypeInfo){
+        .name = "()",
+        .name_len = 2,
+    };
+    type_infos[1] = (struct TypeInfo){
+        .name = "int",
+        .name_len = 3,
+    };
+    type_infos[2] = (struct TypeInfo){
+        .name = "bool",
+        .name_len = 4,
+    };
+    type_infos[3] = (struct TypeInfo){
+        .name = "char",
+        .name_len = 4,
+    };
+    type_infos[4] = (struct TypeInfo){
+        .name = "Cons",
+        .name_len = 4,
+    };
+    type_infos[5] = (struct TypeInfo){
+        .name = "function",
+        .name_len = 8,
+    };
+    type_infos[6] = (struct TypeInfo){
+        .name = "File",
+        .name_len = 4,
+    };
+    type_infos[7] = (struct TypeInfo){
+        .name = "Slice",
+        .name_len = 5,
+    };
+    type_infos[8] = (struct TypeInfo){
+        .name = "type",
+        .name_len = 4,
     };
 }
 
@@ -175,6 +178,7 @@ static const char *OP_NAMES[] = {
     [OP_HEAD] = "OP_HEAD",
     [OP_TAIL] = "OP_TAIL",
     [OP_CALL_EXTERN] = "OP_CALL_EXTERN",
+    [OP_PATTERN_MATCH_FAIL] = "OP_PATTERN_MATCH_FAIL",
     [OP_END] = "OP_END",
 };
 

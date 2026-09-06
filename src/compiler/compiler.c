@@ -6,6 +6,8 @@
 #include "error_output.h"
 #include "file_compilation.h"
 #include "module_resolution.h"
+#include "../compiler_info.h"
+#include "../bytecode/binary.h"
 
 static void run_chunk(const struct CompilerConfig *config, struct Chunk chunk)
 {
@@ -18,7 +20,7 @@ static void run_chunk(const struct CompilerConfig *config, struct Chunk chunk)
     run_vm(&chunk, (struct VmConfig){ .out = config->output, .error = config->error });
 }
 
-void compile_file(const struct CompilerConfig config)
+bool compile_file(const struct CompilerConfig config, struct Chunk *out)
 {
     struct Compiler compiler = { .config = config };
     init_ident_table(&compiler.identifiers);
@@ -42,7 +44,7 @@ void compile_file(const struct CompilerConfig config)
     if (result == (u32)-1) {
         free_compiler(&compiler);
         free_chunk(&compiler.chunk);
-        return;
+        return false;
     }
 
     struct ModuleCtx modules = {};
@@ -57,7 +59,7 @@ void compile_file(const struct CompilerConfig config)
         free_module_ctx(&modules);
         free_compiler(&compiler);
         free_chunk(&compiler.chunk);
-        return;
+        return false;
     }
 
     struct CodegenErrorList errors = generate_code(&compiler, &modules);
@@ -74,11 +76,59 @@ void compile_file(const struct CompilerConfig config)
 
     free_ast();
 
-    if (errors.len == 0) {
-        run_chunk(&config, compiler.chunk);
-    }
-    free_chunk(&compiler.chunk);
+    *out = compiler.chunk;
+    return errors.len == 0;
+}
 
-    return;
+bool load_bytecode_file(const struct CompilerConfig config, struct Chunk *out)
+{
+    FILE *file = fopen(config.file_name, "rb");
+
+    if (file == null) {
+        fprintf(config.error, "could not open file '%s'\n", config.file_name);
+        return false;
+    }
+
+    fseek(file, 0, SEEK_END);
+    usize file_size = ftell(file);
+    rewind(file);
+
+    char *bytecode = alloc_mem(file_size);
+    usize bytes_read = fread(bytecode, sizeof(char), file_size, file);
+    if (bytes_read < file_size) {
+        free_mem(bytecode);
+        fclose(file);
+        return false;
+    }
+    fclose(file);
+
+    enum WriteChunkResult result = chunk_from((u8*)bytecode, file_size, out);
+
+    if (result == WRITE_CHUNK_ERR) {
+        fprintf(config.error, "error reading bytecode\n");
+    }
+    free_mem(bytecode);
+
+    return result == WRITE_CHUNK_OK;
+}
+
+bool save_bytecode_file(const struct CompilerConfig config, const struct Chunk *chunk)
+{
+    FILE *file = fopen(config.file_name, "wb");
+
+    if (file == null) {
+        fprintf(config.error, "could not open file '%s'\n", config.file_name);
+        return false;
+    }
+
+    enum WriteChunkResult result = write_chunk_to(file, chunk);
+
+    if (result == WRITE_CHUNK_ERR) {
+        fprintf(config.error, "error writing bytecode to file\n");
+    }
+
+    fclose(file);
+
+    return result == WRITE_CHUNK_OK;
 }
 
