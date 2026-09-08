@@ -1,5 +1,6 @@
 #include "codegen.h"
 #include "../../prelude.h"
+#include "../../lexer.h"
 #include "../../bytecode.h"
 #include "../../object.h"
 #include <string.h>
@@ -193,6 +194,33 @@ u64 *get_constant(struct Context *ctx, u32 index)
 
     return &constants->ptr[index];
 }
+
+u32 create_string(struct Chunk *chunk, const char *str, u32 len, u32 *out_len)
+{
+    if (chunk == null)
+        return -1;
+
+    char *buffer = len == 0 ? null : alloc_mem(len * sizeof(char));
+    u32 l = 0;
+    u32 pos = 0;
+    while (pos < len) {
+        char c = str[pos++];
+        if (c == '\\') {
+            c = escaped_char(str[pos++]);
+        }
+        buffer[l++] = c;
+    }
+
+    u32 str_index = chunk->strings.len;
+    char *chunk_str = chunk_add_string(chunk, l);
+    memcpy(chunk_str, buffer, l);
+
+    free_mem(buffer);
+
+    *out_len = l;
+    return str_index;
+}
+
 u16 create_closure_info(struct Context *ctx, struct ClosureInfo info)
 {
     if (ctx->compiling_chunk == null)

@@ -66,7 +66,7 @@ void compile_literal(struct Context *ctx, struct LiteralNode *node)
 {
     u32 constant = 0;
     // unit is at index 0 as all units are identical
-    if (node->type != LITERAL_TYPE_UNIT && node->type != LITERAL_TYPE_BOOLEAN) {
+    if (node->type == LITERAL_TYPE_NUMBER || node->type == LITERAL_TYPE_CHARACTER) {
         constant = create_constant(ctx->compiling_chunk, OBJ_BOX, sizeof(struct Box));
         if (constant == (u32)-1)
             return;
@@ -84,10 +84,6 @@ void compile_literal(struct Context *ctx, struct LiteralNode *node)
                 value->as.character = node->as.character;
                 break;
             }
-            case LITERAL_TYPE_UNIT:{
-                value->type = VALUE_UNIT;
-                break;
-            }
             default:
                 panic("unreachable: invalid literal type");
                 return;
@@ -95,6 +91,24 @@ void compile_literal(struct Context *ctx, struct LiteralNode *node)
     } else if (node->type == LITERAL_TYPE_BOOLEAN) {
         // true and false are boxes 1 and 2 respectively
         constant = (node->as.boolean ? 1 : 2) * OBJ_U64_SIZE(struct Box);
+    } else if (node->type == LITERAL_TYPE_STRING) {
+        constant = create_constant(ctx->compiling_chunk, OBJ_ARRAY, sizeof(struct ArrayObj));
+        if (constant == (u32)-1)
+            return;
+
+        struct ArrayObj *array = (struct ArrayObj*)get_constant(ctx, constant);
+        obj_init_array(array, 0, VALUE_CHAR, null);
+
+        u32 len = 0;
+        u32 string_index = create_string(
+            ctx->compiling_chunk,
+            node->as.string.ptr,
+            node->as.string.len,
+            &len
+        );
+
+        array->len = len;
+        array->ptr = (u8*)(usize)string_index;
     }
     emit_byte(ctx, OP_PUSH_CONST);
     emit_u32(ctx, constant);

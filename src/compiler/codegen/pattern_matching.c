@@ -80,6 +80,8 @@ static u8 type_check_op(enum LiteralType lit)
             return OP_IS_UNIT;
         case LITERAL_TYPE_CHARACTER:
             return OP_IS_CHAR;
+        default:
+            break;
     }
     panic("unreachable");
     return -1;

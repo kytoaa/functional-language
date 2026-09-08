@@ -102,6 +102,7 @@ static struct AstNode *underscore();
 static struct AstNode *number();
 static struct AstNode *boolean();
 static struct AstNode *character();
+static struct AstNode *string();
 static struct AstNode *unit();
 static struct AstNode *custom_op();
 
@@ -189,6 +190,7 @@ static struct ParseRule rules[] = {
     [TOKEN_UNIT]         = { unit, application, PREC_APPLICATION, true },
     [TOKEN_NUM]          = { number, application, PREC_APPLICATION, true },
     [TOKEN_CHAR]         = { character, application, PREC_APPLICATION, true },
+    [TOKEN_STRING]       = { string, application, PREC_APPLICATION, true },
     [TOKEN_TRUE]         = { boolean, application, PREC_APPLICATION, true },
     [TOKEN_FALSE]        = { boolean, application, PREC_APPLICATION, true },
 
@@ -520,23 +522,26 @@ static struct AstNode *character()
     struct LiteralNode *node = ALLOC_NODE(struct LiteralNode);
     u32 character = parser.prev.start[1];
     if (character == '\\') {
-        #define char_case(a, b) case a: character = b; break;
-        switch (parser.prev.start[2]) {
-            char_case('n', '\n')
-            char_case('t', '\t')
-            char_case('r', '\r')
-            char_case('v', '\v')
-            char_case('0', '\0')
-            char_case('\'', '\'')
-            char_case('\\', '\\')
-        }
-        #undef char_case
+        character = escaped_char(parser.prev.start[2]);
     }
 
     *node = (struct LiteralNode){
         .node = { AST_LITERAL, prev_loc() },
         .type = LITERAL_TYPE_CHARACTER,
         .as.character = character,
+    };
+
+    return AS_NODE(node);
+}
+
+static struct AstNode *string()
+{
+    struct LiteralNode *node = ALLOC_NODE(struct LiteralNode);
+
+    *node = (struct LiteralNode){
+        .node = { AST_LITERAL, prev_loc() },
+        .type = LITERAL_TYPE_STRING,
+        .as.string = { &parser.prev.start[1], parser.prev.len - 2 },
     };
 
     return AS_NODE(node);

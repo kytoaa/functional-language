@@ -180,6 +180,22 @@ static struct Token char_token()
     return make_token(TOKEN_CHAR);
 }
 
+static struct Token string_token()
+{
+    while (peek() != '"' && !at_end()) {
+        if (peek() == '\n')
+            lexer.line++;
+        if (peek() == '\\')
+            consume();
+        consume();
+    }
+    if (at_end())
+        return make_error("unterminated string");
+
+    consume();
+    return make_token(TOKEN_STRING);
+}
+
 void init_lexer(const char *src)
 {
     lexer = (struct Lexer){
@@ -273,6 +289,8 @@ struct Token next_token()
 
         case '\'':
             return char_token();
+        case '"':
+            return string_token();
     }
 
     return make_token(TOKEN_ERROR);

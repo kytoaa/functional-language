@@ -209,6 +209,11 @@ struct TypeInfoList {
     u32 len;
     u32 cap;
 };
+struct StringList {
+    char *ptr;
+    u32 len;
+    u32 cap;
+};
 
 #define BUILTIN_TYPE_COUNT 9
 
@@ -221,11 +226,13 @@ struct Chunk {
     struct ConstantList constants;
     struct ClosureInfoList closures;
     struct TypeInfoList types;
+    struct StringList strings;
 };
 
 void init_chunk(struct Chunk *chunk);
 void chunk_write_byte(struct Chunk *chunk, u8 byte);
 void chunk_add_constant(struct Chunk *chunk, struct Value value);
+char *chunk_add_string(struct Chunk *chunk, u32 len);
 
 void chunk_write_builtin_types(struct TypeInfo *type_infos);
 

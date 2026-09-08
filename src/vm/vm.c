@@ -554,35 +554,44 @@ next_instruction:
     return INTERPRET_OK;
 }
 
-static u32 remap_constants(u64 *constants, u32 cap, struct ClosureInfo *closures)
+static u32 remap_constants(u64 *constants, u32 cap, struct ClosureInfo *closures, char *static_strings)
 {
     u32 thunk_count = 0;
 
     u64 *current_ptr = constants;
     while (current_ptr < constants + cap) {
         struct Obj *obj = (struct Obj*)current_ptr;
-        if (obj->type == OBJ_CLOSURE) {
-            struct Closure *closure = (struct Closure*)obj;
-            closure->info = &closures[(u64)closure->info];
-        } else if (obj->type == OBJ_THUNK) {
-            struct Thunk *thunk = (struct Thunk*)obj;
-            thunk->info = &closures[(u64)thunk->info];
-            thunk->evaluated = null;
-        }
+
         switch (obj->type) {
-            case OBJ_BOX:
+            case OBJ_BOX:{
                 current_ptr += OBJ_U64_SIZE(struct Box);
                 break;
-            case OBJ_CLOSURE:
+            }
+            case OBJ_CLOSURE:{
+                struct Closure *closure = (struct Closure*)obj;
+                closure->info = &closures[(u64)closure->info];
                 current_ptr += OBJ_U64_SIZE(struct Closure);
                 break;
-            case OBJ_RUNTIME_TYPE:
+            }
+            case OBJ_RUNTIME_TYPE:{
                 current_ptr += OBJ_U64_SIZE(struct RuntimeType);
                 break;
-            case OBJ_THUNK:
+            }
+            case OBJ_THUNK:{
+                struct Thunk *thunk = (struct Thunk*)obj;
+                thunk->info = &closures[(u64)thunk->info];
+                thunk->evaluated = null;
                 current_ptr += OBJ_U64_SIZE(struct Thunk);
                 thunk_count += 1;
                 break;
+            }
+            case OBJ_ARRAY:{
+                struct ArrayObj *array = (struct ArrayObj*)obj;
+                char *string = &static_strings[(u32)(usize)array->ptr];
+                array->ptr = (u8*)string;
+                current_ptr += OBJ_U64_SIZE(struct ArrayObj);
+                break;
+            }
             default:
                 panic("shouldnt be a constant");
         }
@@ -604,6 +613,9 @@ static void populate_static_thunks(struct Thunk **mem, u64 *constants, u32 total
                 break;
             case OBJ_RUNTIME_TYPE:
                 current_ptr += OBJ_U64_SIZE(struct RuntimeType);
+                break;
+            case OBJ_ARRAY:
+                current_ptr += OBJ_U64_SIZE(struct ArrayObj);
                 break;
             case OBJ_THUNK:
                 mem[thunk_count] = (struct Thunk*)current_ptr;
@@ -652,7 +664,7 @@ void run_vm(struct Chunk *chunk, struct VmConfig config)
         .had_error = false,
     };
 
-    u32 thunk_count = remap_constants(vm.code.constants, chunk->constants.len, vm.code.functions);
+    u32 thunk_count = remap_constants(vm.code.constants, chunk->constants.len, vm.code.functions, chunk->strings.ptr);
     struct Thunk **static_thunks = alloc_mem(thunk_count * sizeof(struct Thunk*));
     populate_static_thunks(static_thunks, vm.code.constants, thunk_count);
     vm.static_thunks.ptr = static_thunks;

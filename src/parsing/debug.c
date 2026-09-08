@@ -19,6 +19,8 @@ static void print_literal(struct LiteralNode *node)
         case LITERAL_TYPE_UNIT:
             printf("()");
             break;
+        case LITERAL_TYPE_STRING:
+            printf("\"%.*s\"", node->as.string.len, node->as.string.ptr);
     }
 }
 static void print_application(struct ApplicationNode *node)

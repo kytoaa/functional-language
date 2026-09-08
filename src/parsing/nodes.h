@@ -90,6 +90,7 @@ enum LiteralType {
     LITERAL_TYPE_CHARACTER,
     LITERAL_TYPE_BOOLEAN,
     LITERAL_TYPE_UNIT,
+    LITERAL_TYPE_STRING,
 };
 
 struct LiteralNode {
@@ -98,6 +99,10 @@ struct LiteralNode {
         u32 number;
         u32 character;
         bool boolean;
+        struct {
+            const char *ptr;
+            u32 len;
+        } string;
     } as;
     enum LiteralType type;
 };

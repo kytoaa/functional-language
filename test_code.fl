@@ -1,6 +1,4 @@
 mod io = std..io;
-use io..monad { `>>=`; `>>`; return };
-use io..functor { fmap };
 use std { with Some; with None };
 
 main = use io..monad { `>>=`; `>>`; return } in

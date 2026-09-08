@@ -108,6 +108,29 @@ void chunk_write_byte(struct Chunk *chunk, u8 byte)
     chunk->bytecode.ptr[chunk->bytecode.len++] = byte;
 }
 
+char *chunk_add_string(struct Chunk *chunk, u32 len)
+{
+    if (chunk == null)
+        return null;
+
+    const u32 new_len = chunk->strings.len + len;
+
+    u32 str_start = chunk->strings.len;
+
+    if (new_len > chunk->strings.cap) {
+        u32 new_cap = chunk->strings.cap == 0 ? len
+                    : chunk->strings.cap * 2 > new_len ? chunk->strings.cap * 2
+                    : new_len;
+
+        char *new_ptr = realloc_mem(chunk->strings.ptr, new_cap * sizeof(char));
+        chunk->strings.ptr = new_ptr;
+        chunk->strings.cap = new_cap;
+    }
+
+    chunk->strings.len += len;
+    return &chunk->strings.ptr[str_start];
+}
+
 void free_chunk(struct Chunk *chunk)
 {
     free_mem(chunk->bytecode.ptr);
@@ -118,6 +141,7 @@ void free_chunk(struct Chunk *chunk)
         chunk->types.ptr[i].name = null;
     }
     free_mem(chunk->types.ptr);
+    free_mem(chunk->strings.ptr);
     *chunk = (struct Chunk){};
 }
 

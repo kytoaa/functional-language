@@ -91,6 +91,17 @@ enum WriteChunkResult write_chunk_to(FILE *out, const struct Chunk *chunk)
         }
     }
 
+    // write strings len
+    written = fwrite(&chunk->strings.len, sizeof(chunk->strings.len), 1, out);
+    if (written < 1) {
+        return WRITE_CHUNK_ERR;
+    }
+
+    written = fwrite(chunk->strings.ptr, chunk->strings.len, 1, out);
+    if (written < 1) {
+        return WRITE_CHUNK_ERR;
+    }
+
     return WRITE_CHUNK_OK;
 }
 
@@ -227,6 +238,29 @@ enum WriteChunkResult chunk_from(u8 *bytes, usize len, struct Chunk *out)
         type->name = alloc_mem(l);
 
         memcpy(type->name, &bytes[position], l);
+        position += l;
+    }
+
+    // read strings len
+    {
+        usize l = sizeof(chunk.strings.len);
+        if (l + position > len) {
+            goto error;
+        }
+        memcpy(&chunk.strings.len, &bytes[position], l);
+        position += l;
+    }
+    // read strings
+    {
+        usize l = sizeof(*chunk.strings.ptr) * chunk.strings.len;
+        if (l + position > len) {
+            chunk.strings.len = 0;
+            goto error;
+        }
+        chunk.strings.cap = chunk.strings.len;
+        chunk.strings.ptr = alloc_mem(l);
+
+        memcpy(chunk.strings.ptr, &bytes[position], l);
         position += l;
     }
 

@@ -60,6 +60,7 @@ enum TokenType {
     TOKEN_UNIT,
     TOKEN_NUM,
     TOKEN_CHAR,
+    TOKEN_STRING,
 
     TOKEN_TRUE,
     TOKEN_FALSE,
@@ -111,6 +112,22 @@ static inline bool is_custom_op_start(char c)
         default:
             return false;
     }
+}
+
+static inline char escaped_char(char c)
+{
+    #define char_case(a, b) case a: return b;
+    switch (c) {
+        char_case('n', '\n')
+        char_case('t', '\t')
+        char_case('r', '\r')
+        char_case('v', '\v')
+        char_case('0', '\0')
+        char_case('\'', '\'')
+        char_case('\\', '\\')
+        default: return c;
+    }
+    #undef char_case
 }
 
 static inline bool is_custom_op(char c)
@@ -215,6 +232,8 @@ static inline const char *token_type_name(enum TokenType type)
             return "TOKEN_NUM";
         case TOKEN_CHAR:
             return "TOKEN_CHAR";
+        case TOKEN_STRING:
+            return "TOKEN_STRING";
         case TOKEN_TRUE:
             return "TOKEN_TRUE";
         case TOKEN_FALSE:

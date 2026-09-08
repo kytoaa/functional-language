@@ -1,5 +1,4 @@
 #include "compiler.h"
-#include "../vm/vm.h"
 #include "../parsing/ident_table.h"
 #include "codegen/codegen.h"
 #include "codegen/top_level.h"
@@ -9,16 +8,6 @@
 #include "../compiler_info.h"
 #include "../bytecode/binary.h"
 
-static void run_chunk(const struct CompilerConfig *config, struct Chunk chunk)
-{
-    /*for (u32 i = 0; i < chunk.closures.len; i++) {
-        struct ClosureInfo closure = chunk.closures.ptr[i];
-        printf("{ addr: %d, arity: %d, captures: %d }\n", closure.address, closure.arity, closure.capture_count);
-    }*/
-    //print_instructions(config->output, &chunk);
-
-    run_vm(&chunk, (struct VmConfig){ .out = config->output, .error = config->error });
-}
 
 bool compile_file(const struct CompilerConfig config, struct Chunk *out)
 {

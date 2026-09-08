@@ -129,6 +129,7 @@ u8 *get_bytecode_byte(struct Context *ctx, u32 index);
 u32 create_constant(struct Chunk *chunk, enum ObjType type, u32 size);
 u64 *get_constant(struct Context *ctx, u32 index);
 
+u32 create_string(struct Chunk *chunk, const char *str, u32 len, u32 *out_len);
 u16 create_closure_info(struct Context *ctx, struct ClosureInfo info);
 u16 create_type_info(struct Context *ctx, struct TypeInfo info);
 
