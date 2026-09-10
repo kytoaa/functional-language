@@ -71,7 +71,7 @@ enum WriteChunkResult write_chunk_to(FILE *out, const struct Chunk *chunk)
     }
 
     // write types
-    for (u32 i = 0; i < chunk->types.len; i++) {
+    for (u32 i = BUILTIN_TYPE_COUNT; i < chunk->types.len; i++) {
         struct TypeInfo info = chunk->types.ptr[i];
         info.name = null;
 
@@ -82,7 +82,7 @@ enum WriteChunkResult write_chunk_to(FILE *out, const struct Chunk *chunk)
     }
 
     // write type names
-    for (u32 i = 0; i < chunk->types.len; i++) {
+    for (u32 i = BUILTIN_TYPE_COUNT; i < chunk->types.len; i++) {
         struct TypeInfo info = chunk->types.ptr[i];
         written = fwrite(info.name, info.name_len, 1, out);
 
@@ -208,20 +208,21 @@ enum WriteChunkResult chunk_from(u8 *bytes, usize len, struct Chunk *out)
     }
     // read types
     {
-        usize l = sizeof(*chunk.types.ptr) * chunk.types.len;
+        usize l = sizeof(*chunk.types.ptr) * (chunk.types.len - BUILTIN_TYPE_COUNT);
         if (l + position > len) {
             chunk.types.len = 0;
             goto error;
         }
         chunk.types.cap = chunk.types.len;
-        chunk.types.ptr = realloc_mem(chunk.types.ptr, l);
-
-        usize existing = sizeof(*chunk.types.ptr) * BUILTIN_TYPE_COUNT;
+        chunk.types.ptr = realloc_mem(
+            chunk.types.ptr,
+            sizeof(*chunk.types.ptr) * chunk.types.len
+        );
 
         memcpy(
             chunk.types.ptr + BUILTIN_TYPE_COUNT,
-            &bytes[position + existing],
-            l - existing
+            &bytes[position],
+            l
         );
         position += l;
     }
