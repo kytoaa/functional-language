@@ -6,8 +6,8 @@
 #include "../bytecode.h"
 #include <stdio.h>
 
-#define STACK_SIZE 256
-#define IDENT_COUNT 256
+#define STACK_SIZE 1024
+#define IDENT_COUNT 1024
 
 struct Code {
     u64 *constants;
@@ -26,16 +26,18 @@ struct VmConfig {
 struct VM {
     struct VmConfig config;
     struct Code code;
-    /// `instruction ptr - points to next byte`
-    /// `stack ptr - index of next free stack slot`
-    u64 registers[REG_COUNT];
-    u64 bindings[IDENT_COUNT];
-    u64 stack[STACK_SIZE];
     struct {
         struct Thunk **ptr;
         u32 len;
     } static_thunks;
     bool had_error;
+    /// `instruction ptr - points to next byte`
+    /// `stack ptr - index of next free stack slot`
+    u64 registers[REG_COUNT];
+    usize stack_len;
+    usize bindings_len;
+    u64 *bindings;
+    u64 *stack;
 };
 
 enum InterpretResult {

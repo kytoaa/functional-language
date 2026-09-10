@@ -107,11 +107,28 @@ Val pop_val()
 }
 void push_stack(u64 val)
 {
+    if (stack_ptr == vm.stack_len) {
+        usize new_len = vm.stack_len * 2;
+        u64 *new_stack = realloc_mem(vm.stack, new_len * sizeof(u64));
+        vm.stack_len = new_len;
+        vm.stack = new_stack;
+    }
     vm.stack[stack_ptr++] = val;
 }
 void push_val(Val val)
 {
     push_stack((u64)val | 0x8000000000000000);
+}
+
+void push_binding(u64 val)
+{
+    if (vm.registers[BINDING_PTR] == vm.bindings_len) {
+        usize new_len = vm.bindings_len * 2;
+        u64 *new_bindings = realloc_mem(vm.bindings, new_len * sizeof(u64));
+        vm.bindings_len = new_len;
+        vm.bindings = new_bindings;
+    }
+    vm.bindings[vm.registers[BINDING_PTR]++] = val;
 }
 
 u64 address_of_global(enum GlobalFunction global)

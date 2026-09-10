@@ -23,6 +23,8 @@ Val pop_val();
 void push_stack(u64 val);
 void push_val(Val val);
 
+void push_binding(u64 val);
+
 u64 address_of_global(enum GlobalFunction global);
 
 #define jump(addr) do { instruction_ptr = addr; } while (0)

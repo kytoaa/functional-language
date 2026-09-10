@@ -89,7 +89,7 @@ next_instruction:
                 panic("copy operation with empty stack");
         #endif
             u64 value = vm.stack[stack_ptr - 1];
-            vm.stack[stack_ptr++] = value;
+            push_stack(value);
             break;
         }
         case OP_PUSH_U64:{
@@ -119,7 +119,7 @@ next_instruction:
         }
         case OP_CREATE_BINDING:{
             u64 value = pop_stack();
-            vm.bindings[vm.registers[BINDING_PTR]++] = (u64)as_val(value);
+            push_binding((u64)as_val(value));
             break;
         }
         case OP_REMOVE_BINDING:{
@@ -662,6 +662,10 @@ void run_vm(struct Chunk *chunk, struct VmConfig config)
         },
         .config = config,
         .had_error = false,
+        .stack_len = STACK_SIZE,
+        .bindings_len = IDENT_COUNT,
+        .bindings = alloc_mem(sizeof(u64) * IDENT_COUNT),
+        .stack = alloc_mem(sizeof(u64) * STACK_SIZE),
     };
 
     u32 thunk_count = remap_constants(vm.code.constants, chunk->constants.len, vm.code.functions, chunk->strings.ptr);
@@ -677,5 +681,8 @@ void run_vm(struct Chunk *chunk, struct VmConfig config)
 void end_vm()
 {
     free_mem(vm.code.constants);
+    free_mem(vm.static_thunks.ptr);
+    free_mem(vm.bindings);
+    free_mem(vm.stack);
     free_objects();
 }
