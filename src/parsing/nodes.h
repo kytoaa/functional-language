@@ -25,7 +25,6 @@ struct DeclarationNode {
     struct AstNode node;
     const char *name;
     u32 name_len;
-    bool is_global;
     struct FunctionBindingNode *bindings;
     struct AstNode *body;
     struct DeclarationNode *next_declaration;

@@ -90,6 +90,10 @@ mod = {\n\
             | x :: xs   -> f x (foldr f a xs)\n\
             | otherwise -> a;\n\
 \n\
+        foldl f a l = case l of\n\
+            | x :: xs   -> foldl f (f a x) xs\n\
+            | otherwise -> a;\n\
+\n\
         join = foldr append ();\n\
 \n\
         bind f l = join (map f l);\n\
@@ -98,6 +102,15 @@ mod = {\n\
             `>>=` m f = super..bind f m;\n\
             return x = x :: ();\n\
         };\n\
+    };\n\
+\n\
+    mod char = {\n\
+        is_whitespace c = case c of\n\
+            | ' '  -> true\n\
+            | '\n' -> true\n\
+            | '\r' -> true\n\
+            | '\t' -> true\n\
+            | otherwise -> false;\n\
     };\n\
 \n\
     type_of x = @std_builtin(type_of);\n\
@@ -133,90 +146,105 @@ mod = {\n\
         unpack s = if len s == 0\n\
                       then ()\n\
                       else (index 0 s) :: unpack (drop 1 s);\n\
+\n\
+        f_while f p s = use std..slice { len; index } in let\n\
+            in_bound i = i >= 0 and i < len s;\n\
+            count i = if in_bound i and p (index i s) then count (i + 1) else i;\n\
+            in f (count 0) s;\n\
+\n\
+        drop_while = f_while std..slice..drop;\n\
+        take_while = f_while std..slice..take;\n\
+\n\
+        drop_while_back p s = use std..slice { len; index; take } in let\n\
+            in_bound i = i >= 0 and i < len s;\n\
+            count i = if in_bound i and p (index (len s - 1 - i) s)\n\
+                then count (i + 1)\n\
+                else (len s - i);\n\
+            in take (count 0) s;\n\
     };\n\
 \n\
     mod io = _io..io;\n\
 };\n\
 \n\
 mod _io = {\n\
-	mod IO = type {\n\
-		mod State = type {\n\
-			with State;\n\
-		};\n\
+    mod IO = type {\n\
+        mod State = type {\n\
+            with State;\n\
+        };\n\
 \n\
-		with IO runState;\n\
+        with IO runState;\n\
 \n\
-		-- IO a -> State -> (a, State)\n\
-		runState s = case s of\n\
-			| IO runState -> runState;\n\
+        -- IO a -> State -> (a, State)\n\
+        runState s = case s of\n\
+            | IO runState -> runState;\n\
 \n\
-		return x = IO (fun s -> x :: s);\n\
+        return x = IO (fun s -> x :: s);\n\
 \n\
-		map f = bind (return . f);\n\
-		bind f x = let\n\
-			run s = case super..strict_pair (runState x s) of\n\
-				| a :: s1 -> runState (f a) s1;\n\
-			in IO run;\n\
+        map f = bind (return . f);\n\
+        bind f x = let\n\
+            run s = case super..strict_pair (runState x s) of\n\
+                | a :: s1 -> runState (f a) s1;\n\
+            in IO run;\n\
 \n\
-		mod functor = {\n\
-			fmap = super..map;\n\
-		};\n\
-		mod applicative = {\n\
-			mod functor = super..functor;\n\
+        mod functor = {\n\
+            fmap = super..map;\n\
+        };\n\
+        mod applicative = {\n\
+            mod functor = super..functor;\n\
 \n\
-			pure = super..monad..return;\n\
-			`<*>` a1 a2 = use super..monad { `>>=`; return }\n\
-				in a1 >>= (fun f ->\n\
-				   a2 >>= (fun x -> return (f x)));\n\
-		};\n\
-		mod monad = {\n\
-			mod applicative = super..applicative;\n\
+            pure = super..monad..return;\n\
+            `<*>` a1 a2 = use super..monad { `>>=`; return }\n\
+                in a1 >>= (fun f ->\n\
+                   a2 >>= (fun x -> return (f x)));\n\
+        };\n\
+        mod monad = {\n\
+            mod applicative = super..applicative;\n\
 \n\
-			return = super..return;\n\
-			`>>=` m f = super..bind f m;\n\
-			`>>` a b = a >>= fun x -> b;\n\
-		};\n\
-	};\n\
+            return = super..return;\n\
+            `>>=` m f = super..bind f m;\n\
+            `>>` a b = a >>= fun x -> b;\n\
+        };\n\
+    };\n\
 \n\
-	stdin = @std_builtin(stdin);\n\
-	stdout = @std_builtin(stdout);\n\
-	stderr = @std_builtin(stderr);\n\
-	stream_err stream = @std_builtin(stream_err);\n\
+    stdin = @std_builtin(stdin);\n\
+    stdout = @std_builtin(stdout);\n\
+    stderr = @std_builtin(stderr);\n\
+    stream_err stream = @std_builtin(stream_err);\n\
 \n\
-	seq a b = case $ a of | _ -> b;\n\
+    seq a b = case $ a of | _ -> b;\n\
     strict_pair p = case p of\n\
         | a :: b -> case $ a of\n\
-            | a1 -> case $ b of\n\
-            | b1 -> a1 :: b1;\n\
+        | a1 -> case $ b of\n\
+        | b1 -> a1 :: b1;\n\
 \n\
-	exit = @std_builtin(exit);\n\
+    exit = @std_builtin(exit);\n\
 \n\
-	run x = case x of\n\
-		| IO..IO runState -> strict_pair (runState IO..State..State)\n\
-		| x 			  -> seq x exit;\n\
+    run x = case x of\n\
+        | IO..IO runState -> strict_pair (runState IO..State..State)\n\
+        | x               -> seq x exit;\n\
 \n\
     read_file_contents file = @std_builtin(read_file_contents);\n\
     read_line file = @std_builtin(read_file_line);\n\
 \n\
     write file val = @std_builtin(write);\n\
 \n\
-	mod io = {\n\
-		mod functor = super..IO..functor;\n\
-		mod applicative = super..IO..applicative;\n\
-		mod monad = super..IO..monad;\n\
+    mod io = {\n\
+        mod functor = super..IO..functor;\n\
+        mod applicative = super..IO..applicative;\n\
+        mod monad = super..IO..monad;\n\
 \n\
-		stdin = super..stdin;\n\
-		stdout = super..stdout;\n\
-		stderr = super..stderr;\n\
+        stdin = super..stdin;\n\
+        stdout = super..stdout;\n\
+        stderr = super..stderr;\n\
 \n\
-		write file val = monad..return (super..write file val);\n\
-		writeln file val = use monad { `>>` } in write file val >> write file '\n';\n\
-		print = write stdout;\n\
-		println = writeln stdout;\n\
+        write file val = monad..return (super..write file val);\n\
+        writeln file val = use monad { `>>` } in write file val >> write file '\n';\n\
+        print = write stdout;\n\
+        println = writeln stdout;\n\
 \n\
-		read_file_contents = monad..return . super..read_file_contents;\n\
-		read_line = monad..return . super..read_line;\n\
-	};\n\
+        read_file_contents = monad..return . super..read_file_contents;\n\
+        read_line = monad..return . super..read_line;\n\
+    };\n\
 };\n\
 \n\
 ";

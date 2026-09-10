@@ -58,6 +58,7 @@ int main(int argc, char *const argv[])
         free_chunk(&chunk);
         return EXIT_SUCCESS;
     } else {
+        free_chunk(&chunk);
         return EXIT_FAILURE;
     }
 }

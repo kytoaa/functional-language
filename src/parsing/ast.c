@@ -46,11 +46,19 @@ static const char *NODE_NAME[] = {
     [AST_UNARY_OP]         = "AST_UNARY_OP",
     [AST_DECLARATION]      = "AST_DECLARATION",
     [AST_IDENTIFIER]       = "AST_IDENTIFIER",
-    [AST_BINDING]          = "AST_BINDING",
+    [AST_UNDERSCORE]       = "AST_UNDERSCORE",
     [AST_IF_EXPR]          = "AST_IF_EXPR",
     [AST_LET_EXPR]         = "AST_LET_EXPR",
+    [AST_CASE_EXPR]        = "AST_CASE_EXPR",
+    [AST_CASE_PATTERN]     = "AST_CASE_PATTERN",
     [AST_LAMBDA]           = "AST_LAMBDA",
     [AST_FUNCTION_BINDING] = "AST_FUNCTION_BINDING",
+    [AST_MODULE_DECL]      = "AST_MODULE_DECL",
+    [AST_USE_EXPR]         = "AST_USE_EXPR",
+    [AST_USE_EXPR_ITEM]    = "AST_USE_EXPR_ITEM",
+    [AST_NAMESPACE_ACCESS] = "AST_NAMESPACE_ACCESS",
+    [AST_CONSTRUCTOR]      = "AST_CONSTRUCTOR",
+    [AST_ATTR]             = "AST_ATTR",
 };
 
 const char *ast_node_name(struct AstNode *node)

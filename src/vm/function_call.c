@@ -105,6 +105,9 @@ void handle_continuation()
         for (u32 i = 0; i < remaining_args; i++) {
             new_payload[i] = (struct Box*)pop_val();
         }
+        u64 addr = pop_stack();
+        push_val(as_val(constructed_appl));
+        instruction_ptr = addr;
     } else if (remaining_args == closure->info->arity) {
         // args are on stack in correct order
         jump_to_closure(closure);

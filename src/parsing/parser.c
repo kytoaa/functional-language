@@ -852,7 +852,6 @@ static struct AstNode *function_declaration()
         .node = { AST_DECLARATION, loc },
         .name = name,
         .name_len = name_len,
-        .is_global = false,
         .bindings = binding,
         .body = expr(PREC_EXPR),
     };
@@ -905,7 +904,6 @@ static struct AstNode *constructor_declaration()
         .node = { AST_DECLARATION, loc },
         .name = name,
         .name_len = name_len,
-        .is_global = false,
         .bindings = binding,
         .body = AS_NODE(constructor),
     };
@@ -984,7 +982,6 @@ static struct AstNode *module()
                     { AST_DECLARATION, loc },
                     .name = "type",
                     .name_len = 4,
-                    .is_global = true,
                     .bindings = null,
                     .body = AS_NODE(attr),
                     .next_declaration = null,
@@ -1040,6 +1037,7 @@ static struct AstNode *module()
         .name = ident,
         .declarations = current_decl,
         .submodules = current_submodule,
+        .use_declarations = current_use_decl,
         .next_mod = null,
         .has_body = has_body,
         .is_type = is_type,
@@ -1199,7 +1197,6 @@ bool build_ast(const char *src, struct AstTopLevel *out, struct ParseError *err)
                 *err = parser.err;
                 return false;
             }
-            current->is_global = true;
 
             current->next_declaration = declarations;
             declarations = current;

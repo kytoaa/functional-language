@@ -191,6 +191,32 @@ static void print_case_expr(struct CaseExprNode *node)
     printf(")");
 }
 
+static void print_use_expr(struct UseExprNode *node)
+{
+    printf("use ");
+    print_node(node->path);
+    printf(" { ");
+    struct UseExprItem *item = node->items;
+    while (item != null) {
+        if (item->is_constructor) {
+            printf("with ");
+        }
+        if (item->is_mod) {
+            printf("mod ");
+        }
+        print_node(AS_NODE(item->ident));
+        printf("; ");
+        item = item->next_item;
+    }
+    printf("} ");
+    if (node->expr != null) {
+        printf("in ");
+        print_node(node->expr);
+    } else {
+        printf(";");
+    }
+}
+
 static void print_node(struct AstNode *node)
 {
     if (node == null)
@@ -246,13 +272,14 @@ static void print_node(struct AstNode *node)
             printf("<constructor>");
             break;
 
-        case AST_BINDING:
         case AST_CASE_PATTERN:
         case AST_FUNCTION_BINDING:
             printf("error, encountered %s", ast_node_name(node));
             break;
         case AST_MODULE_DECL:
         case AST_USE_EXPR:
+            print_use_expr((struct UseExprNode*)node);
+            break;
         case AST_USE_EXPR_ITEM:
             break;
     }
@@ -262,6 +289,15 @@ void print_ast(struct AstTopLevel *top_level)
 {
     if (top_level == null)
         return;
+
+    struct UseExprNode *use_expr = (struct UseExprNode*)top_level->use_declarations;
+    printf("use_expr: %p\n", use_expr);
+    while (use_expr != null) {
+        print_node(AS_NODE(use_expr));
+        printf("\n");
+        use_expr = use_expr->next_use;
+    }
+
     struct AstNode *decl = top_level->declarations;
     while (decl != null) {
         print_node(decl);

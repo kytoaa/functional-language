@@ -2,6 +2,8 @@
 #include "../prelude.h"
 #include "../parsing/nodes.h"
 #include "../parsing/traversal.h"
+#include "../parsing/debug.h"
+#include <stdio.h>
 
 static void reduce_node(struct AstNode *node, void *arg);
 static void post_reduce_node(struct AstNode *node, void *arg);
@@ -124,7 +126,6 @@ static void reduce_use_decls(
                     { AST_DECLARATION, use_decl->node.loc },
                     .name = item->ident->src_loc,
                     .name_len = item->ident->len,
-                    .is_global = true,
                     .bindings = null,
                     .body = body,
                     .next_declaration = *decls,

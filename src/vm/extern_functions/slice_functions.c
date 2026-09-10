@@ -49,6 +49,7 @@ void extern_func_slice_drop()
                 new_slice->start += index->val.as.integer;
             } else {
                 new_slice->len = slice->len - index->val.as.integer;
+                new_slice->start += index->val.as.integer;
             }
             push_val(as_val(new_slice));
             break;
@@ -63,7 +64,6 @@ void extern_func_slice_drop()
                 new_slice->len = array->len - index->val.as.integer;
                 new_slice->start = index->val.as.integer;
             }
-            printf("pushed a %d with len %d, start %d\n", new_slice->obj.type, new_slice->len, new_slice->start);
             push_val(as_val(new_slice));
             break;
         }

@@ -1,15 +1,31 @@
 mod io = std..io;
-use std { with Some; with None };
+use std { with Some; with None; mod Result };
+use std..slice { drop_while; drop_while_back };
+use std..char { is_whitespace };
 
 main = use io..monad { `>>=`; `>>`; return } in
        use io..applicative { `<*>` } in
-       use io..functor { fmap } in
-       let `<&>` = std..flip fmap;
-    in io..read_line io..stdin <&> (to_num . std..slice..index 0) >>= print_out;
+       let `<&>` = std..flip io..functor..fmap;
+    in io..read_line io..stdin
+        <&> trim_string
+        <&> std..slice..unpack
+        <&> rpn..eval_rpn
+        >>= print_result . Result..functor..fmap std..fst
+        >> io..print '\n';
 
-print_out n = case n of
-    | Some n -> io..println (n + 1)
-    | None   -> io..println (1 + 'a');
+print_result r = case r of
+    | Result..Ok x  -> print_list x
+    | Result..Err x -> print_list x;
+
+print_list l = use io..monad { `>>` }
+    in let print_l l = case $ l of
+        | ()      -> io..print "[]"
+        | x :: () -> print_list x >> io..print ']'
+        | x :: xs -> print_list x >> io..print ", " >> print_l ($ xs)
+        | x          -> io..print ($ x);
+    in case $ l of
+        | x :: xs -> io..print '[' >> print_l (x :: xs)
+        | x       -> io..print ($ x);
 
 to_num c = case c of
     | '0' -> Some 0
@@ -23,4 +39,73 @@ to_num c = case c of
     | '8' -> Some 8
     | '9' -> Some 9
     | _   -> None;
+
+trim_string = drop_while_back is_whitespace . drop_while is_whitespace;
+
+mod rpn = {
+    use std { with Some; with None; mod Option; mod Result };
+    use std..Result { with Ok; with Err };
+    use std..list { foldr };
+    use super { to_num };
+
+    eval_rpn = let
+        `<&>` = std..flip Result..functor..fmap;
+        `<|>` a b = case a :: b of
+            | (Ok a)  :: _       -> Ok a
+            | (Err a) :: (Ok b)  -> Ok b
+            | (Err a) :: (Err b) -> Err a;
+
+        foldM = generic_foldM Result..monad..`>>=` Result..monad..return;
+
+        fold acc x = use Result..monad { `>>=` } in let
+            push xs x = x :: xs;
+            apply_op l f = case l of
+                | x :: y :: ys -> Ok (f y x :: ys)
+                | otherwise       -> Err "not enough arguments";
+            in (read_op x >>= apply_op acc) <|> (read_num x <&> push acc);
+
+        in foldM fold () . split_on ' ';
+    
+    read_op a = case a of
+        | x :: () -> op x
+        | xs      -> Err (foldr std..slice..cons " is not an operator" xs);
+
+    split_on c = let
+        f x acc = if x == c
+            then case acc of
+                | () :: ys -> () :: ys
+                | ys       -> () :: ys
+            else case acc of
+                | y :: ys -> (x :: y) :: ys;
+        in foldr f (() :: ());
+
+    op c = case c of
+        | '+' -> Ok ops..add
+        | '-' -> Ok ops..sub
+        | '*' -> Ok ops..mul
+        | '/' -> Ok ops..div
+        | c   -> Err (std..slice..cons c " is not a valid operator");
+
+    read_num = use Option..functor { fmap } in let
+        foldM = generic_foldM Option..monad..`>>=` Option..monad..return;
+        fold_num acc = fmap (ops..add (acc * 10)) . to_num;
+        in err "not a number" . foldM fold_num 0;
+
+    generic_foldM bind return f = let
+        foldM a l = case l of
+            | x :: xs   -> bind (f a x) (fun a1 -> foldM a1 xs)
+            | otherwise -> return a;
+        in foldM;
+
+    err msg x = case x of
+        | Some a -> Ok a
+        | None   -> Err msg;
+
+    mod ops = {
+        add a b = a + b;
+        sub a b = a - b;
+        mul a b = a * b;
+        div a b = a / b;
+    };
+};
 
