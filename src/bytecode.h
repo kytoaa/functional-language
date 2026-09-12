@@ -156,6 +156,8 @@ enum Bytecode {
     /// op u8
     OP_CALL_EXTERN,
 
+    /// shows the line of the match statement
+    /// op u32
     OP_PATTERN_MATCH_FAIL,
 
     OP_END,
@@ -166,6 +168,7 @@ enum Register {
     STACK_PTR,
     BINDING_PTR,
     REG_1,
+    EXCEPTION_REG,
     REG_COUNT,
 };
 

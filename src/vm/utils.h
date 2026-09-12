@@ -9,6 +9,7 @@
 #define stack_ptr vm.registers[STACK_PTR]
 
 void runtime_error(const char *msg);
+void runtime_error_at(const char *msg, u32 line);
 void print_stack(FILE *out);
 
 u8 read_instruction();

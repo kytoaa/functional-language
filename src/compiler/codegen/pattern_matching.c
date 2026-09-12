@@ -58,6 +58,7 @@ void compile_case_expression(struct Context *ctx, struct CaseExprNode *node)
         branch = branch->next_pattern;
     }
     emit_byte(ctx, OP_PATTERN_MATCH_FAIL);
+    emit_u32(ctx, node->node.loc.line);
     u32 success_end_addr = get_last_bytecode_index(ctx) + 1;
     i16 success_diff = (i32)success_end_addr - (i32)(success_jump_index + 2);
     u8 *success_diff_bytes = (u8*)&success_diff;

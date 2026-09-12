@@ -533,7 +533,8 @@ next_instruction:
         }
 
         case OP_PATTERN_MATCH_FAIL:{
-            runtime_error("pattern match failure");
+            u32 line = read_u32();
+            runtime_error_at("pattern match failure", line);
             break;
         }
 
@@ -673,6 +674,8 @@ void run_vm(struct Chunk *chunk, struct VmConfig config)
     populate_static_thunks(static_thunks, vm.code.constants, thunk_count);
     vm.static_thunks.ptr = static_thunks;
     vm.static_thunks.len = thunk_count;
+
+    vm.registers[EXCEPTION_REG] = (u64)as_val(&vm.code.constants[0]);
 
     run_interpreter();
 

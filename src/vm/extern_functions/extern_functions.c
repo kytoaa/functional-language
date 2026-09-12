@@ -5,7 +5,6 @@
 
 #define DEBUG_CHECKS
 
-static void print_val(FILE *out, Val val);
 static void print_cons(FILE *out, struct Cons *cons);
 
 static struct FileHandleObj *get_std_stream(enum VmExternFunction function)
@@ -60,7 +59,7 @@ void call_extern_function(enum VmExternFunction function)
             struct FileHandleObj *file = (struct FileHandleObj*)val;
             u32 error = ferror(file->file);
             struct Box *result = obj_create_box();
-            result->val = BOOL_VAL(error);
+            result->val = BOOL_VAL(!!error);
 
             push_val(as_val(result));
             break;
@@ -256,7 +255,7 @@ static void print_slice(FILE *out, struct SliceObj *slice)
     print_array_elements(out, slice->array, slice->start, slice->len);
 }
 
-static void print_val(FILE *out, Val val)
+void print_val(FILE *out, Val val)
 {
     if (val == null)
         panic("null");

@@ -56,6 +56,10 @@ static void compile_builtin(struct Context *ctx, struct AstNode *body)
     const char *stderr_ident = ident_table_get(ctx->identifier_table, "stderr", 6);
     const char *stream_err_ident = ident_table_get(ctx->identifier_table, "stream_err", 10);
 
+    const char *set_exception_reg_ident = ident_table_get(ctx->identifier_table, "set_exception_reg", 17);
+    const char *get_exception_reg_ident = ident_table_get(ctx->identifier_table, "get_exception_reg", 17);
+    const char *clear_exception_reg_ident = ident_table_get(ctx->identifier_table, "clear_exception_reg", 19);
+
     const char *read_file_contents_ident = ident_table_get(ctx->identifier_table, "read_file_contents", 18);
     const char *read_file_line_ident = ident_table_get(ctx->identifier_table, "read_file_line", 14);
 
@@ -97,8 +101,26 @@ static void compile_builtin(struct Context *ctx, struct AstNode *body)
                 emit_byte(ctx, OP_CALL_EXTERN);
                 emit_byte(ctx, VM_EXTERN_FUNC_STDERR);
             } else if (node->src_loc == stream_err_ident) {
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, 0);
+                emit_byte(ctx, OP_EVAL);
+
                 emit_byte(ctx, OP_CALL_EXTERN);
                 emit_byte(ctx, VM_EXTERN_FUNC_STREAM_ERRORS);
+            } else if (node->src_loc == set_exception_reg_ident) {
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, 0);
+
+                emit_2_bytes(ctx, OP_TRANSFER_STACK_REG, EXCEPTION_REG);
+                emit_byte(ctx, OP_PUSH_CONST);
+                emit_u32(ctx, 0);
+            } else if (node->src_loc == get_exception_reg_ident) {
+                emit_2_bytes(ctx, OP_PUSH_REG_STACK, EXCEPTION_REG);
+            } else if (node->src_loc == clear_exception_reg_ident) {
+                emit_2_bytes(ctx, OP_PUSH_REG_STACK, EXCEPTION_REG);
+                emit_byte(ctx, OP_PUSH_CONST);
+                emit_u32(ctx, 0);
+                emit_2_bytes(ctx, OP_TRANSFER_STACK_REG, EXCEPTION_REG);
             } else if (node->src_loc == read_file_contents_ident) {
                 emit_byte(ctx, OP_READ_BINDING);
                 emit_u16(ctx, 0);

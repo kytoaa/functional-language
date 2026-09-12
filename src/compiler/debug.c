@@ -16,6 +16,9 @@ static void print_register(FILE *out, u8 reg)
         case REG_1:
             fprintf(out, " r1");
             break;
+        case EXCEPTION_REG:
+            fprintf(out, " ex");
+            break;
         default:
             return panic("not a register");
     }
@@ -76,6 +79,8 @@ static const char *extern_function_name(enum VmExternFunction func)
             return "STDOUT";
         case VM_EXTERN_FUNC_STDERR:
             return "STDERR";
+        case VM_EXTERN_FUNC_STREAM_ERRORS:
+            return "STREAM_ERRORS";
 
         case VM_EXTERN_FUNC_TYPE_OF:
             return "TYPE_OF";
@@ -182,7 +187,8 @@ u32 print_instruction(FILE *out, u8 *bytes)
             fprintf(out, " %zd", val);
             break;
         }
-        case OP_PUSH_CONST:{
+        case OP_PUSH_CONST:
+        case OP_PATTERN_MATCH_FAIL:{
             u32 val = read_u32(&bytes[1]);
             consumed += 4;
             fprintf(out, " %u", val);

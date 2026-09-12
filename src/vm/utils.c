@@ -19,7 +19,16 @@ void print_stack(FILE *out)
 
 void runtime_error(const char *msg)
 {
-    fprintf(vm.config.error, "error: %s\n", msg);
+    return runtime_error_at(msg, -1);
+}
+
+void runtime_error_at(const char *msg, u32 line)
+{
+    if (line == (u32)-1) {
+        fprintf(vm.config.error, "error: %s\n", msg);
+    } else {
+        fprintf(vm.config.error, "error: %s - %d\n", msg, line);
+    }
 #ifdef DEBUG_CHECKS
     fprintf(vm.config.error, "\tip: [%zu], sp: [%zu], r1: [%zu]\n", instruction_ptr, stack_ptr, vm.registers[REG_1]);
     print_stack(vm.config.error);

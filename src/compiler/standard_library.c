@@ -173,6 +173,7 @@ mod _io = {\n\
         };\n\
 \n\
         with IO runState;\n\
+        with Error msg;\n\
 \n\
         -- IO a -> State -> (a, State)\n\
         runState s = case s of\n\
@@ -180,10 +181,21 @@ mod _io = {\n\
 \n\
         return x = IO (fun s -> x :: s);\n\
 \n\
+        catch x f = let\n\
+            exception = super..catch_exception;\n\
+            result s = case super..strict_pair (runState x s) of\n\
+                | a :: s1 -> if super..had_exception ()\n\
+                    then super..strict_pair (runState (f ($ (exception ()))) s1)\n\
+                    else a :: s1;\n\
+            in IO result;\n\
+\n\
         map f = bind (return . f);\n\
         bind f x = let\n\
             run s = case super..strict_pair (runState x s) of\n\
-                | a :: s1 -> runState (f a) s1;\n\
+                | a :: s1 ->\n\
+                    if super..had_exception ()\n\
+                        then a :: s1\n\
+                        else runState (f a) s1;\n\
             in IO run;\n\
 \n\
         mod functor = {\n\
@@ -206,10 +218,29 @@ mod _io = {\n\
         };\n\
     };\n\
 \n\
+    mod Exception = type {\n\
+        with E e;\n\
+    };\n\
+\n\
     stdin = @std_builtin(stdin);\n\
     stdout = @std_builtin(stdout);\n\
     stderr = @std_builtin(stderr);\n\
     stream_err stream = @std_builtin(stream_err);\n\
+\n\
+    set_exception_reg e = @std_builtin(set_exception_reg);\n\
+    get_exception_reg x = @std_builtin(get_exception_reg);\n\
+    clear_exception_reg x = @std_builtin(clear_exception_reg);\n\
+\n\
+    throw = IO..return . set_exception_reg . Exception..E;\n\
+\n\
+    had_exception x = (case get_exception_reg () of\n\
+        | ()             -> false\n\
+        | Exception..E e -> true\n\
+        | otherwise      -> ());\n\
+\n\
+    catch_exception x = (case clear_exception_reg () of\n\
+        | Exception..E e -> e\n\
+        | otherwise      -> \"exception\");\n\
 \n\
     seq a b = case $ a of | _ -> b;\n\
     strict_pair p = case p of\n\
@@ -217,11 +248,17 @@ mod _io = {\n\
         | a1 -> case $ b of\n\
         | b1 -> a1 :: b1;\n\
 \n\
+    no_cache x = x;\n\
+\n\
     exit = @std_builtin(exit);\n\
 \n\
-    run x = case x of\n\
-        | IO..IO runState -> strict_pair (runState IO..State..State)\n\
-        | x               -> seq x exit;\n\
+    run x = let\n\
+        print_err err = use IO..monad { `>>` }\n\
+            in io..print \"Exception: \" >> io..println err;\n\
+        run_io = IO..catch x print_err;\n\
+        in case x of\n\
+            | IO..IO r -> strict_pair (IO..runState run_io IO..State..State)\n\
+            | x        -> seq x exit;\n\
 \n\
     read_file_contents file = @std_builtin(read_file_contents);\n\
     read_line file = @std_builtin(read_file_line);\n\
@@ -244,6 +281,9 @@ mod _io = {\n\
 \n\
         read_file_contents = monad..return . super..read_file_contents;\n\
         read_line = monad..return . super..read_line;\n\
+\n\
+        throw = super..throw;\n\
+        catch = super..IO..catch;\n\
     };\n\
 };\n\
 \n\

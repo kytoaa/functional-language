@@ -27,7 +27,7 @@ static void print_application(struct ApplicationNode *node)
 {
     printf("(");
     print_node(node->function);
-    printf(" : ");
+    printf(" ");
     print_node(node->argument);
     printf(")");
 }

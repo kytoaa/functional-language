@@ -5,4 +5,6 @@
 
 void call_extern_function(enum VmExternFunction function);
 
+void print_val(FILE *out, Val val);
+
 #endif

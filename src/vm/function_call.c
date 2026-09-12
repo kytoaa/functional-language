@@ -1,3 +1,4 @@
+#include "extern_functions/extern_functions.h"
 #include "utils.h"
 #include "../compiler/builtins.h"
 #include <stdio.h>
@@ -60,7 +61,7 @@ void function_call()
         case OBJ_THUNK:
             return;
         default:
-            printf("\n%d\n", function_val->type);
+            print_val(vm.config.error, function_val);
             return runtime_error("expected a function");
     }
 
@@ -93,7 +94,7 @@ void handle_continuation()
             break;
         }
         default:
-            printf("\n%d\n", evaluated_function->type);
+            print_val(vm.config.error, evaluated_function);
             return runtime_error("expected a function");
     }
 
@@ -149,7 +150,7 @@ void partial_apply()
             closure = (struct Closure*)function;
             break;
         default:
-            printf("\n%d\n", function->type);
+            print_val(vm.config.error, function);
             return runtime_error("expected a function");
     }
 

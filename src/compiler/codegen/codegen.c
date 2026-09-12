@@ -259,6 +259,8 @@ u16 create_type_info(struct Context *ctx, struct TypeInfo info)
 
 static void codegen_error(struct Context *ctx, struct CodegenError error)
 {
+    u16 index = compiled_file_index(get_module(ctx->globals->modules, ctx->module_index));
+    error.file_index = index;
     push_codegen_err(ctx->errors, error);
 }
 void push_codegen_err(struct CodegenErrorList *error_list, struct CodegenError error)

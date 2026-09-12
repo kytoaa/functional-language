@@ -172,6 +172,7 @@ static void mark_roots(struct VM *vm)
         mark_obj(vm->static_thunks.ptr[i]->evaluated);
     }
     mark_vm_val(vm->registers[REG_1]);
+    mark_vm_val(vm->registers[EXCEPTION_REG]);
 }
 
 static void trace_objects()
