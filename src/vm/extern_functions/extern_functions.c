@@ -61,6 +61,8 @@ void call_extern_function(enum VmExternFunction function)
             struct Box *result = obj_create_box();
             result->val = BOOL_VAL(!!error);
 
+            clearerr(file->file);
+
             push_val(as_val(result));
             break;
         }
