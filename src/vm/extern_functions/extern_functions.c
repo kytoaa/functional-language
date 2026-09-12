@@ -64,6 +64,58 @@ void call_extern_function(enum VmExternFunction function)
             push_val(as_val(result));
             break;
         }
+        case VM_EXTERN_FUNC_OPEN_FILE:{
+            Val val = pop_val();
+            const char *file_name = "";
+            switch (val->type) {
+                case OBJ_ARRAY:{
+                    struct ArrayObj *obj = (struct ArrayObj*)val;
+                    if (obj->val_type == VALUE_CHAR) {
+                        file_name = (char*)obj->ptr;
+                        break;
+                    }
+                }
+                case OBJ_SLICE:{
+                    struct SliceObj *obj = (struct SliceObj*)val;
+                    if (obj->array->val_type == VALUE_CHAR) {
+                        file_name = (char*)obj->array->ptr;
+                        break;
+                    }
+                }
+                default:
+                    return runtime_error("not a file path");
+            }
+
+            Val mode = pop_val();
+            if (mode->type != OBJ_BOX) {
+                return runtime_error("not a file open mode");
+            }
+            struct Box *box = (struct Box*)mode;
+            if (!IS_INT(box->val)) {
+                return runtime_error("not a file open mode");
+            }
+            const static char *MODES[] = { "rb", "wb", "ab", "rb+", "wb+", "ab+" };
+
+            FILE *file = fopen(file_name, MODES[box->val.as.integer]);
+
+            if (file == null) {
+                push_val(as_val(&vm.code.constants[0]));
+            } else {
+                struct FileHandleObj *obj = obj_create_file_handle(file);
+                push_val(as_val(obj));
+            }
+            break;
+        }
+        case VM_EXTERN_FUNC_CLOSE_FILE:{
+            Val val = pop_val();
+            if (val->type != OBJ_FILE_HANDLE) {
+                return runtime_error("not a file handle");
+            }
+            struct FileHandleObj *file = (struct FileHandleObj*)val;
+            fclose(file->file);
+            push_val(as_val(&vm.code.constants[0]));
+            break;
+        }
         case VM_EXTERN_FUNC_WRITE:{
             Val val = pop_val();
             if (val->type != OBJ_FILE_HANDLE) {

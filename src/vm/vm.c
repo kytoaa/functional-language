@@ -4,6 +4,7 @@
 #include "../prelude.h"
 #include "../compiler/builtins.h"
 #include "extern_functions/extern_functions.h"
+#include "extern_functions/slice_functions.h"
 #include <string.h>
 
 #define DEBUG_CHECKS
@@ -494,8 +495,12 @@ next_instruction:
 
         case OP_EQUAL:{
             Val l = pop_val();
-            //if (l->type != OBJ_BOX)
             Val r = pop_val();
+
+            if ((l->type == OBJ_ARRAY || l->type == OBJ_SLICE) && (r->type == OBJ_ARRAY || r->type == OBJ_SLICE)) {
+                push_val(slice_equal(l, r) ? (Val)TRUE_BOX_CONST : (Val)FALSE_BOX_CONST);
+                break;
+            }
 
             if (l->type == OBJ_RUNTIME_TYPE && r->type == OBJ_RUNTIME_TYPE) {
                 struct RuntimeType *l_type = (struct RuntimeType*)l;

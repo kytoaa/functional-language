@@ -214,7 +214,7 @@ static struct SliceInfo get_slice_info(Val val)
             return (struct SliceInfo){
                 .array = slice_obj->array,
                 .len = slice_obj->len,
-                .start = 0,
+                .start = slice_obj->start,
             };
         }
         default:
@@ -330,5 +330,19 @@ void extern_func_slice_push()
     memcpy(new_array->ptr, slice.array->ptr + slice.start * val_size, slice.len * val_size);
 
     push_val(as_val(new_array));
+}
+
+bool slice_equal(Val a, Val b)
+{
+    struct SliceInfo a_info = get_slice_info(a);
+    struct SliceInfo b_info = get_slice_info(b);
+
+    usize size = val_type_size(a_info.array->val_type);
+    usize a_start = a_info.start * size;
+    usize b_start = b_info.start * size;
+
+    return a_info.array->val_type == b_info.array->val_type
+        && a_info.len == b_info.len
+        && memcmp(a_info.array->ptr + a_start, b_info.array->ptr + b_start, a_info.len * size) == 0;
 }
 

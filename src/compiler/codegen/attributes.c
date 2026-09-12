@@ -50,6 +50,8 @@ static void compile_builtin(struct Context *ctx, struct AstNode *body)
     if (body == null)
         return;
 
+    const char *open_ident = ident_table_get(ctx->identifier_table, "open", 4);
+    const char *close_ident = ident_table_get(ctx->identifier_table, "close", 5);
     const char *write_ident = ident_table_get(ctx->identifier_table, "write", 5);
     const char *stdin_ident = ident_table_get(ctx->identifier_table, "stdin", 5);
     const char *stdout_ident = ident_table_get(ctx->identifier_table, "stdout", 6);
@@ -78,7 +80,23 @@ static void compile_builtin(struct Context *ctx, struct AstNode *body)
     switch (body->kind) {
         case AST_IDENTIFIER:{
             struct IdentifierNode *node = (struct IdentifierNode*)body;
-            if (node->src_loc == write_ident) {
+            if (node->src_loc == open_ident) {
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, 0);
+                emit_byte(ctx, OP_EVAL);
+
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, 1);
+                emit_byte(ctx, OP_EVAL);
+
+                emit_2_bytes(ctx, OP_CALL_EXTERN, VM_EXTERN_FUNC_OPEN_FILE);
+            } else if (node->src_loc == close_ident) {
+                emit_byte(ctx, OP_READ_BINDING);
+                emit_u16(ctx, 0);
+                emit_byte(ctx, OP_EVAL);
+
+                emit_2_bytes(ctx, OP_CALL_EXTERN, VM_EXTERN_FUNC_CLOSE_FILE);
+            } else if (node->src_loc == write_ident) {
                 emit_byte(ctx, OP_READ_BINDING);
                 emit_u16(ctx, 0);
                 emit_byte(ctx, OP_EVAL);

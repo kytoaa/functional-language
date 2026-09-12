@@ -128,7 +128,7 @@ struct Object {
 };
 
 struct Box *obj_create_box();
-struct FileHandleObj *obj_create_file_handle();
+struct FileHandleObj *obj_create_file_handle(FILE *file);
 struct ArrayObj *obj_create_array(u32 len, enum ValueType type, u8 *ptr);
 struct SliceObj *obj_create_slice(struct ArrayObj *array, u32 start, u32 len);
 struct Cons *obj_create_cons();

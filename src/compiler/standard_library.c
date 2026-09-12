@@ -147,6 +147,8 @@ mod = {\n\
                       then ()\n\
                       else (index 0 s) :: unpack (drop 1 s);\n\
 \n\
+        from_list = super..list..foldr cons empty;\n\
+\n\
         f_while f p s = use std..slice { len; index } in let\n\
             in_bound i = i >= 0 and i < len s;\n\
             count i = if in_bound i and p (index i s) then count (i + 1) else i;\n\
@@ -227,6 +229,9 @@ mod _io = {\n\
     stderr = @std_builtin(stderr);\n\
     stream_err stream = @std_builtin(stream_err);\n\
 \n\
+    open_file file mode = @std_builtin(open);\n\
+    close_file file = @std_builtin(close);\n\
+\n\
     set_exception_reg e = @std_builtin(set_exception_reg);\n\
     get_exception_reg x = @std_builtin(get_exception_reg);\n\
     clear_exception_reg x = @std_builtin(clear_exception_reg);\n\
@@ -265,22 +270,72 @@ mod _io = {\n\
 \n\
     write file val = @std_builtin(write);\n\
 \n\
+    stream_errors err f file = use IO..monad { `>>=`; return }\n\
+        in f file >>= fun x ->\n\
+            if stream_err file\n\
+                then throw err\n\
+                else return x;\n\
+\n\
+    mod file = {\n\
+        use super..super { mod slice };\n\
+\n\
+        mod FileMode = type {\n\
+            with Read;\n\
+            with Write;\n\
+            with Append;\n\
+            with ReadWrite;\n\
+        };\n\
+        file_mode_as_int mode = case mode of\n\
+            | FileMode..Read      -> 0\n\
+            | FileMode..Write     -> 1\n\
+            | FileMode..Append    -> 2\n\
+            | FileMode..ReadWrite -> 3;\n\
+        \n\
+        as_path path = case path of\n\
+            | _ :: _ -> slice..from_list path\n\
+            | x      -> x;\n\
+\n\
+        open_file p mode = let\n\
+            path = as_path p;\n\
+            err = slice..join \"error opening file '\" (slice..push path '\'');\n\
+            file = super..open_file (slice..push path '\0') (file_mode_as_int mode);\n\
+            in case file of\n\
+                | () -> super..throw err\n\
+                | f  -> super..IO..return f;\n\
+\n\
+        close_file = super..IO..return . super..close_file;\n\
+        with_file p mode f = use super..IO..monad { `>>=`; `>>`; return }\n\
+            in open_file p mode\n\
+                >>= fun file -> f file\n\
+                >>= fun x -> close_file file\n\
+                >> return x;\n\
+    };\n\
+\n\
     mod io = {\n\
         mod functor = super..IO..functor;\n\
         mod applicative = super..IO..applicative;\n\
         mod monad = super..IO..monad;\n\
 \n\
+        mod file = {\n\
+            mod FileMode = super..super..file..FileMode;\n\
+\n\
+            with_file = super..super..file..with_file;\n\
+            read_file path = with_file path FileMode..Read super..read_file_contents;\n\
+            write contents path = with_file path FileMode..Write (super..super..super..flip super..write contents);\n\
+        };\n\
+\n\
         stdin = super..stdin;\n\
         stdout = super..stdout;\n\
         stderr = super..stderr;\n\
 \n\
-        write file val = monad..return (super..write file val);\n\
+        write file val = super..stream_errors \"error writing to file\"\n\
+            (monad..return . super..super..flip super..write val) file;\n\
         writeln file val = use monad { `>>` } in write file val >> write file '\n';\n\
         print = write stdout;\n\
         println = writeln stdout;\n\
 \n\
-        read_file_contents = monad..return . super..read_file_contents;\n\
-        read_line = monad..return . super..read_line;\n\
+        read_file_contents = super..stream_errors \"error reading contents\" (monad..return . super..read_file_contents);\n\
+        read_line = super..stream_errors \"error reading line\" (monad..return . super..read_line);\n\
 \n\
         throw = super..throw;\n\
         catch = super..IO..catch;\n\

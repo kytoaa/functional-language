@@ -237,6 +237,18 @@ struct RuntimeType *obj_create_runtime_type(u16 type_info)
     return type;
 }
 
+struct FileHandleObj *obj_create_file_handle(FILE *file)
+{
+    const u32 size = sizeof(struct FileHandleObj);
+    struct FileHandleObj *f = (struct FileHandleObj*)alloc_obj(size);
+
+    f->obj.type = OBJ_FILE_HANDLE;
+    f->obj.flags.is_whnf = true;
+    f->file = file;
+
+    return f;
+}
+
 struct Box **obj_dyn_fields(struct Obj *obj)
 {
     switch (obj->type) {

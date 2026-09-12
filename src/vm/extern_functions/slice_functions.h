@@ -1,6 +1,8 @@
 #ifndef func_lang_vm_extern_functions_slice_functions_h
 #define func_lang_vm_extern_functions_slice_functions_h
 
+#include "../../object.h"
+
 void extern_func_slice_empty();
 void extern_func_slice_drop();
 void extern_func_slice_take();
@@ -9,5 +11,7 @@ void extern_func_slice_len();
 void extern_func_slice_join();
 void extern_func_slice_cons();
 void extern_func_slice_push();
+
+bool slice_equal(Val a, Val b);
 
 #endif
