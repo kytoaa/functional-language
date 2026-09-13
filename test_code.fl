@@ -6,10 +6,13 @@ use std..char { is_whitespace };
 main = use io..monad { `>>=`; `>>`; return } in
        use io..applicative { `<*>` } in
        let `<&>` = flip io..functor..fmap;
+       handle_err e = case e of
+           | Result..Err e -> io..print "error: " >> io..println e
+           | Result..Ok x  -> io..println x;
     in io..read_line io..stdin
         <&> trim_string
         >>= fun input -> if input == "r"
-            then io..file..read_file "./test.txt" >>= io..println
+            then io..try (io..file..read_file "./test.txt" >>= io..println) >>= handle_err
             else io..file..write input "./test.txt";
 
 trim_string = drop_while_back is_whitespace . drop_while is_whitespace;

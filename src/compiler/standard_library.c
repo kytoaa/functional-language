@@ -247,6 +247,10 @@ mod _io = {\n\
         | Exception..E e -> e\n\
         | otherwise      -> \"exception\");\n\
 \n\
+    try x = IO..catch\n\
+        (IO..map super..Result..Ok x)\n\
+        (IO..return . super..Result..Err);\n\
+\n\
     seq a b = case $ a of | _ -> b;\n\
     strict_pair p = case p of\n\
         | a :: b -> case $ a of\n\
@@ -339,6 +343,7 @@ mod _io = {\n\
 \n\
         throw = super..throw;\n\
         catch = super..IO..catch;\n\
+        try = super..try;\n\
     };\n\
 };\n\
 \n\
